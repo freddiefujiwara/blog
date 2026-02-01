@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { marked } from 'marked';
 import { resolveArticleId, buildNavigationLinks } from './articleNavigation';
 
@@ -60,6 +60,19 @@ const fetchArticle = async (id) => {
   }
 };
 
+const loadArticleFromLocation = async () => {
+  const ids = await fetchArticleList();
+  const articleId = resolveArticleId(ids, {
+    path: window.location.pathname,
+    search: window.location.search,
+    hash: window.location.hash
+  });
+  if (!articleId) {
+    throw new Error('最新記事が見つかりませんでした。');
+  }
+  await fetchArticle(articleId);
+};
+
 const fetchArticleList = async () => {
   const listResponse = await fetch(listEndpoint);
   if (!listResponse.ok) {
@@ -73,20 +86,25 @@ const fetchArticleList = async () => {
   return ids;
 };
 
-onMounted(async () => {
+const handleHashChange = async () => {
   try {
-    const ids = await fetchArticleList();
-    const articleId = resolveArticleId(ids, {
-      path: window.location.pathname,
-      search: window.location.search,
-      hash: window.location.hash
-    });
-    if (!articleId) {
-      throw new Error('最新記事が見つかりませんでした。');
-    }
-    await fetchArticle(articleId);
+    await loadArticleFromLocation();
   } catch (error) {
     errorMessage.value = error?.message ?? '読み込みに失敗しました。';
   }
+};
+
+onMounted(async () => {
+  try {
+    await loadArticleFromLocation();
+  } catch (error) {
+    errorMessage.value = error?.message ?? '読み込みに失敗しました。';
+  }
+
+  window.addEventListener('hashchange', handleHashChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', handleHashChange);
 });
 </script>

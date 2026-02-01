@@ -73,5 +73,25 @@ describe('App', () => {
     expect(topLinks[1].attributes('href')).toBe('/blog/#last-id');
     expect(bottomLinks[0].attributes('href')).toBe('/blog/#first-id');
     expect(bottomLinks[1].attributes('href')).toBe('/blog/#last-id');
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(['first-id', 'middle-id', 'last-id'])
+    });
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          id: 'last-id',
+          title: '最後の記事',
+          markdown: '更新本文です。'
+        })
+    });
+
+    window.history.pushState({}, '', '/blog/#last-id');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('最後の記事');
   });
 });
