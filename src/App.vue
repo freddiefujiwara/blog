@@ -55,25 +55,22 @@ const fetchArticle = async (id) => {
   const data = await articleResponse.json();
   article.value = data;
   currentId.value = id;
+  errorMessage.value = '';
   if (data?.title) {
     document.title = data.title;
   }
 };
 
-const loadArticleFromLocation = async () => {
-  const ids = await fetchArticleList();
-  const articleId = resolveArticleId(ids, {
-    path: window.location.pathname,
-    search: window.location.search,
-    hash: window.location.hash
-  });
-  if (!articleId) {
-    throw new Error('最新記事が見つかりませんでした。');
-  }
-  await fetchArticle(articleId);
-};
+const getLocationContext = () => ({
+  path: window.location.pathname,
+  search: window.location.search,
+  hash: window.location.hash
+});
 
 const fetchArticleList = async () => {
+  if (articleIds.value.length > 0) {
+    return articleIds.value;
+  }
   const listResponse = await fetch(listEndpoint);
   if (!listResponse.ok) {
     throw new Error('記事一覧の取得に失敗しました。');
@@ -84,6 +81,18 @@ const fetchArticleList = async () => {
   }
   articleIds.value = ids;
   return ids;
+};
+
+const loadArticleFromLocation = async () => {
+  const ids = await fetchArticleList();
+  const articleId = resolveArticleId(ids, getLocationContext());
+  if (!articleId) {
+    throw new Error('最新記事が見つかりませんでした。');
+  }
+  if (articleId === currentId.value && article.value) {
+    return;
+  }
+  await fetchArticle(articleId);
 };
 
 const handleHashChange = async () => {

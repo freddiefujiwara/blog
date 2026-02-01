@@ -76,10 +76,6 @@ describe('App', () => {
 
     fetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve(['first-id', 'middle-id', 'last-id'])
-    });
-    fetch.mockResolvedValueOnce({
-      ok: true,
       json: () =>
         Promise.resolve({
           id: 'last-id',
@@ -93,5 +89,63 @@ describe('App', () => {
     await flushPromises();
 
     expect(wrapper.find('h1').text()).toBe('最後の記事');
+  });
+
+  it('shows only the next link when the first article is selected', async () => {
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(['first-id', 'second-id'])
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'first-id',
+            title: '先頭の記事',
+            markdown: '本文です。'
+          })
+      });
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const navs = wrapper.findAll('.navigation');
+    expect(navs).toHaveLength(2);
+    navs.forEach((nav) => {
+      const links = nav.findAll('a');
+      expect(links).toHaveLength(1);
+      expect(links[0].attributes('href')).toBe('/blog/#second-id');
+    });
+  });
+
+  it('shows only the previous link when the last article is selected', async () => {
+    window.history.pushState({}, '', '/blog/#last-id');
+
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(['first-id', 'last-id'])
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'last-id',
+            title: '最後の記事',
+            markdown: '本文です。'
+          })
+      });
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const navs = wrapper.findAll('.navigation');
+    expect(navs).toHaveLength(2);
+    navs.forEach((nav) => {
+      const links = nav.findAll('a');
+      expect(links).toHaveLength(1);
+      expect(links[0].attributes('href')).toBe('/blog/#first-id');
+    });
   });
 });

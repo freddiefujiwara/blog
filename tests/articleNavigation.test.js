@@ -18,6 +18,16 @@ describe('articleNavigation helpers', () => {
     ).toBe('b');
   });
 
+  it('prefers hash over path and search', () => {
+    expect(
+      resolveArticleId(['a', 'b', 'c'], {
+        path: '/blog/b',
+        search: '?id=a',
+        hash: '#c'
+      })
+    ).toBe('c');
+  });
+
   it('returns requested id when it exists in the hash', () => {
     expect(
       resolveArticleId(['a', 'b'], { path: '/blog', search: '', hash: '#b' })
@@ -34,6 +44,12 @@ describe('articleNavigation helpers', () => {
     const links = buildNavigationLinks(['first', 'middle', 'last'], 'middle');
     expect(links.prevLink).toBe('/blog/#first');
     expect(links.nextLink).toBe('/blog/#last');
+  });
+
+  it('supports custom base paths for navigation links', () => {
+    const links = buildNavigationLinks(['a', 'b'], 'a', '/blog/');
+    expect(links.prevLink).toBe('');
+    expect(links.nextLink).toBe('/blog/#b');
   });
 
   it('returns only next link for the first item', () => {
