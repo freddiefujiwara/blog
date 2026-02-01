@@ -5,7 +5,7 @@ import App from '../src/App.vue';
 describe('App', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
-    window.history.pushState({}, '', '/');
+    window.history.pushState({}, '', '/blog');
   });
 
   afterEach(() => {
@@ -39,8 +39,8 @@ describe('App', () => {
     );
   });
 
-  it('uses the id query parameter when it exists in the list', async () => {
-    window.history.pushState({}, '', '/?id=middle-id');
+  it('uses the path parameter when it exists in the list', async () => {
+    window.history.pushState({}, '', '/blog/middle-id');
 
     fetch
       .mockResolvedValueOnce({
@@ -62,7 +62,7 @@ describe('App', () => {
 
     const links = wrapper.findAll('.navigation a');
     expect(links).toHaveLength(2);
-    expect(links[0].attributes('href')).toContain('id=first-id');
-    expect(links[1].attributes('href')).toContain('id=last-id');
+    expect(links[0].attributes('href')).toBe('/blog/first-id');
+    expect(links[1].attributes('href')).toBe('/blog/last-id');
   });
 });

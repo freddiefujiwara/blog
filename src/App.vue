@@ -35,7 +35,7 @@ const articleHtml = computed(() => {
 });
 
 const navigationLinks = computed(() =>
-  buildNavigationLinks(articleIds.value, currentId.value, listEndpoint)
+  buildNavigationLinks(articleIds.value, currentId.value)
 );
 
 const prevLink = computed(() => navigationLinks.value.prevLink);
@@ -71,7 +71,10 @@ const fetchArticleList = async () => {
 onMounted(async () => {
   try {
     const ids = await fetchArticleList();
-    const articleId = resolveArticleId(ids, window.location.search);
+    const articleId = resolveArticleId(ids, {
+      path: window.location.pathname,
+      search: window.location.search
+    });
     if (!articleId) {
       throw new Error('最新記事が見つかりませんでした。');
     }
