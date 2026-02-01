@@ -92,6 +92,8 @@ const loadArticleFromLocation = async () => {
   if (articleId === currentId.value && article.value) {
     return;
   }
+  article.value = null;
+  errorMessage.value = '';
   await fetchArticle(articleId);
 };
 

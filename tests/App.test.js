@@ -91,6 +91,51 @@ describe('App', () => {
     expect(wrapper.find('h1').text()).toBe('最後の記事');
   });
 
+  it('shows loading text while fetching a new article on hash change', async () => {
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(['first-id', 'last-id'])
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'first-id',
+            title: '先頭の記事',
+            markdown: '本文です。'
+          })
+      });
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    let resolveArticle;
+    const articlePromise = new Promise((resolve) => {
+      resolveArticle = resolve;
+    });
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => articlePromise
+    });
+
+    window.location.hash = '#last-id';
+    window.dispatchEvent(new Event('hashchange'));
+    await flushPromises();
+
+    expect(wrapper.find('.status').text()).toBe('読み込み中...');
+
+    resolveArticle({
+      id: 'last-id',
+      title: '最後の記事',
+      markdown: '更新本文です。'
+    });
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('最後の記事');
+  });
+
   it('shows only the next link when the first article is selected', async () => {
     fetch
       .mockResolvedValueOnce({
