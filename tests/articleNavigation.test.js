@@ -32,12 +32,20 @@ describe('articleNavigation helpers', () => {
     expect(
       resolveArticleId(['a', 'b'], { path: '/blog', search: '', hash: '#b' })
     ).toBe('b');
+    expect(
+      resolveArticleId(['a', 'b'], { path: '/blog', search: '', hash: 'b' })
+    ).toBe('b');
   });
 
   it('returns requested id when it exists in the path', () => {
     expect(
       resolveArticleId(['a', 'b'], { path: '/blog/b', search: '', hash: '' })
     ).toBe('b');
+  });
+
+  it('returns empty string if ids is empty or not an array', () => {
+    expect(resolveArticleId([], { path: '/blog', search: '', hash: '' })).toBe('');
+    expect(resolveArticleId(null, { path: '/blog', search: '', hash: '' })).toBe('');
   });
 
   it('builds previous and next links', () => {
@@ -56,5 +64,22 @@ describe('articleNavigation helpers', () => {
     const links = buildNavigationLinks(['first', 'second'], 'first');
     expect(links.prevLink).toBe('');
     expect(links.nextLink).toBe('/blog/#second');
+  });
+
+  it('returns empty links if ids is empty or not an array', () => {
+    expect(buildNavigationLinks([], 'a')).toEqual({ prevLink: '', nextLink: '' });
+    expect(buildNavigationLinks(null, 'a')).toEqual({ prevLink: '', nextLink: '' });
+  });
+
+  it('returns empty links if currentId is not in list', () => {
+    expect(buildNavigationLinks(['a', 'b'], 'c')).toEqual({ prevLink: '', nextLink: '' });
+  });
+
+  it('handles empty basePath and leading/trailing slashes', () => {
+    const links = buildNavigationLinks(['a', 'b'], 'a', '');
+    expect(links.nextLink).toBe('/blog/#b');
+
+    const links2 = buildNavigationLinks(['a', 'b'], 'a', '///');
+    expect(links2.nextLink).toBe('/blog/#b');
   });
 });
