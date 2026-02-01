@@ -45,7 +45,9 @@ const navigationLinks = computed(() =>
 
 const prevLink = computed(() => navigationLinks.value.prevLink);
 const nextLink = computed(() => navigationLinks.value.nextLink);
-const hasNavigation = computed(() => Boolean(prevLink.value || nextLink.value));
+const hasNavigation = computed(
+  () => Boolean(article.value && (prevLink.value || nextLink.value))
+);
 
 const fetchArticle = async (id) => {
   const articleResponse = await fetch(`${listEndpoint}?id=${id}`);

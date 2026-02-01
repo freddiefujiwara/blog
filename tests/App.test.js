@@ -125,6 +125,7 @@ describe('App', () => {
     await flushPromises();
 
     expect(wrapper.find('.status').text()).toBe('読み込み中...');
+    expect(wrapper.findAll('.navigation')).toHaveLength(0);
 
     resolveArticle({
       id: 'last-id',
