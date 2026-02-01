@@ -3,6 +3,10 @@
     <p class="site-title">ミニマリストのブログ</p>
     <h1 v-if="article">{{ article.title }}</h1>
     <p v-else class="status">読み込み中...</p>
+    <nav v-if="hasNavigation" class="navigation navigation-top">
+      <a v-if="prevLink" :href="prevLink">前の記事</a>
+      <a v-if="nextLink" :href="nextLink">次の記事</a>
+    </nav>
     <article v-if="article" v-html="articleHtml"></article>
     <p v-if="errorMessage" class="status">{{ errorMessage }}</p>
     <nav v-if="hasNavigation" class="navigation">

@@ -61,9 +61,17 @@ describe('App', () => {
     const wrapper = mount(App);
     await flushPromises();
 
-    const links = wrapper.findAll('.navigation a');
-    expect(links).toHaveLength(2);
-    expect(links[0].attributes('href')).toBe('/blog/#first-id');
-    expect(links[1].attributes('href')).toBe('/blog/#last-id');
+    const navs = wrapper.findAll('.navigation');
+    expect(navs).toHaveLength(2);
+
+    const topLinks = navs[0].findAll('a');
+    const bottomLinks = navs[1].findAll('a');
+
+    expect(topLinks).toHaveLength(2);
+    expect(bottomLinks).toHaveLength(2);
+    expect(topLinks[0].attributes('href')).toBe('/blog/#first-id');
+    expect(topLinks[1].attributes('href')).toBe('/blog/#last-id');
+    expect(bottomLinks[0].attributes('href')).toBe('/blog/#first-id');
+    expect(bottomLinks[1].attributes('href')).toBe('/blog/#last-id');
   });
 });

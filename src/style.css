@@ -72,6 +72,12 @@ article :where(a) {
   border-top: 1px solid #262a33;
 }
 
+.navigation-top {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #1d2027;
+}
+
 .navigation a {
   color: #8ab4ff;
   text-decoration: none;
