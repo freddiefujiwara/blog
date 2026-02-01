@@ -2,6 +2,8 @@
 
 This project is a small web app that shows blog posts.
 It loads post data from a Google Apps Script endpoint and renders the markdown in the browser.
+The backend source code is available here: [https://github.com/freddiefujiwara/blog-gas](https://github.com/freddiefujiwara/blog-gas)
+
 The page lets you move to the previous or next post and keeps the current post in the URL hash.
 
 You can visit the blog home here: [https://freddiefujiwara.com/blog/](https://freddiefujiwara.com/blog/)
