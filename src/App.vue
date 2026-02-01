@@ -1,21 +1,36 @@
 <template>
   <main>
+    <p class="site-title">ミニマリストのブログ</p>
     <h1 v-if="article">{{ article.title }}</h1>
     <p v-else class="status">読み込み中...</p>
+    <nav v-if="hasNavigation" class="navigation navigation-top">
+      <a v-if="prevLink" :href="prevLink">前の記事</a>
+      <a v-if="nextLink" :href="nextLink">次の記事</a>
+    </nav>
     <article v-if="article" v-html="articleHtml"></article>
     <p v-if="errorMessage" class="status">{{ errorMessage }}</p>
+    <nav v-if="hasNavigation" class="navigation">
+      <a v-if="prevLink" :href="prevLink">前の記事</a>
+      <a v-if="nextLink" :href="nextLink">次の記事</a>
+    </nav>
+    <div v-if="article" class="footer-link">
+      <a href="https://freddiefujiwara.com/blog/">トップページへ戻る</a>
+    </div>
   </main>
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { marked } from 'marked';
+import { resolveArticleId, buildNavigationLinks } from './articleNavigation';
 
 const listEndpoint =
   'https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec';
 
 const article = ref(null);
+const articleIds = ref([]);
 const errorMessage = ref('');
+const currentId = ref('');
 
 const articleHtml = computed(() => {
   if (!article.value) {
@@ -24,33 +39,85 @@ const articleHtml = computed(() => {
   return marked.parse(article.value.markdown ?? '');
 });
 
-const fetchLatestArticle = async () => {
-  const listResponse = await fetch(listEndpoint);
-  if (!listResponse.ok) {
-    throw new Error('記事一覧の取得に失敗しました。');
-  }
-  const ids = await listResponse.json();
-  const latestId = ids[0];
-  if (!latestId) {
-    throw new Error('最新記事が見つかりませんでした。');
-  }
+const navigationLinks = computed(() =>
+  buildNavigationLinks(articleIds.value, currentId.value)
+);
 
-  const articleResponse = await fetch(`${listEndpoint}?id=${latestId}`);
+const prevLink = computed(() => navigationLinks.value.prevLink);
+const nextLink = computed(() => navigationLinks.value.nextLink);
+const hasNavigation = computed(
+  () => Boolean(article.value && (prevLink.value || nextLink.value))
+);
+
+const fetchArticle = async (id) => {
+  const articleResponse = await fetch(`${listEndpoint}?id=${id}`);
   if (!articleResponse.ok) {
     throw new Error('記事の取得に失敗しました。');
   }
   const data = await articleResponse.json();
   article.value = data;
+  currentId.value = id;
+  errorMessage.value = '';
   if (data?.title) {
     document.title = data.title;
   }
 };
 
-onMounted(async () => {
+const getLocationContext = () => ({
+  path: window.location.pathname,
+  search: window.location.search,
+  hash: window.location.hash
+});
+
+const fetchArticleList = async () => {
+  if (articleIds.value.length > 0) {
+    return articleIds.value;
+  }
+  const listResponse = await fetch(listEndpoint);
+  if (!listResponse.ok) {
+    throw new Error('記事一覧の取得に失敗しました。');
+  }
+  const ids = await listResponse.json();
+  if (!ids?.length) {
+    throw new Error('最新記事が見つかりませんでした。');
+  }
+  articleIds.value = ids;
+  return ids;
+};
+
+const loadArticleFromLocation = async () => {
+  const ids = await fetchArticleList();
+  const articleId = resolveArticleId(ids, getLocationContext());
+  if (!articleId) {
+    throw new Error('最新記事が見つかりませんでした。');
+  }
+  if (articleId === currentId.value && article.value) {
+    return;
+  }
+  article.value = null;
+  errorMessage.value = '';
+  await fetchArticle(articleId);
+};
+
+const handleHashChange = async () => {
   try {
-    await fetchLatestArticle();
+    await loadArticleFromLocation();
   } catch (error) {
     errorMessage.value = error?.message ?? '読み込みに失敗しました。';
   }
+};
+
+onMounted(async () => {
+  try {
+    await loadArticleFromLocation();
+  } catch (error) {
+    errorMessage.value = error?.message ?? '読み込みに失敗しました。';
+  }
+
+  window.addEventListener('hashchange', handleHashChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', handleHashChange);
 });
 </script>
