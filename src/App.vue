@@ -1,5 +1,6 @@
 <template>
   <main>
+    <p class="site-title">ミニマリストのブログ</p>
     <h1 v-if="article">{{ article.title }}</h1>
     <p v-else class="status">読み込み中...</p>
     <article v-if="article" v-html="articleHtml"></article>

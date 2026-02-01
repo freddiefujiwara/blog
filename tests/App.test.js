@@ -31,6 +31,7 @@ describe('App', () => {
     const wrapper = mount(App);
     await flushPromises();
 
+    expect(wrapper.find('.site-title').text()).toBe('ミニマリストのブログ');
     expect(wrapper.find('h1').text()).toBe('最新記事');
     expect(wrapper.find('article').html()).toContain('本文です。');
     expect(document.title).toBe('最新記事');

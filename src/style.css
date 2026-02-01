@@ -23,6 +23,14 @@ main {
   padding: 48px 24px 80px;
 }
 
+.site-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin: 0 0 16px;
+  color: #c7c9d1;
+}
+
 h1 {
   font-size: 1.75rem;
   font-weight: 600;
@@ -95,6 +103,10 @@ article :where(a) {
 
   h1 {
     font-size: 1.5rem;
+  }
+
+  .site-title {
+    font-size: 0.95rem;
   }
 
   .navigation {
