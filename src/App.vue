@@ -8,12 +8,16 @@
       <a v-if="prevLink" :href="prevLink">前の記事</a>
       <a v-if="nextLink" :href="nextLink">次の記事</a>
     </nav>
+    <div v-if="article" class="footer-link">
+      <a href="https://freddiefujiwara.com/blog/">トップページへ戻る</a>
+    </div>
   </main>
 </template>
 
 <script setup>
 import { onMounted, ref, computed } from 'vue';
 import { marked } from 'marked';
+import { resolveArticleId, buildNavigationLinks } from './articleNavigation';
 
 const listEndpoint =
   'https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec';
@@ -30,42 +34,13 @@ const articleHtml = computed(() => {
   return marked.parse(article.value.markdown ?? '');
 });
 
-const currentIndex = computed(() => {
-  if (!currentId.value) {
-    return -1;
-  }
-  return articleIds.value.indexOf(currentId.value);
-});
+const navigationLinks = computed(() =>
+  buildNavigationLinks(articleIds.value, currentId.value, listEndpoint)
+);
 
-const prevLink = computed(() => {
-  if (currentIndex.value > 0) {
-    const prevId = articleIds.value[currentIndex.value - 1];
-    return `${listEndpoint}?id=${prevId}`;
-  }
-  return '';
-});
-
-const nextLink = computed(() => {
-  if (
-    currentIndex.value !== -1 &&
-    currentIndex.value < articleIds.value.length - 1
-  ) {
-    const nextId = articleIds.value[currentIndex.value + 1];
-    return `${listEndpoint}?id=${nextId}`;
-  }
-  return '';
-});
-
+const prevLink = computed(() => navigationLinks.value.prevLink);
+const nextLink = computed(() => navigationLinks.value.nextLink);
 const hasNavigation = computed(() => Boolean(prevLink.value || nextLink.value));
-
-const resolveArticleId = (ids) => {
-  const params = new URLSearchParams(window.location.search);
-  const requestedId = params.get('id');
-  if (requestedId && ids.includes(requestedId)) {
-    return requestedId;
-  }
-  return ids[0];
-};
 
 const fetchArticle = async (id) => {
   const articleResponse = await fetch(`${listEndpoint}?id=${id}`);
@@ -96,7 +71,7 @@ const fetchArticleList = async () => {
 onMounted(async () => {
   try {
     const ids = await fetchArticleList();
-    const articleId = resolveArticleId(ids);
+    const articleId = resolveArticleId(ids, window.location.search);
     if (!articleId) {
       throw new Error('最新記事が見つかりませんでした。');
     }

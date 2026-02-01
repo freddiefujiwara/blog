@@ -5,6 +5,7 @@ import App from '../src/App.vue';
 describe('App', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    window.history.pushState({}, '', '/');
   });
 
   afterEach(() => {
@@ -33,5 +34,35 @@ describe('App', () => {
     expect(wrapper.find('h1').text()).toBe('最新記事');
     expect(wrapper.find('article').html()).toContain('本文です。');
     expect(document.title).toBe('最新記事');
+    expect(wrapper.find('.footer-link a').attributes('href')).toBe(
+      'https://freddiefujiwara.com/blog/'
+    );
+  });
+
+  it('uses the id query parameter when it exists in the list', async () => {
+    window.history.pushState({}, '', '/?id=middle-id');
+
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(['first-id', 'middle-id', 'last-id'])
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'middle-id',
+            title: '中間記事',
+            markdown: '本文です。'
+          })
+      });
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const links = wrapper.findAll('.navigation a');
+    expect(links).toHaveLength(2);
+    expect(links[0].attributes('href')).toContain('id=first-id');
+    expect(links[1].attributes('href')).toContain('id=last-id');
   });
 });
