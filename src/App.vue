@@ -74,7 +74,8 @@ onMounted(async () => {
     const ids = await fetchArticleList();
     const articleId = resolveArticleId(ids, {
       path: window.location.pathname,
-      search: window.location.search
+      search: window.location.search,
+      hash: window.location.hash
     });
     if (!articleId) {
       throw new Error('最新記事が見つかりませんでした。');

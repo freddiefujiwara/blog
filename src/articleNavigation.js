@@ -5,10 +5,22 @@ const normalizePath = (path) => {
   return path.replace(/\/+$/, '');
 };
 
-export const resolveArticleId = (ids, { path, search }) => {
+const normalizeHash = (hash) => {
+  if (!hash) {
+    return '';
+  }
+  return hash.startsWith('#') ? hash.slice(1) : hash;
+};
+
+export const resolveArticleId = (ids, { path, search, hash }) => {
   if (!Array.isArray(ids) || ids.length === 0) {
     return '';
   }
+  const normalizedHash = normalizeHash(hash);
+  if (normalizedHash && ids.includes(normalizedHash)) {
+    return normalizedHash;
+  }
+
   const normalizedPath = normalizePath(path);
   const pathMatch = normalizedPath.match(/\/blog\/(.+)$/);
   if (pathMatch && ids.includes(pathMatch[1])) {
@@ -36,7 +48,7 @@ export const buildNavigationLinks = (ids, currentId, basePath = '/blog') => {
     currentIndex < ids.length - 1 ? ids[currentIndex + 1] : '';
   const normalizedBase = normalizePath(basePath) || '/blog';
   return {
-    prevLink: prevId ? `${normalizedBase}/${prevId}` : '',
-    nextLink: nextId ? `${normalizedBase}/${nextId}` : ''
+    prevLink: prevId ? `${normalizedBase}/#${prevId}` : '',
+    nextLink: nextId ? `${normalizedBase}/#${nextId}` : ''
   };
 };
