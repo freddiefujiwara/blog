@@ -88,8 +88,8 @@ describe('App', () => {
         })
     });
 
-    window.history.pushState({}, '', '/blog/#last-id');
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    window.location.hash = '#last-id';
+    window.dispatchEvent(new Event('hashchange'));
     await flushPromises();
 
     expect(wrapper.find('h1').text()).toBe('最後の記事');
