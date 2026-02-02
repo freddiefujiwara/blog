@@ -9,6 +9,7 @@ export function useBlog() {
   const errorMessage = ref('');
   const currentId = ref('');
   const loading = ref(false);
+  const articleCache = ref({});
 
   const articleHtml = computed(() => {
     if (!article.value) {
@@ -25,6 +26,16 @@ export function useBlog() {
   const nextLink = computed(() => navigationLinks.value.nextLink);
 
   const getArticle = async (id) => {
+    if (articleCache.value[id]) {
+      article.value = articleCache.value[id];
+      currentId.value = id;
+      errorMessage.value = '';
+      if (article.value?.title) {
+        document.title = article.value.title;
+      }
+      return;
+    }
+
     try {
       const data = await fetchArticle(id);
       article.value = data;
@@ -48,9 +59,14 @@ export function useBlog() {
     if (articleIds.value.length > 0) {
       return articleIds.value;
     }
-    const ids = await fetchArticleList();
-    articleIds.value = ids;
-    return ids;
+    const data = await fetchArticleList();
+    articleIds.value = data.ids;
+    if (data.article_cache) {
+      data.article_cache.forEach((item) => {
+        articleCache.value[item.id] = item;
+      });
+    }
+    return data.ids;
   };
 
   const loadArticleFromLocation = async () => {

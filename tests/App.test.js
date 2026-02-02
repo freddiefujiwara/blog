@@ -16,7 +16,7 @@ describe('App', () => {
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(['latest-id'])
+        json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -46,7 +46,11 @@ describe('App', () => {
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(['first-id', 'middle-id', 'last-id'])
+        json: () =>
+          Promise.resolve({
+            ids: ['first-id', 'middle-id', 'last-id'],
+            article_cache: []
+          })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -95,7 +99,8 @@ describe('App', () => {
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(['first-id', 'last-id'])
+        json: () =>
+          Promise.resolve({ ids: ['first-id', 'last-id'], article_cache: [] })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -141,7 +146,8 @@ describe('App', () => {
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(['first-id', 'second-id'])
+        json: () =>
+          Promise.resolve({ ids: ['first-id', 'second-id'], article_cache: [] })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -171,7 +177,8 @@ describe('App', () => {
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(['first-id', 'last-id'])
+        json: () =>
+          Promise.resolve({ ids: ['first-id', 'last-id'], article_cache: [] })
       })
       .mockResolvedValueOnce({
         ok: true,

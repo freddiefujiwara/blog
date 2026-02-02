@@ -14,9 +14,9 @@ export const fetchArticleList = async () => {
   if (!listResponse.ok) {
     throw new Error('記事一覧の取得に失敗しました。');
   }
-  const ids = await listResponse.json();
-  if (!ids?.length) {
+  const data = await listResponse.json();
+  if (!data?.ids?.length) {
     throw new Error('最新記事が見つかりませんでした。');
   }
-  return ids;
+  return data;
 };

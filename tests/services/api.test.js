@@ -35,15 +35,18 @@ describe('api service', () => {
 
   describe('fetchArticleList', () => {
     it('fetches article list successfully', async () => {
-      const mockIds = ['1', '2'];
+      const mockResponse = {
+        ids: ['1', '2'],
+        article_cache: [{ id: '1', title: 'T1', markdown: 'M1' }]
+      };
       fetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockIds)
+        json: () => Promise.resolve(mockResponse)
       });
 
       const result = await fetchArticleList();
       expect(fetch).toHaveBeenCalledWith(LIST_ENDPOINT);
-      expect(result).toEqual(mockIds);
+      expect(result).toEqual(mockResponse);
     });
 
     it('throws error when response is not ok', async () => {
@@ -54,22 +57,22 @@ describe('api service', () => {
       await expect(fetchArticleList()).rejects.toThrow('記事一覧の取得に失敗しました。');
     });
 
-    it('throws error when list is empty', async () => {
+    it('throws error when ids is empty', async () => {
       fetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve([])
+        json: () => Promise.resolve({ ids: [], article_cache: [] })
       });
 
       await expect(fetchArticleList()).rejects.toThrow('最新記事が見つかりませんでした。');
     });
 
-    it('throws error when list is null', async () => {
-        fetch.mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(null)
-        });
-
-        await expect(fetchArticleList()).rejects.toThrow('最新記事が見つかりませんでした。');
+    it('throws error when data is null', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(null)
       });
+
+      await expect(fetchArticleList()).rejects.toThrow('最新記事が見つかりませんでした。');
+    });
   });
 });
