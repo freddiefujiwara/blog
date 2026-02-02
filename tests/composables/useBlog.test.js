@@ -36,7 +36,7 @@ describe('useBlog composable', () => {
   });
 
   it('loads article on mount', async () => {
-    api.fetchArticleList.mockResolvedValue(['1', '2']);
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
 
     wrapper = mount(TestComponent);
@@ -59,7 +59,7 @@ describe('useBlog composable', () => {
   });
 
   it('handles hashchange', async () => {
-    api.fetchArticleList.mockResolvedValue(['1', '2']);
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
     wrapper = mount(TestComponent);
@@ -78,7 +78,7 @@ describe('useBlog composable', () => {
   });
 
   it('handles error on hashchange', async () => {
-    api.fetchArticleList.mockResolvedValue(['1', '2']);
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
     wrapper = mount(TestComponent);
@@ -94,7 +94,7 @@ describe('useBlog composable', () => {
   });
 
   it('handles error without message on hashchange', async () => {
-    api.fetchArticleList.mockResolvedValue(['1', '2']);
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
     wrapper = mount(TestComponent);
@@ -110,7 +110,7 @@ describe('useBlog composable', () => {
   });
 
   it('handles case where no article id is resolved', async () => {
-    api.fetchArticleList.mockResolvedValue([]); // Empty list
+    api.fetchArticleList.mockResolvedValue({ ids: [], article_cache: [] }); // Empty list
 
     wrapper = mount(TestComponent);
     await flushPromises();
@@ -119,7 +119,7 @@ describe('useBlog composable', () => {
   });
 
   it('does not reload if same article id', async () => {
-    api.fetchArticleList.mockResolvedValue(['1', '2']);
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
     wrapper = mount(TestComponent);
@@ -130,5 +130,78 @@ describe('useBlog composable', () => {
     await flushPromises();
     // Should still be 1 because currentId is same
     expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses article_cache if available', async () => {
+    const cachedArticle = { id: '1', title: 'Cached Title', markdown: 'Cached Content' };
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2'],
+      article_cache: [cachedArticle]
+    });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.article.title).toBe('Cached Title');
+    expect(api.fetchArticle).not.toHaveBeenCalled();
+    expect(document.title).toBe('Cached Title');
+  });
+
+  it('populates cache and uses it on hashchange', async () => {
+    const cachedArticle2 = { id: '2', title: 'Cached Title 2', markdown: 'Cached Content 2' };
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2'],
+      article_cache: [cachedArticle2] // Preload article 2
+    });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('1');
+    expect(api.fetchArticle).toHaveBeenCalledWith('1');
+
+    // Change to article 2
+    vi.stubGlobal('location', { ...window.location, hash: '#2' });
+    window.dispatchEvent(new Event('hashchange'));
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('2');
+    expect(wrapper.vm.article.title).toBe('Cached Title 2');
+    // fetchArticle should NOT have been called for '2'
+    expect(api.fetchArticle).not.toHaveBeenCalledWith('2');
+  });
+
+  it('handles article_cache being null or missing', async () => {
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2']
+      // article_cache missing
+    });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('1');
+    expect(api.fetchArticle).toHaveBeenCalledWith('1');
+  });
+
+  it('handles article without markdown', async () => {
+    api.fetchArticleList.mockResolvedValue({ ids: ['1'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1' }); // markdown missing
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.articleHtml).toBe('');
+  });
+
+  it('handles error without message on mount', async () => {
+    api.fetchArticleList.mockRejectedValue({}); // No message
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.errorMessage).toBe('読み込みに失敗しました。');
   });
 });
