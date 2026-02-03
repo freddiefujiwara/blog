@@ -35,7 +35,7 @@ export const resolveArticleId = (ids, { path, search, hash }) => {
   return ids[0];
 };
 
-export const buildNavigationLinks = (ids, currentId, basePath = '/blog') => {
+export const buildNavigationLinks = (ids, currentId, basePath = '') => {
   if (!Array.isArray(ids) || ids.length === 0) {
     return { prevId: '', nextId: '', prevLink: '', nextLink: '' };
   }
@@ -46,11 +46,11 @@ export const buildNavigationLinks = (ids, currentId, basePath = '/blog') => {
   const prevId = currentIndex > 0 ? ids[currentIndex - 1] : '';
   const nextId =
     currentIndex < ids.length - 1 ? ids[currentIndex + 1] : '';
-  const normalizedBase = normalizePath(basePath) || '/blog';
+  const normalizedBase = normalizePath(basePath);
   return {
     prevId,
     nextId,
-    prevLink: prevId ? `${normalizedBase}/#${prevId}` : '',
-    nextLink: nextId ? `${normalizedBase}/#${nextId}` : ''
+    prevLink: prevId ? `${normalizedBase}/${prevId}` : '',
+    nextLink: nextId ? `${normalizedBase}/${nextId}` : ''
   };
 };

@@ -1,11 +1,26 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import App from '../src/App.vue';
+import { createRouter, createMemoryHistory } from 'vue-router';
+import BlogView from '../src/pages/BlogView.vue';
 
 describe('App', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-    window.history.pushState({}, '', '/blog');
+  let router;
+
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
+    }));
+    router = createRouter({
+      history: createMemoryHistory('/blog/'),
+      routes: [
+        { path: '/', component: BlogView },
+        { path: '/:id', name: 'post', component: BlogView, props: true },
+      ],
+    });
+    router.push('/');
+    await router.isReady();
   });
 
   afterEach(() => {
@@ -28,29 +43,37 @@ describe('App', () => {
           })
       });
 
-    const wrapper = mount(App);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
     await flushPromises();
 
     expect(wrapper.find('.site-title').text()).toBe('ミニマリストのブログ');
     expect(wrapper.find('h1').text()).toBe('最新記事');
     expect(wrapper.find('article').html()).toContain('本文です。');
     expect(document.title).toBe('最新記事');
-    expect(wrapper.find('.footer-link a').attributes('href')).toBe(
-      'https://freddiefujiwara.com/blog/'
-    );
+    expect(wrapper.find('.footer-link a').attributes('href')).toBe('/blog/');
   });
 
-  it('uses the hash parameter when it exists in the list', async () => {
-    window.history.pushState({}, '', '/blog/#middle-id');
+  it('uses the path parameter when it exists in the list', async () => {
+    const listData = {
+      ids: ['first-id', 'middle-id', 'last-id'],
+      article_cache: []
+    };
+    fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(listData)
+    });
+
+    router.push('/middle-id');
+    await router.isReady();
 
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            ids: ['first-id', 'middle-id', 'last-id'],
-            article_cache: []
-          })
+        json: () => Promise.resolve(listData)
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -62,7 +85,11 @@ describe('App', () => {
           })
       });
 
-    const wrapper = mount(App);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
     await flushPromises();
 
     const navs = wrapper.findAll('.navigation');
@@ -73,10 +100,10 @@ describe('App', () => {
 
     expect(topLinks).toHaveLength(2);
     expect(bottomLinks).toHaveLength(2);
-    expect(topLinks[0].attributes('href')).toBe('/blog/#first-id');
-    expect(topLinks[1].attributes('href')).toBe('/blog/#last-id');
-    expect(bottomLinks[0].attributes('href')).toBe('/blog/#first-id');
-    expect(bottomLinks[1].attributes('href')).toBe('/blog/#last-id');
+    expect(topLinks[0].attributes('href')).toBe('/blog/first-id');
+    expect(topLinks[1].attributes('href')).toBe('/blog/last-id');
+    expect(bottomLinks[0].attributes('href')).toBe('/blog/first-id');
+    expect(bottomLinks[1].attributes('href')).toBe('/blog/last-id');
 
     fetch.mockResolvedValueOnce({
       ok: true,
@@ -88,19 +115,23 @@ describe('App', () => {
         })
     });
 
-    window.location.hash = '#last-id';
-    window.dispatchEvent(new Event('hashchange'));
+    router.push('/last-id');
     await flushPromises();
 
     expect(wrapper.find('h1').text()).toBe('最後の記事');
   });
 
-  it('shows loading text while fetching a new article on hash change', async () => {
+  it('shows loading text while fetching a new article on route change', async () => {
+    const listData = { ids: ['first-id', 'last-id'], article_cache: [] };
+    fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(listData)
+    });
+
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ ids: ['first-id', 'last-id'], article_cache: [] })
+        json: () => Promise.resolve(listData)
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -112,7 +143,11 @@ describe('App', () => {
           })
       });
 
-    const wrapper = mount(App);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
     await flushPromises();
 
     let resolveArticle;
@@ -125,8 +160,7 @@ describe('App', () => {
       json: () => articlePromise
     });
 
-    window.location.hash = '#last-id';
-    window.dispatchEvent(new Event('hashchange'));
+    await router.push('/last-id');
     await flushPromises();
 
     expect(wrapper.find('.status').text()).toBe('読み込み中...');
@@ -143,11 +177,16 @@ describe('App', () => {
   });
 
   it('shows only the next link when the first article is selected', async () => {
+    const listData = { ids: ['first-id', 'second-id'], article_cache: [] };
+    fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(listData)
+    });
+
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ ids: ['first-id', 'second-id'], article_cache: [] })
+        json: () => Promise.resolve(listData)
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -159,7 +198,11 @@ describe('App', () => {
           })
       });
 
-    const wrapper = mount(App);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
     await flushPromises();
 
     const navs = wrapper.findAll('.navigation');
@@ -167,18 +210,24 @@ describe('App', () => {
     navs.forEach((nav) => {
       const links = nav.findAll('a');
       expect(links).toHaveLength(1);
-      expect(links[0].attributes('href')).toBe('/blog/#second-id');
+      expect(links[0].attributes('href')).toBe('/blog/second-id');
     });
   });
 
   it('shows only the previous link when the last article is selected', async () => {
-    window.history.pushState({}, '', '/blog/#last-id');
+    const listData = { ids: ['first-id', 'last-id'], article_cache: [] };
+    fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(listData)
+    });
+
+    router.push('/last-id');
+    await router.isReady();
 
     fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({ ids: ['first-id', 'last-id'], article_cache: [] })
+        json: () => Promise.resolve(listData)
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -190,7 +239,11 @@ describe('App', () => {
           })
       });
 
-    const wrapper = mount(App);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
     await flushPromises();
 
     const navs = wrapper.findAll('.navigation');
@@ -198,7 +251,7 @@ describe('App', () => {
     navs.forEach((nav) => {
       const links = nav.findAll('a');
       expect(links).toHaveLength(1);
-      expect(links[0].attributes('href')).toBe('/blog/#first-id');
+      expect(links[0].attributes('href')).toBe('/blog/first-id');
     });
   });
 });

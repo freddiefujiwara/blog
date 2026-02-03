@@ -1,7 +1,7 @@
 <template>
   <nav v-if="hasNavigation" class="navigation" :class="{ 'navigation-top': top }">
-    <a v-if="prevLink" :href="prevLink">{{ formatPrevTitle(prevTitle) }}</a>
-    <a v-if="nextLink" :href="nextLink">{{ formatNextTitle(nextTitle) }}</a>
+    <router-link v-if="prevLink" :to="prevLink">{{ formatPrevTitle(prevTitle) }}</router-link>
+    <router-link v-if="nextLink" :to="nextLink">{{ formatNextTitle(nextTitle) }}</router-link>
   </nav>
 </template>
 

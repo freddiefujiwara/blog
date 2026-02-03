@@ -50,8 +50,8 @@ describe('articleNavigation helpers', () => {
 
   it('builds previous and next links', () => {
     const links = buildNavigationLinks(['first', 'middle', 'last'], 'middle');
-    expect(links.prevLink).toBe('/blog/#first');
-    expect(links.nextLink).toBe('/blog/#last');
+    expect(links.prevLink).toBe('/first');
+    expect(links.nextLink).toBe('/last');
     expect(links.prevId).toBe('first');
     expect(links.nextId).toBe('last');
   });
@@ -59,7 +59,7 @@ describe('articleNavigation helpers', () => {
   it('supports custom base paths for navigation links', () => {
     const links = buildNavigationLinks(['a', 'b'], 'a', '/blog/');
     expect(links.prevLink).toBe('');
-    expect(links.nextLink).toBe('/blog/#b');
+    expect(links.nextLink).toBe('/blog/b');
     expect(links.prevId).toBe('');
     expect(links.nextId).toBe('b');
   });
@@ -67,7 +67,7 @@ describe('articleNavigation helpers', () => {
   it('returns only next link for the first item', () => {
     const links = buildNavigationLinks(['first', 'second'], 'first');
     expect(links.prevLink).toBe('');
-    expect(links.nextLink).toBe('/blog/#second');
+    expect(links.nextLink).toBe('/second');
     expect(links.prevId).toBe('');
     expect(links.nextId).toBe('second');
   });
@@ -85,9 +85,9 @@ describe('articleNavigation helpers', () => {
 
   it('handles empty basePath and leading/trailing slashes', () => {
     const links = buildNavigationLinks(['a', 'b'], 'a', '');
-    expect(links.nextLink).toBe('/blog/#b');
+    expect(links.nextLink).toBe('/b');
 
     const links2 = buildNavigationLinks(['a', 'b'], 'a', '///');
-    expect(links2.nextLink).toBe('/blog/#b');
+    expect(links2.nextLink).toBe('/b');
   });
 });
