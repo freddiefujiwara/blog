@@ -2,6 +2,14 @@
   <main>
     <p class="site-title">ミニマリストのブログ</p>
     <StatusMessage v-if="!article && !errorMessage" message="読み込み中..." />
+    <NavigationLinks
+      v-if="article"
+      :prev-link="prevLink"
+      :next-link="nextLink"
+      :prev-title="prevTitle"
+      :next-title="nextTitle"
+      :top="true"
+    />
     <ArticleContent :article="article" :article-html="articleHtml" />
     <StatusMessage :message="errorMessage" />
     <NavigationLinks

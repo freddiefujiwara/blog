@@ -66,13 +66,17 @@ describe('App', () => {
     await flushPromises();
 
     const navs = wrapper.findAll('.navigation');
-    expect(navs).toHaveLength(1);
+    expect(navs).toHaveLength(2);
 
-    const links = navs[0].findAll('a');
+    const topLinks = navs[0].findAll('a');
+    const bottomLinks = navs[1].findAll('a');
 
-    expect(links).toHaveLength(2);
-    expect(links[0].attributes('href')).toBe('/blog/#first-id');
-    expect(links[1].attributes('href')).toBe('/blog/#last-id');
+    expect(topLinks).toHaveLength(2);
+    expect(bottomLinks).toHaveLength(2);
+    expect(topLinks[0].attributes('href')).toBe('/blog/#first-id');
+    expect(topLinks[1].attributes('href')).toBe('/blog/#last-id');
+    expect(bottomLinks[0].attributes('href')).toBe('/blog/#first-id');
+    expect(bottomLinks[1].attributes('href')).toBe('/blog/#last-id');
 
     fetch.mockResolvedValueOnce({
       ok: true,
@@ -159,7 +163,7 @@ describe('App', () => {
     await flushPromises();
 
     const navs = wrapper.findAll('.navigation');
-    expect(navs).toHaveLength(1);
+    expect(navs).toHaveLength(2);
     navs.forEach((nav) => {
       const links = nav.findAll('a');
       expect(links).toHaveLength(1);
@@ -190,7 +194,7 @@ describe('App', () => {
     await flushPromises();
 
     const navs = wrapper.findAll('.navigation');
-    expect(navs).toHaveLength(1);
+    expect(navs).toHaveLength(2);
     navs.forEach((nav) => {
       const links = nav.findAll('a');
       expect(links).toHaveLength(1);
