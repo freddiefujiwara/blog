@@ -24,6 +24,8 @@ export function useBlog() {
 
   const prevLink = computed(() => navigationLinks.value.prevLink);
   const nextLink = computed(() => navigationLinks.value.nextLink);
+  const prevTitle = computed(() => articleCache.value[navigationLinks.value.prevId]?.title || '');
+  const nextTitle = computed(() => articleCache.value[navigationLinks.value.nextId]?.title || '');
 
   const getArticle = async (id) => {
     if (articleCache.value[id]) {
@@ -115,6 +117,8 @@ export function useBlog() {
     articleHtml,
     errorMessage,
     prevLink,
-    nextLink
+    nextLink,
+    prevTitle,
+    nextTitle
   };
 }

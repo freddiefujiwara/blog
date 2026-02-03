@@ -204,4 +204,25 @@ describe('useBlog composable', () => {
 
     expect(wrapper.vm.errorMessage).toBe('読み込みに失敗しました。');
   });
+
+  it('provides prevTitle and nextTitle from cache', async () => {
+    const articles = [
+      { id: '1', title: 'Title 1' },
+      { id: '2', title: 'Title 2' },
+      { id: '3', title: 'Title 3' }
+    ];
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2', '3'],
+      article_cache: articles
+    });
+    // Start with article 2
+    vi.stubGlobal('location', { ...window.location, hash: '#2' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('2');
+    expect(wrapper.vm.prevTitle).toBe('Title 1');
+    expect(wrapper.vm.nextTitle).toBe('Title 3');
+  });
 });
