@@ -8,8 +8,12 @@ vi.mock('../../src/services/api');
 
 let mockRoute = reactive({ path: '/blog' });
 let routeToReturn = mockRoute;
+const mockRouter = {
+  replace: vi.fn(),
+};
 vi.mock('vue-router', () => ({
   useRoute: () => routeToReturn,
+  useRouter: () => mockRouter,
 }));
 
 describe('useBlog composable', () => {
@@ -227,24 +231,21 @@ describe('useBlog composable', () => {
     expect(wrapper.vm.articleHtml).toBe('');
   });
 
-  it('rewrites links in markdown to /blog/ if they point to the first article', async () => {
+  it('redirects to the first article ID when on the root path', async () => {
     api.fetchArticleList.mockResolvedValue({
-      ids: ['first', 'second'],
+      ids: ['first-id', 'second-id'],
       article_cache: []
     });
-    api.fetchArticle.mockResolvedValue({
-      id: 'second',
-      title: 'Title 2',
-      markdown: 'Check [first article](/blog/first) or [same with slash](/blog/first/). Also [other](/blog/other).'
-    });
+    // Setting route path to '/'
+    mockRoute.path = '/';
 
     wrapper = mount(TestComponent);
     await flushPromises();
 
-    expect(wrapper.vm.articleHtml).toContain('href="/blog/"');
-    expect(wrapper.vm.articleHtml).toContain('Check <a href="/blog/">first article</a>');
-    expect(wrapper.vm.articleHtml).toContain('<a href="/blog/">same with slash</a>');
-    expect(wrapper.vm.articleHtml).toContain('<a href="/blog/other">other</a>');
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      name: 'post',
+      params: { id: 'first-id' }
+    });
   });
 
   it('handles error without message on mount', async () => {
