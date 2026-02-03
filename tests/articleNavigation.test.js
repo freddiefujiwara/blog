@@ -52,27 +52,35 @@ describe('articleNavigation helpers', () => {
     const links = buildNavigationLinks(['first', 'middle', 'last'], 'middle');
     expect(links.prevLink).toBe('/blog/#first');
     expect(links.nextLink).toBe('/blog/#last');
+    expect(links.prevId).toBe('first');
+    expect(links.nextId).toBe('last');
   });
 
   it('supports custom base paths for navigation links', () => {
     const links = buildNavigationLinks(['a', 'b'], 'a', '/blog/');
     expect(links.prevLink).toBe('');
     expect(links.nextLink).toBe('/blog/#b');
+    expect(links.prevId).toBe('');
+    expect(links.nextId).toBe('b');
   });
 
   it('returns only next link for the first item', () => {
     const links = buildNavigationLinks(['first', 'second'], 'first');
     expect(links.prevLink).toBe('');
     expect(links.nextLink).toBe('/blog/#second');
+    expect(links.prevId).toBe('');
+    expect(links.nextId).toBe('second');
   });
 
   it('returns empty links if ids is empty or not an array', () => {
-    expect(buildNavigationLinks([], 'a')).toEqual({ prevLink: '', nextLink: '' });
-    expect(buildNavigationLinks(null, 'a')).toEqual({ prevLink: '', nextLink: '' });
+    const expected = { prevId: '', nextId: '', prevLink: '', nextLink: '' };
+    expect(buildNavigationLinks([], 'a')).toEqual(expected);
+    expect(buildNavigationLinks(null, 'a')).toEqual(expected);
   });
 
   it('returns empty links if currentId is not in list', () => {
-    expect(buildNavigationLinks(['a', 'b'], 'c')).toEqual({ prevLink: '', nextLink: '' });
+    const expected = { prevId: '', nextId: '', prevLink: '', nextLink: '' };
+    expect(buildNavigationLinks(['a', 'b'], 'c')).toEqual(expected);
   });
 
   it('handles empty basePath and leading/trailing slashes', () => {
