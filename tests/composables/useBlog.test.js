@@ -6,7 +6,7 @@ import { defineComponent, reactive } from 'vue';
 
 vi.mock('../../src/services/api');
 
-let mockRoute = reactive({ path: '/blog' });
+let mockRoute = reactive({ path: '/blog', params: {} });
 let routeToReturn = mockRoute;
 const mockRouter = {
   replace: vi.fn(),
@@ -30,6 +30,7 @@ describe('useBlog composable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRoute.path = '/blog';
+    mockRoute.params = {};
     routeToReturn = mockRoute;
     vi.stubGlobal('location', {
         pathname: '/blog',

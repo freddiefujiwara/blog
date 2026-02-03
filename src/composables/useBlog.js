@@ -96,7 +96,7 @@ export function useBlog() {
         throw new Error('最新記事が見つかりませんでした。');
       }
 
-      if (route && route.path === '/') {
+      if (route && (route.path === '/' || (route.params.id && route.params.id !== articleId))) {
         router.replace({ name: 'post', params: { id: articleId } });
         loading.value = false;
         return;
