@@ -2,9 +2,15 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { useBlog } from '../../src/composables/useBlog';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as api from '../../src/services/api';
-import { defineComponent } from 'vue';
+import { defineComponent, reactive } from 'vue';
 
 vi.mock('../../src/services/api');
+
+let mockRoute = reactive({ path: '/blog' });
+let routeToReturn = mockRoute;
+vi.mock('vue-router', () => ({
+  useRoute: () => routeToReturn,
+}));
 
 describe('useBlog composable', () => {
   const TestComponent = defineComponent({
@@ -19,6 +25,8 @@ describe('useBlog composable', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRoute.path = '/blog';
+    routeToReturn = mockRoute;
     vi.stubGlobal('location', {
         pathname: '/blog',
         search: '',
@@ -58,7 +66,7 @@ describe('useBlog composable', () => {
     expect(wrapper.vm.errorMessage).toBe('List Error');
   });
 
-  it('handles hashchange', async () => {
+  it('handles route change', async () => {
     api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
@@ -67,43 +75,43 @@ describe('useBlog composable', () => {
 
     expect(wrapper.vm.article.id).toBe('1');
 
-    // Simulate hash change
-    vi.stubGlobal('location', { ...window.location, hash: '#2' });
+    // Simulate route change
+    mockRoute.path = '/2';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
     api.fetchArticle.mockResolvedValue({ id: '2', title: 'Title 2', markdown: 'Content 2' });
 
-    window.dispatchEvent(new Event('hashchange'));
     await flushPromises();
 
     expect(wrapper.vm.article.id).toBe('2');
   });
 
-  it('handles error on hashchange', async () => {
+  it('handles error on route change', async () => {
     api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
     wrapper = mount(TestComponent);
     await flushPromises();
 
-    vi.stubGlobal('location', { ...window.location, hash: '#2' });
+    mockRoute.path = '/2';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
     api.fetchArticle.mockRejectedValue(new Error('Fetch Error'));
 
-    window.dispatchEvent(new Event('hashchange'));
     await flushPromises();
 
     expect(wrapper.vm.errorMessage).toBe('Fetch Error');
   });
 
-  it('handles error without message on hashchange', async () => {
+  it('handles error without message on route change', async () => {
     api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
     api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
 
     wrapper = mount(TestComponent);
     await flushPromises();
 
-    vi.stubGlobal('location', { ...window.location, hash: '#2' });
+    mockRoute.path = '/2';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
     api.fetchArticle.mockRejectedValue({}); // No message
 
-    window.dispatchEvent(new Event('hashchange'));
     await flushPromises();
 
     expect(wrapper.vm.errorMessage).toBe('読み込みに失敗しました。');
@@ -126,7 +134,9 @@ describe('useBlog composable', () => {
     await flushPromises();
     expect(api.fetchArticle).toHaveBeenCalledTimes(1);
 
-    window.dispatchEvent(new Event('hashchange'));
+    // Trigger watcher with same path (should not happen in real app as path would change,
+    // but testing the loadArticleFromLocation internal check)
+    mockRoute.path = '/blog';
     await flushPromises();
     // Should still be 1 because currentId is same
     expect(api.fetchArticle).toHaveBeenCalledTimes(1);
@@ -147,7 +157,7 @@ describe('useBlog composable', () => {
     expect(document.title).toBe('Cached Title');
   });
 
-  it('populates cache and uses it on hashchange', async () => {
+  it('populates cache and uses it on route change', async () => {
     const cachedArticle2 = { id: '2', title: 'Cached Title 2', markdown: 'Cached Content 2' };
     api.fetchArticleList.mockResolvedValue({
       ids: ['1', '2'],
@@ -162,8 +172,8 @@ describe('useBlog composable', () => {
     expect(api.fetchArticle).toHaveBeenCalledWith('1');
 
     // Change to article 2
-    vi.stubGlobal('location', { ...window.location, hash: '#2' });
-    window.dispatchEvent(new Event('hashchange'));
+    mockRoute.path = '/2';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
     await flushPromises();
 
     expect(wrapper.vm.article.id).toBe('2');
@@ -216,7 +226,8 @@ describe('useBlog composable', () => {
       article_cache: articles
     });
     // Start with article 2
-    vi.stubGlobal('location', { ...window.location, hash: '#2' });
+    mockRoute.path = '/2';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
 
     wrapper = mount(TestComponent);
     await flushPromises();
@@ -224,5 +235,73 @@ describe('useBlog composable', () => {
     expect(wrapper.vm.article.id).toBe('2');
     expect(wrapper.vm.prevTitle).toBe('Title 1');
     expect(wrapper.vm.nextTitle).toBe('Title 3');
+  });
+
+  it('uses window.location if route is not available', async () => {
+    routeToReturn = null;
+    api.fetchArticleList.mockResolvedValue({ ids: ['1'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content' });
+
+    vi.stubGlobal('location', {
+      pathname: '/blog/1',
+      search: '',
+      hash: ''
+    });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('1');
+  });
+
+  it('handles error in watcher', async () => {
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    // Trigger watcher error
+    api.fetchArticle.mockRejectedValue(new Error('Watch Error'));
+    mockRoute.path = '/2';
+    // Watcher is triggered by mockRoute.path change because it's reactive
+
+    await flushPromises();
+    expect(wrapper.vm.errorMessage).toBe('Watch Error');
+  });
+
+  it('handles error without message in watcher', async () => {
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    api.fetchArticle.mockRejectedValue({});
+    mockRoute.path = '/2';
+
+    await flushPromises();
+    expect(wrapper.vm.errorMessage).toBe('読み込みに失敗しました。');
+  });
+
+  it('does not load if already loading', async () => {
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    let resolveFirst;
+    api.fetchArticle.mockReturnValue(new Promise(r => resolveFirst = r));
+
+    wrapper = mount(TestComponent);
+    await flushPromises(); // Reach the await getArticle('1')
+
+    expect(api.fetchArticle).toHaveBeenCalledWith('1');
+
+    mockRoute.path = '/2';
+    await flushPromises();
+
+    // Should NOT have called fetchArticle with '2' because loading is true
+    expect(api.fetchArticle).not.toHaveBeenCalledWith('2');
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+
+    resolveFirst({ id: '1', title: 'T1' });
+    await flushPromises();
   });
 });

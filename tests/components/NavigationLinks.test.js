@@ -4,7 +4,11 @@ import NavigationLinks from '../../src/components/NavigationLinks.vue';
 
 describe('NavigationLinks', () => {
   it('renders nothing when no links are provided', () => {
-    const wrapper = mount(NavigationLinks);
+    const wrapper = mount(NavigationLinks, {
+      global: {
+        stubs: { RouterLink: true }
+      }
+    });
     expect(wrapper.find('nav').exists()).toBe(false);
   });
 
@@ -15,6 +19,9 @@ describe('NavigationLinks', () => {
         prevTitle: 'Previous Article Title',
         nextLink: '/next',
         nextTitle: 'Next'
+      },
+      global: {
+        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
       }
     });
     expect(wrapper.find('nav').exists()).toBe(true);
@@ -35,6 +42,9 @@ describe('NavigationLinks', () => {
         nextLink: '/next',
         prevTitle: '',
         nextTitle: ''
+      },
+      global: {
+        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
       }
     });
     const links = wrapper.findAll('a');
@@ -50,6 +60,9 @@ describe('NavigationLinks', () => {
         prevTitle: sixteenChars,
         nextLink: '/next',
         nextTitle: sixteenChars
+      },
+      global: {
+        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
       }
     });
     const links = wrapper.findAll('a');
@@ -62,6 +75,9 @@ describe('NavigationLinks', () => {
       props: {
         prevLink: '/prev',
         top: true
+      },
+      global: {
+        stubs: { RouterLink: true }
       }
     });
     expect(wrapper.find('nav').classes()).toContain('navigation-top');
@@ -72,6 +88,9 @@ describe('NavigationLinks', () => {
       props: {
         nextLink: '/next',
         nextTitle: 'Next'
+      },
+      global: {
+        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
       }
     });
     const links = wrapper.findAll('a');
@@ -84,6 +103,9 @@ describe('NavigationLinks', () => {
       props: {
         nextLink: '/next',
         nextTitle: 'This is a very long title for the next article'
+      },
+      global: {
+        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
       }
     });
     expect(wrapper.find('a').text()).toBe('This is a very l…>>');

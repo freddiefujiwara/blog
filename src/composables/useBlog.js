@@ -1,9 +1,11 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { marked } from 'marked';
 import { fetchArticle, fetchArticleList } from '../services/api';
 import { resolveArticleId, buildNavigationLinks } from '../articleNavigation';
 
 export function useBlog() {
+  const route = useRoute();
   const article = ref(null);
   const articleIds = ref([]);
   const errorMessage = ref('');
@@ -51,11 +53,23 @@ export function useBlog() {
     }
   };
 
-  const getLocationContext = () => ({
-    path: window.location.pathname,
-    search: window.location.search,
-    hash: window.location.hash
-  });
+  const getLocationContext = () => {
+    if (route) {
+      // Prepend /blog to match what resolveArticleId expects
+      // route.path starts with /
+      const path = route.path === '/' ? '/blog' : `/blog${route.path}`;
+      return {
+        path,
+        search: window.location.search,
+        hash: window.location.hash
+      };
+    }
+    return {
+      path: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash
+    };
+  };
 
   const getArticleList = async () => {
     if (articleIds.value.length > 0) {
@@ -91,26 +105,24 @@ export function useBlog() {
     }
   };
 
-  const handleHashChange = async () => {
-    try {
-      await loadArticleFromLocation();
-    } catch (error) {
-      errorMessage.value = error?.message ?? '読み込みに失敗しました。';
-    }
-  };
-
   onMounted(async () => {
     try {
       await loadArticleFromLocation();
     } catch (error) {
       errorMessage.value = error?.message ?? '読み込みに失敗しました。';
     }
-    window.addEventListener('hashchange', handleHashChange);
   });
 
-  onUnmounted(() => {
-    window.removeEventListener('hashchange', handleHashChange);
-  });
+  watch(
+    () => route?.path,
+    async () => {
+      try {
+        await loadArticleFromLocation();
+      } catch (error) {
+        errorMessage.value = error?.message ?? '読み込みに失敗しました。';
+      }
+    }
+  );
 
   return {
     article,
