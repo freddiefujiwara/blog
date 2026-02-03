@@ -3,9 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var l = window.location;
+
+        // 404.html から /blog/?/xxx にされている想定
+        if (l.search && l.search.startsWith('?/')) {
+          var route = l.search.slice(2); // "xxx..."
+
+          // route に &a=b が混ざる可能性があるので分離
+          var extra = '';
+          var ampIndex = route.indexOf('&');
+          if (ampIndex !== -1) {
+            extra = '?' + route.slice(ampIndex + 1);
+            route = route.slice(0, ampIndex);
+          }
+
+          // /blog/ + route へ戻す（末尾/を1回だけ調整）
+          var base = l.pathname; // "/blog/"
+          if (!base.endsWith('/')) base += '/';
+          var newUrl = base + route + extra + l.hash;
+
+          window.history.replaceState(null, '', newUrl);
+        }
+      })();
+    </script>
     <title>ミニマリストのブログ</title>
-    <script type="module" crossorigin src="./assets/index-BxKIfTF0.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-JIVeDBeQ.css">
+    <script type="module" crossorigin src="/blog/assets/index-DHzGg5Vm.js"></script>
+    <link rel="stylesheet" crossorigin href="/blog/assets/index-JIVeDBeQ.css">
   </head>
   <body>
     <div id="app"></div>
