@@ -142,6 +142,27 @@ describe('useBlog composable', () => {
     expect(api.fetchArticle).toHaveBeenCalledTimes(1);
   });
 
+  it('does not reload if same article id via different path', async () => {
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
+
+    // Start at /1
+    mockRoute.path = '/1';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+
+    // Change to /blog (which resolves to '1')
+    mockRoute.path = '/blog';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog' });
+    await flushPromises();
+
+    // Should still be 1
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+  });
+
   it('uses article_cache if available', async () => {
     const cachedArticle = { id: '1', title: 'Cached Title', markdown: 'Cached Content' };
     api.fetchArticleList.mockResolvedValue({
@@ -204,6 +225,26 @@ describe('useBlog composable', () => {
     await flushPromises();
 
     expect(wrapper.vm.articleHtml).toBe('');
+  });
+
+  it('rewrites links in markdown to /blog/ if they point to the first article', async () => {
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['first', 'second'],
+      article_cache: []
+    });
+    api.fetchArticle.mockResolvedValue({
+      id: 'second',
+      title: 'Title 2',
+      markdown: 'Check [first article](/blog/first) or [same with slash](/blog/first/). Also [other](/blog/other).'
+    });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.articleHtml).toContain('href="/blog/"');
+    expect(wrapper.vm.articleHtml).toContain('Check <a href="/blog/">first article</a>');
+    expect(wrapper.vm.articleHtml).toContain('<a href="/blog/">same with slash</a>');
+    expect(wrapper.vm.articleHtml).toContain('<a href="/blog/other">other</a>');
   });
 
   it('handles error without message on mount', async () => {

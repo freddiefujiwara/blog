@@ -17,7 +17,20 @@ export function useBlog() {
     if (!article.value) {
       return '';
     }
-    return marked.parse(article.value.markdown ?? '');
+    const firstId = articleIds.value[0];
+    const renderer = new marked.Renderer();
+    const originalLink = renderer.link.bind(renderer);
+    renderer.link = (href, title, text) => {
+      let finalHref = href;
+      if (
+        firstId &&
+        (href === `/blog/${firstId}` || href === `/blog/${firstId}/`)
+      ) {
+        finalHref = '/blog/';
+      }
+      return originalLink(finalHref, title, text);
+    };
+    return marked.parse(article.value.markdown ?? '', { renderer });
   });
 
   const navigationLinks = computed(() =>

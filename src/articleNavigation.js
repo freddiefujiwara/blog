@@ -50,7 +50,15 @@ export const buildNavigationLinks = (ids, currentId, basePath = '') => {
   return {
     prevId,
     nextId,
-    prevLink: prevId ? `${normalizedBase}/${prevId}` : '',
-    nextLink: nextId ? `${normalizedBase}/${nextId}` : ''
+    prevLink: prevId
+      ? prevId === ids[0]
+        ? `${normalizedBase}/`
+        : `${normalizedBase}/${prevId}`
+      : '',
+    nextLink: nextId
+      ? nextId === ids[0]
+        ? `${normalizedBase}/`
+        : `${normalizedBase}/${nextId}`
+      : ''
   };
 };

@@ -100,9 +100,9 @@ describe('App', () => {
 
     expect(topLinks).toHaveLength(2);
     expect(bottomLinks).toHaveLength(2);
-    expect(topLinks[0].attributes('href')).toBe('/blog/first-id');
+    expect(topLinks[0].attributes('href')).toBe('/blog/');
     expect(topLinks[1].attributes('href')).toBe('/blog/last-id');
-    expect(bottomLinks[0].attributes('href')).toBe('/blog/first-id');
+    expect(bottomLinks[0].attributes('href')).toBe('/blog/');
     expect(bottomLinks[1].attributes('href')).toBe('/blog/last-id');
 
     fetch.mockResolvedValueOnce({
@@ -251,7 +251,7 @@ describe('App', () => {
     navs.forEach((nav) => {
       const links = nav.findAll('a');
       expect(links).toHaveLength(1);
-      expect(links[0].attributes('href')).toBe('/blog/first-id');
+      expect(links[0].attributes('href')).toBe('/blog/');
     });
   });
 });

@@ -48,9 +48,9 @@ describe('articleNavigation helpers', () => {
     expect(resolveArticleId(null, { path: '/blog', search: '', hash: '' })).toBe('');
   });
 
-  it('builds previous and next links', () => {
+  it('builds previous and next links, using / for the first article', () => {
     const links = buildNavigationLinks(['first', 'middle', 'last'], 'middle');
-    expect(links.prevLink).toBe('/first');
+    expect(links.prevLink).toBe('/');
     expect(links.nextLink).toBe('/last');
     expect(links.prevId).toBe('first');
     expect(links.nextId).toBe('last');
@@ -62,6 +62,19 @@ describe('articleNavigation helpers', () => {
     expect(links.nextLink).toBe('/blog/b');
     expect(links.prevId).toBe('');
     expect(links.nextId).toBe('b');
+
+    const links2 = buildNavigationLinks(['a', 'b'], 'b', '/blog/');
+    expect(links2.prevLink).toBe('/blog/');
+    expect(links2.nextLink).toBe('');
+    expect(links2.prevId).toBe('a');
+    expect(links2.nextId).toBe('');
+  });
+
+  it('handles duplicates in ids for coverage of nextLink being the first id', () => {
+    // This is an edge case to satisfy branch coverage
+    const links = buildNavigationLinks(['a', 'b', 'a'], 'b');
+    expect(links.nextLink).toBe('/');
+    expect(links.nextId).toBe('a');
   });
 
   it('returns only next link for the first item', () => {
