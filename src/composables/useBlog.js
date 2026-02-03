@@ -1,11 +1,12 @@
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import { fetchArticle, fetchArticleList } from '../services/api';
 import { resolveArticleId, buildNavigationLinks } from '../articleNavigation';
 
 export function useBlog() {
   const route = useRoute();
+  const router = useRouter();
   const article = ref(null);
   const articleIds = ref([]);
   const errorMessage = ref('');
@@ -94,6 +95,13 @@ export function useBlog() {
       if (!articleId) {
         throw new Error('最新記事が見つかりませんでした。');
       }
+
+      if (route && route.path === '/') {
+        router.replace({ name: 'post', params: { id: articleId } });
+        loading.value = false;
+        return;
+      }
+
       if (articleId === currentId.value && article.value) {
         return;
       }
@@ -127,6 +135,7 @@ export function useBlog() {
   return {
     article,
     articleHtml,
+    articleIds,
     errorMessage,
     prevLink,
     nextLink,

@@ -8,8 +8,12 @@ vi.mock('../../src/services/api');
 
 let mockRoute = reactive({ path: '/blog' });
 let routeToReturn = mockRoute;
+const mockRouter = {
+  replace: vi.fn(),
+};
 vi.mock('vue-router', () => ({
   useRoute: () => routeToReturn,
+  useRouter: () => mockRouter,
 }));
 
 describe('useBlog composable', () => {
@@ -142,6 +146,27 @@ describe('useBlog composable', () => {
     expect(api.fetchArticle).toHaveBeenCalledTimes(1);
   });
 
+  it('does not reload if same article id via different path', async () => {
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: 'Content 1' });
+
+    // Start at /1
+    mockRoute.path = '/1';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+
+    // Change to /blog (which resolves to '1')
+    mockRoute.path = '/blog';
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog' });
+    await flushPromises();
+
+    // Should still be 1
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+  });
+
   it('uses article_cache if available', async () => {
     const cachedArticle = { id: '1', title: 'Cached Title', markdown: 'Cached Content' };
     api.fetchArticleList.mockResolvedValue({
@@ -204,6 +229,23 @@ describe('useBlog composable', () => {
     await flushPromises();
 
     expect(wrapper.vm.articleHtml).toBe('');
+  });
+
+  it('redirects to the first article ID when on the root path', async () => {
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['first-id', 'second-id'],
+      article_cache: []
+    });
+    // Setting route path to '/'
+    mockRoute.path = '/';
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      name: 'post',
+      params: { id: 'first-id' }
+    });
   });
 
   it('handles error without message on mount', async () => {

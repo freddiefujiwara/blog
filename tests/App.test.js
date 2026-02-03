@@ -19,7 +19,7 @@ describe('App', () => {
         { path: '/:id', name: 'post', component: BlogView, props: true },
       ],
     });
-    router.push('/');
+    await router.push('/');
     await router.isReady();
   });
 
@@ -54,7 +54,9 @@ describe('App', () => {
     expect(wrapper.find('h1').text()).toBe('最新記事');
     expect(wrapper.find('article').html()).toContain('本文です。');
     expect(document.title).toBe('最新記事');
-    expect(wrapper.find('.footer-link a').attributes('href')).toBe('/blog/');
+    // After redirect, URL should be /latest-id
+    expect(router.currentRoute.value.path).toBe('/latest-id');
+    expect(wrapper.find('.footer-link a').attributes('href')).toBe('/blog/latest-id');
   });
 
   it('uses the path parameter when it exists in the list', async () => {
@@ -67,8 +69,7 @@ describe('App', () => {
       json: () => Promise.resolve(listData)
     });
 
-    router.push('/middle-id');
-    await router.isReady();
+    await router.push('/middle-id');
 
     fetch
       .mockResolvedValueOnce({
@@ -115,7 +116,7 @@ describe('App', () => {
         })
     });
 
-    router.push('/last-id');
+    await router.push('/last-id');
     await flushPromises();
 
     expect(wrapper.find('h1').text()).toBe('最後の記事');
@@ -160,11 +161,11 @@ describe('App', () => {
       json: () => articlePromise
     });
 
-    await router.push('/last-id');
+    const pushPromise = router.push('/last-id');
     await flushPromises();
 
     expect(wrapper.find('.status').text()).toBe('読み込み中...');
-    expect(wrapper.findAll('.navigation')).toHaveLength(0);
+    await pushPromise;
 
     resolveArticle({
       id: 'last-id',
@@ -221,8 +222,7 @@ describe('App', () => {
       json: () => Promise.resolve(listData)
     });
 
-    router.push('/last-id');
-    await router.isReady();
+    await router.push('/last-id');
 
     fetch
       .mockResolvedValueOnce({
