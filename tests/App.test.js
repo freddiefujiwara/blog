@@ -8,9 +8,18 @@ describe('App', () => {
   let router;
 
   beforeEach(async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+      if (url.includes('?id=')) {
+        const id = url.split('?id=')[1];
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id, title: `Title ${id}`, markdown: `Content ${id}` })
+        };
+      }
+      return {
+        ok: true,
+        json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
+      };
     }));
     router = createRouter({
       history: createMemoryHistory('/blog/'),
@@ -28,20 +37,18 @@ describe('App', () => {
   });
 
   it('renders latest article and sets title', async () => {
-    fetch
-      .mockResolvedValueOnce({
+    fetch.mockImplementation(async (url) => {
+      if (url.includes('?id=')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id: 'latest-id', title: '最新記事', markdown: '本文です。' })
+        };
+      }
+      return {
         ok: true,
         json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'latest-id',
-            title: '最新記事',
-            markdown: '本文です。'
-          })
-      });
+      };
+    });
 
     const wrapper = mount(App, {
       global: {
@@ -64,27 +71,24 @@ describe('App', () => {
       ids: ['first-id', 'middle-id', 'last-id'],
       article_cache: []
     };
-    fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(listData)
+    fetch.mockImplementation(async (url) => {
+      if (url.includes('?id=')) {
+        const id = url.split('?id=')[1];
+        let title = `Title ${id}`;
+        if (id === 'middle-id') title = '中間記事';
+        if (id === 'last-id') title = '最後の記事';
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id, title, markdown: '本文です。' })
+        };
+      }
+      return {
+        ok: true,
+        json: () => Promise.resolve(listData)
+      };
     });
 
     await router.push('/middle-id');
-
-    fetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(listData)
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'middle-id',
-            title: '中間記事',
-            markdown: '本文です。'
-          })
-      });
 
     const wrapper = mount(App, {
       global: {
@@ -106,16 +110,6 @@ describe('App', () => {
     expect(bottomLinks[0].attributes('href')).toBe('/blog/first-id');
     expect(bottomLinks[1].attributes('href')).toBe('/blog/last-id');
 
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          id: 'last-id',
-          title: '最後の記事',
-          markdown: '更新本文です。'
-        })
-    });
-
     await router.push('/last-id');
     await flushPromises();
 
@@ -124,25 +118,30 @@ describe('App', () => {
 
   it('shows loading text while fetching a new article on route change', async () => {
     const listData = { ids: ['first-id', 'last-id'], article_cache: [] };
-    fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(listData)
+
+    let resolveArticle;
+    const articlePromise = new Promise((resolve) => {
+      resolveArticle = resolve;
     });
 
-    fetch
-      .mockResolvedValueOnce({
+    fetch.mockImplementation(async (url) => {
+      if (url.includes('?id=first-id')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id: 'first-id', title: '先頭の記事', markdown: '本文です。' })
+        };
+      }
+      if (url.includes('?id=last-id')) {
+        return {
+          ok: true,
+          json: () => articlePromise
+        };
+      }
+      return {
         ok: true,
         json: () => Promise.resolve(listData)
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'first-id',
-            title: '先頭の記事',
-            markdown: '本文です。'
-          })
-      });
+      };
+    });
 
     const wrapper = mount(App, {
       global: {
@@ -150,16 +149,6 @@ describe('App', () => {
       }
     });
     await flushPromises();
-
-    let resolveArticle;
-    const articlePromise = new Promise((resolve) => {
-      resolveArticle = resolve;
-    });
-
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => articlePromise
-    });
 
     const pushPromise = router.push('/last-id');
     await flushPromises();
@@ -179,25 +168,22 @@ describe('App', () => {
 
   it('shows only the next link when the first article is selected', async () => {
     const listData = { ids: ['first-id', 'second-id'], article_cache: [] };
-    fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(listData)
-    });
-
-    fetch
-      .mockResolvedValueOnce({
+    fetch.mockImplementation(async (url) => {
+      if (url.includes('?id=first-id')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id: 'first-id', title: '先頭の記事', markdown: '本文です。' })
+        };
+      }
+      if (url.includes('?id=')) {
+          const id = url.split('?id=')[1];
+          return { ok: true, json: () => Promise.resolve({ id, title: `Title ${id}` }) };
+      }
+      return {
         ok: true,
         json: () => Promise.resolve(listData)
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'first-id',
-            title: '先頭の記事',
-            markdown: '本文です。'
-          })
-      });
+      };
+    });
 
     const wrapper = mount(App, {
       global: {
@@ -217,27 +203,24 @@ describe('App', () => {
 
   it('shows only the previous link when the last article is selected', async () => {
     const listData = { ids: ['first-id', 'last-id'], article_cache: [] };
-    fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(listData)
-    });
+    fetch.mockImplementation(async (url) => {
+        if (url.includes('?id=last-id')) {
+          return {
+            ok: true,
+            json: () => Promise.resolve({ id: 'last-id', title: '最後の記事', markdown: '本文です。' })
+          };
+        }
+        if (url.includes('?id=')) {
+            const id = url.split('?id=')[1];
+            return { ok: true, json: () => Promise.resolve({ id, title: `Title ${id}` }) };
+        }
+        return {
+          ok: true,
+          json: () => Promise.resolve(listData)
+        };
+      });
 
     await router.push('/last-id');
-
-    fetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(listData)
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 'last-id',
-            title: '最後の記事',
-            markdown: '本文です。'
-          })
-      });
 
     const wrapper = mount(App, {
       global: {
