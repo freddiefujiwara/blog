@@ -43,6 +43,7 @@ export function useBlog() {
 
     try {
       const data = await fetchArticle(id);
+      articleCache.value[id] = data;
       article.value = data;
       currentId.value = id;
       errorMessage.value = '';
@@ -86,6 +87,21 @@ export function useBlog() {
     return data.ids;
   };
 
+  const prefetch = () => {
+    const { prevId, nextId } = navigationLinks.value;
+    [prevId, nextId].forEach((id) => {
+      if (id && !articleCache.value[id]) {
+        fetchArticle(id)
+          .then((data) => {
+            articleCache.value[id] = data;
+          })
+          .catch(() => {
+            // Ignore prefetch errors
+          });
+      }
+    });
+  };
+
   const loadArticleFromLocation = async () => {
     if (loading.value) return;
     loading.value = true;
@@ -108,6 +124,7 @@ export function useBlog() {
       article.value = null;
       errorMessage.value = '';
       await getArticle(articleId);
+      prefetch();
     } finally {
       loading.value = false;
     }
