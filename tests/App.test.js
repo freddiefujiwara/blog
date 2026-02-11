@@ -66,6 +66,22 @@ describe('App', () => {
     expect(wrapper.find('.footer-link a').attributes('href')).toBe('/blog/latest-id');
   });
 
+  it('renders RSS link in the footer', async () => {
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    const rssLink = wrapper.find('a[target="_blank"]');
+    expect(rssLink.exists()).toBe(true);
+    expect(rssLink.text()).toBe('RSS');
+    expect(rssLink.attributes('href')).toBe('https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec?o=rss');
+    expect(rssLink.attributes('rel')).toContain('noopener');
+    expect(rssLink.attributes('rel')).toContain('noreferrer');
+  });
+
   it('uses the path parameter when it exists in the list', async () => {
     const listData = {
       ids: ['first-id', 'middle-id', 'last-id'],
