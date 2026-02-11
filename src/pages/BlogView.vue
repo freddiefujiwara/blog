@@ -20,6 +20,8 @@
     />
     <div v-if="article && articleIds.length > 0" class="footer-link">
       <router-link :to="'/' + articleIds[0]">最新記事（トップ）へ戻る</router-link>
+      &nbsp;|&nbsp;
+      <a :href="RSS_ENDPOINT" target="_blank" rel="noopener noreferrer">RSS</a>
     </div>
   </div>
 </template>
@@ -29,6 +31,7 @@ import { useBlog } from '../composables/useBlog';
 import NavigationLinks from '../components/NavigationLinks.vue';
 import ArticleContent from '../components/ArticleContent.vue';
 import StatusMessage from '../components/StatusMessage.vue';
+import { RSS_ENDPOINT } from '../constants';
 
 const { article, articleHtml, articleIds, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
 </script>
