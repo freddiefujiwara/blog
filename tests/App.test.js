@@ -9,6 +9,12 @@ describe('App', () => {
 
   beforeEach(async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return {
+          ok: true,
+          text: () => Promise.resolve('<rss>content</rss>')
+        };
+      }
       if (url.includes('?id=')) {
         const id = url.split('?id=')[1];
         return {
@@ -38,6 +44,9 @@ describe('App', () => {
 
   it('renders latest article and sets title', async () => {
     fetch.mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
       if (url.includes('?id=')) {
         return {
           ok: true,
@@ -80,6 +89,10 @@ describe('App', () => {
     expect(rssLink.attributes('href')).toBe('https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec?o=rss');
     expect(rssLink.attributes('rel')).toContain('noopener');
     expect(rssLink.attributes('rel')).toContain('noreferrer');
+
+    const copyLink = wrapper.find('.copy-link');
+    expect(copyLink.exists()).toBe(true);
+    expect(copyLink.text()).toBe('コピー');
   });
 
   it('uses the path parameter when it exists in the list', async () => {
@@ -88,6 +101,9 @@ describe('App', () => {
       article_cache: []
     };
     fetch.mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
       if (url.includes('?id=')) {
         const id = url.split('?id=')[1];
         let title = `Title ${id}`;
@@ -141,6 +157,9 @@ describe('App', () => {
     });
 
     fetch.mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
       if (url.includes('?id=first-id')) {
         return {
           ok: true,
@@ -185,6 +204,9 @@ describe('App', () => {
   it('shows only the next link when the first article is selected', async () => {
     const listData = { ids: ['first-id', 'second-id'], article_cache: [] };
     fetch.mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
       if (url.includes('?id=first-id')) {
         return {
           ok: true,
@@ -220,6 +242,9 @@ describe('App', () => {
   it('shows only the previous link when the last article is selected', async () => {
     const listData = { ids: ['first-id', 'last-id'], article_cache: [] };
     fetch.mockImplementation(async (url) => {
+        if (url.includes('?o=rss')) {
+          return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+        }
         if (url.includes('?id=last-id')) {
           return {
             ok: true,

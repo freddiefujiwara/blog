@@ -102,6 +102,24 @@ article :where(a) {
   text-decoration: underline;
 }
 
+.copy-link {
+  color: #8ab4ff;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.copy-link:hover:not(.disabled) {
+  text-decoration: underline;
+}
+
+.copy-link.disabled {
+  color: #a6a9b3;
+  cursor: default;
+  pointer-events: none;
+  text-decoration: none;
+}
+
 @media (max-width: 600px) {
   main {
     padding: 32px 18px 64px;

@@ -1,4 +1,12 @@
-import { LIST_ENDPOINT } from '../constants';
+import { LIST_ENDPOINT, RSS_ENDPOINT } from '../constants';
+
+export const fetchRSS = async () => {
+  const response = await fetch(RSS_ENDPOINT);
+  if (!response.ok) {
+    throw new Error('RSSの取得に失敗しました。');
+  }
+  return await response.text();
+};
 
 export const fetchArticle = async (id) => {
   const articleResponse = await fetch(`${LIST_ENDPOINT}?id=${id}`);
