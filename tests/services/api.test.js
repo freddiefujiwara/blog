@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fetchArticle, fetchArticleList } from '../../src/services/api';
-import { LIST_ENDPOINT } from '../../src/constants';
+import { fetchArticle, fetchArticleList, fetchRSS } from '../../src/services/api';
+import { LIST_ENDPOINT, RSS_ENDPOINT } from '../../src/constants';
 
 describe('api service', () => {
   beforeEach(() => {
@@ -9,6 +9,28 @@ describe('api service', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  describe('fetchRSS', () => {
+    it('fetches RSS XML successfully', async () => {
+      const mockXml = '<rss>content</rss>';
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(mockXml)
+      });
+
+      const result = await fetchRSS();
+      expect(fetch).toHaveBeenCalledWith(RSS_ENDPOINT);
+      expect(result).toBe(mockXml);
+    });
+
+    it('throws error when response is not ok', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false
+      });
+
+      await expect(fetchRSS()).rejects.toThrow('RSSの取得に失敗しました。');
+    });
   });
 
   describe('fetchArticle', () => {
