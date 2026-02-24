@@ -66,8 +66,8 @@ describe('App', () => {
     });
     await flushPromises();
 
-    expect(wrapper.find('.site-title').text()).toBe('ミニマリストのブログ');
-    expect(wrapper.find('h1').text()).toBe('最新記事');
+    expect(wrapper.find('.header h1').text()).toBe('ミニマリストのブログ');
+    expect(wrapper.find('article h1').text()).toBe('最新記事');
     expect(wrapper.find('article').html()).toContain('本文です。');
     expect(document.title).toBe('最新記事');
     // After redirect, URL should be /latest-id
@@ -145,7 +145,7 @@ describe('App', () => {
     await router.push('/last-id');
     await flushPromises();
 
-    expect(wrapper.find('h1').text()).toBe('最後の記事');
+    expect(wrapper.find('article h1').text()).toBe('最後の記事');
   });
 
   it('shows loading text while fetching a new article on route change', async () => {
@@ -198,7 +198,7 @@ describe('App', () => {
     });
     await flushPromises();
 
-    expect(wrapper.find('h1').text()).toBe('最後の記事');
+    expect(wrapper.find('article h1').text()).toBe('最後の記事');
   });
 
   it('shows only the next link when the first article is selected', async () => {

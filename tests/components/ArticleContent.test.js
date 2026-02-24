@@ -5,7 +5,7 @@ import ArticleContent from '../../src/components/ArticleContent.vue';
 describe('ArticleContent', () => {
   it('renders nothing when no article is provided', () => {
     const wrapper = mount(ArticleContent);
-    expect(wrapper.find('div').exists()).toBe(false);
+    expect(wrapper.find('article').exists()).toBe(false);
   });
 
   it('renders title and content when article is provided', () => {
@@ -18,6 +18,6 @@ describe('ArticleContent', () => {
       }
     });
     expect(wrapper.find('h1').text()).toBe('Test Title');
-    expect(wrapper.find('article').html()).toContain('<p>Test Content</p>');
+    expect(wrapper.find('div').html()).toContain('<p>Test Content</p>');
   });
 });

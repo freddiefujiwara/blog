@@ -1,8 +1,8 @@
 <template>
-  <div v-if="article">
+  <article v-if="article" class="article-content">
     <h1>{{ article.title }}</h1>
-    <article v-html="articleHtml"></article>
-  </div>
+    <div v-html="articleHtml"></div>
+  </article>
 </template>
 
 <script setup>
