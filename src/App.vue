@@ -1,8 +1,13 @@
 <template>
-  <main>
-    <p class="site-title">ミニマリストのブログ</p>
+  <div class="layout">
+    <header class="header">
+      <h1>ミニマリストのブログ</h1>
+      <div class="header-actions">
+        <!-- header actions can go here if needed -->
+      </div>
+    </header>
     <router-view />
-  </main>
+  </div>
 </template>
 
 <script setup>
