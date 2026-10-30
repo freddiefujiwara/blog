@@ -66,7 +66,7 @@ describe('App', () => {
     });
     await flushPromises();
 
-    expect(wrapper.find('.header h1').text()).toBe('ミニマリストのブログ');
+    expect(wrapper.find('.header h1').text()).toBe('藤原史和｜川口を歩くQAエンジニア');
     expect(wrapper.find('article h1').text()).toBe('最新記事');
     expect(wrapper.find('article').html()).toContain('本文です。');
     expect(document.title).toBe('最新記事');
