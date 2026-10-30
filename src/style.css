@@ -290,6 +290,7 @@ article a {
   color: var(--link);
   text-decoration: underline;
   text-underline-offset: 4px;
+  overflow-wrap: anywhere;
 }
 
 article a:hover {
