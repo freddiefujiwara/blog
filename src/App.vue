@@ -12,7 +12,7 @@
     <header class="header hero">
       <div class="hero-inner">
         <p class="hero-place">KAWAGUCHI — BLOG</p>
-        <h1>藤原史和｜川口を歩くQAエンジニア</h1>
+        <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
       </div>
     </header>
     <div class="layout">
