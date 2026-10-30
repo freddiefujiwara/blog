@@ -10,7 +10,15 @@
       </ul>
     </nav>
     <header class="header hero">
-      <div class="hero-inner">
+      <router-link
+        v-if="latestArticlePath"
+        :to="latestArticlePath"
+        class="hero-inner hero-link"
+      >
+        <p class="hero-place">KAWAGUCHI — BLOG</p>
+        <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
+      </router-link>
+      <div v-else class="hero-inner">
         <p class="hero-place">KAWAGUCHI — BLOG</p>
         <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
       </div>
@@ -33,5 +41,23 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue';
+import { fetchArticleList } from './services/api';
+
 const year = new Date().getFullYear();
+
+// Same destination as the footer's "最新記事（トップ）へ戻る" link:
+// the first id in the article list is the latest article.
+const latestArticlePath = ref('');
+
+onMounted(async () => {
+  try {
+    const data = await fetchArticleList();
+    if (data?.ids?.[0]) {
+      latestArticlePath.value = `/${data.ids[0]}`;
+    }
+  } catch {
+    // If the list fails to load, the hero simply stays non-clickable.
+  }
+});
 </script>
