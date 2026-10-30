@@ -278,4 +278,26 @@ describe('App', () => {
       expect(links[0].attributes('href')).toBe('/blog/first-id');
     });
   });
+
+  it('links the hero to the latest article, same as the footer link', async () => {
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    const heroLink = wrapper.find('.hero a.hero-inner');
+    expect(heroLink.exists()).toBe(true);
+    // Same destination as the footer's 最新記事（トップ）へ戻る link
+    expect(heroLink.attributes('href')).toBe('/blog/latest-id');
+    expect(wrapper.find('.footer-link a').attributes('href')).toBe(
+      heroLink.attributes('href')
+    );
+    expect(heroLink.find('h1').text()).toBe('藤原史和｜川口を歩くQAエンジニア');
+
+    await heroLink.trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/latest-id');
+  });
 });
