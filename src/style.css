@@ -59,36 +59,151 @@ body {
   padding: 28px 20px 56px;
 }
 
-.header {
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 28px;
-  padding-bottom: 18px;
+  padding: 0 clamp(16px, 4vw, 40px);
+  height: 56px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
 }
 
-.header h1 {
-  margin: 0;
+.site-nav .brand {
   font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
   font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
   letter-spacing: 0.04em;
-  font-size: clamp(1.35rem, 3vw, 1.8rem);
-  line-height: 1.4;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
-.header-actions {
+.site-nav ul {
   display: flex;
+  gap: clamp(14px, 3vw, 30px);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-nav ul a {
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.site-nav ul a:hover {
+  color: var(--text);
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 300px;
+  color: #fdfbf7;
+  overflow: hidden;
+  background: #241a12 url("https://freddiefujiwara.com/assets/hero-koinobori.jpg") center 38% / cover no-repeat;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(16, 11, 6, 0.88) 0%, rgba(16, 11, 6, 0.45) 45%, rgba(16, 11, 6, 0.15) 75%);
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 96px 20px 36px;
+}
+
+.hero-place {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  margin: 0 0 14px;
 }
 
-.header-buttons {
+.hero-place::before {
+  content: "";
+  width: 34px;
+  height: 2px;
+  background: #f0764f;
+}
+
+.hero h1 {
+  margin: 0;
+  font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  font-size: clamp(1.55rem, 5.2vw, 2.4rem);
+  line-height: 1.35;
+}
+
+.site-footer {
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.site-footer .foot-links {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  gap: 10px 22px;
+  margin-bottom: 14px;
+}
+
+.site-footer .foot-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.site-footer .foot-links a:hover {
+  color: var(--link);
+}
+
+.site-footer .copy {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .site-nav {
+    justify-content: center;
+  }
+
+  .site-nav .brand {
+    display: none;
+  }
+
+  .site-nav ul {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .site-nav ul a {
+    font-size: 13px;
+  }
 }
 
 .btn-pill {
@@ -277,11 +392,6 @@ article th {
 }
 
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .navigation {
     flex-direction: column;
   }
