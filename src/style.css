@@ -153,8 +153,24 @@ body {
   font-family: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
   font-weight: 800;
   letter-spacing: 0.03em;
-  font-size: clamp(1.55rem, 5.2vw, 2.4rem);
   line-height: 1.35;
+}
+
+.hero h1 .h1-sep {
+  display: none;
+}
+
+.hero h1 .h1-name {
+  display: block;
+  font-size: clamp(2rem, 6vw, 2.9rem);
+}
+
+.hero h1 .h1-role {
+  display: block;
+  font-size: clamp(1.05rem, 3.4vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-top: 10px;
 }
 
 .site-footer {
