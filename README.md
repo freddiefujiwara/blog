@@ -58,10 +58,14 @@ Both accounts are free.
 ### Step 2: Set up the back side first
 
 The back side sends your Docs to the web page, so set it up first.
-Follow the **Setup** section in the backend README:
-[blog-gas README](https://github.com/freddiefujiwara/blog-gas#setup)
+All the steps for the back side are in the backend README.
+This guide does not repeat them.
 
-At the end of that setup, you get a long web address (URL).
+Follow the **Setup** section here:
+[blog-gas README — Setup](https://github.com/freddiefujiwara/blog-gas#setup)
+
+At the end of that setup, you get your Web App URL.
+It is a long web address (URL).
 It looks like this:
 
 ```
