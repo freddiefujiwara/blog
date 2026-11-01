@@ -6,7 +6,7 @@
         <li><a href="https://freddiefujiwara.com/#about">プロフィール</a></li>
         <li><a href="https://freddiefujiwara.com/#activity">活動・発信</a></li>
         <li><a href="https://freddiefujiwara.com/#contact">情報交換</a></li>
-        <li><a href="/blog/">ブログ</a></li>
+        <li><a href="/blog/" class="active" aria-current="page">ブログ</a></li>
       </ul>
     </nav>
     <header class="header hero">
@@ -29,6 +29,7 @@
         <div class="foot-links">
           <a href="https://freddiefujiwara.com/" target="_blank" rel="noopener">トップ <span class="arr">↗</span></a>
           <a href="https://www.instagram.com/freddiefujiwara" target="_blank" rel="noopener">Instagram <span class="arr">↗</span></a>
+          <a href="https://www.facebook.com/freddiefujiwara" target="_blank" rel="noopener">Facebook <span class="arr">↗</span></a>
           <a href="https://www.google.com/maps/contrib/105456242747265663411/reviews" target="_blank" rel="noopener">Googleマップの口コミ <span class="arr">↗</span></a>
           <a href="https://review.travel.rakuten.co.jp/reviewer/fumikazufujiwara" target="_blank" rel="noopener">楽天トラベルの口コミ <span class="arr">↗</span></a>
           <a href="https://tabelog.com/rvwr/zegenvs/" target="_blank" rel="noopener">食べログの口コミ <span class="arr">↗</span></a>
