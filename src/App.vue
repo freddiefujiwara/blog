@@ -7,6 +7,7 @@
         <li><a href="https://freddiefujiwara.com/#activity">活動・発信</a></li>
         <li><a href="https://freddiefujiwara.com/#contact">情報交換</a></li>
         <li><a href="/blog/" class="active" aria-current="page">ブログ</a></li>
+        <li><a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a></li>
       </ul>
     </nav>
     <header class="header hero">
@@ -28,6 +29,8 @@
       <footer class="site-footer">
         <div class="foot-links">
           <a href="https://freddiefujiwara.com/" target="_blank" rel="noopener">トップ <span class="arr">↗</span></a>
+          <a href="https://freddiefujiwara.com/blog/" target="_blank" rel="noopener">ブログ <span class="arr">↗</span></a>
+          <a href="https://freddiefujiwara.com/list-of-stuff/" target="_blank" rel="noopener">持ち物 <span class="arr">↗</span></a>
           <a href="https://www.instagram.com/freddiefujiwara" target="_blank" rel="noopener">Instagram <span class="arr">↗</span></a>
           <a href="https://www.facebook.com/freddiefujiwara" target="_blank" rel="noopener">Facebook <span class="arr">↗</span></a>
           <a href="https://www.google.com/maps/contrib/105456242747265663411/reviews" target="_blank" rel="noopener">Googleマップの口コミ <span class="arr">↗</span></a>
