@@ -380,11 +380,17 @@ article th {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  max-width: 50%;
+  /* Let the longer title use the room the shorter one leaves; when both
+     are long, flex shrink settles them at roughly half each. */
+  max-width: 70%;
   padding: 4px 2px;
   color: var(--text);
   font-size: 0.85rem;
   text-decoration: none;
+}
+
+.nav-link:only-child {
+  max-width: 100%;
 }
 
 .nav-next {
