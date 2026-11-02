@@ -24,4 +24,18 @@ describe('index.html performance hints', () => {
       'rel="preconnect" href="https://script.googleusercontent.com"'
     );
   });
+
+  it('uses the shared profile-photo favicon set', () => {
+    expect(html).toContain('<link rel="icon" href="/blog/favicon.ico" sizes="any">');
+    expect(html).toContain(
+      '<link rel="icon" type="image/png" sizes="32x32" href="/blog/favicon-32.png">'
+    );
+    expect(html).toContain(
+      '<link rel="icon" type="image/png" sizes="16x16" href="/blog/favicon-16.png">'
+    );
+    expect(html).toContain(
+      '<link rel="apple-touch-icon" sizes="180x180" href="/blog/apple-touch-icon.png">'
+    );
+    expect(html).not.toContain('data:image/svg+xml');
+  });
 });
