@@ -21,6 +21,29 @@ describe('article link styles (long URL overflow regression)', () => {
   });
 });
 
+describe('OGP link cards', () => {
+  it('renders standalone links as a bordered flex card', () => {
+    const block = blockFor('article a.link-card');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/display:\s*flex/);
+    expect(block).toMatch(/border:\s*1px solid var\(--border\)/);
+    expect(block).toMatch(/text-decoration:\s*none/);
+  });
+
+  it('keeps the card image a fixed-size cover thumbnail', () => {
+    const block = blockFor('article .link-card-image');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/object-fit:\s*cover/);
+    expect(block).toMatch(/width:\s*112px/);
+  });
+
+  it('clamps the card title to two lines', () => {
+    const block = blockFor('article .link-card-title');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/-webkit-line-clamp:\s*2/);
+  });
+});
+
 describe('compact one-line navigation', () => {
   it('keeps nav titles on a single line with an ellipsis', () => {
     const block = blockFor('.nav-title');
