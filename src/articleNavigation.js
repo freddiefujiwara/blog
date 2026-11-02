@@ -12,23 +12,27 @@ const normalizeHash = (hash) => {
   return hash.startsWith('#') ? hash.slice(1) : hash;
 };
 
-export const resolveArticleId = (ids, { path, search, hash }) => {
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return '';
-  }
+export const extractRequestedId = ({ path, search, hash }) => {
   const normalizedHash = normalizeHash(hash);
-  if (normalizedHash && ids.includes(normalizedHash)) {
+  if (normalizedHash) {
     return normalizedHash;
   }
 
   const normalizedPath = normalizePath(path);
   const pathMatch = normalizedPath.match(/\/blog\/(.+)$/);
-  if (pathMatch && ids.includes(pathMatch[1])) {
+  if (pathMatch) {
     return pathMatch[1];
   }
 
   const params = new URLSearchParams(search);
-  const requestedId = params.get('id');
+  return params.get('id') || '';
+};
+
+export const resolveArticleId = (ids, { path, search, hash }) => {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return '';
+  }
+  const requestedId = extractRequestedId({ path, search, hash });
   if (requestedId && ids.includes(requestedId)) {
     return requestedId;
   }

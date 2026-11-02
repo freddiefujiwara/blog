@@ -29,6 +29,7 @@ describe('useBlog composable', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockRoute.path = '/blog';
     mockRoute.params = {};
     routeToReturn = mockRoute;
@@ -425,5 +426,117 @@ describe('useBlog composable', () => {
     await flushPromises(); // Prefetch '2' fails
     expect(wrapper.vm.errorMessage).toBe(''); // Still empty
     expect(wrapper.vm.nextTitle).toBe(''); // Not cached
+  });
+
+  it('starts fetching a deep-linked article before the list resolves', async () => {
+    let resolveList;
+    api.fetchArticleList.mockReturnValue(
+      new Promise((resolve) => {
+        resolveList = resolve;
+      })
+    );
+    api.fetchArticle.mockResolvedValue({
+      id: 'old',
+      title: 'Old Title',
+      markdown: 'Old Content'
+    });
+
+    mockRoute.path = '/old';
+    mockRoute.params = { id: 'old' };
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/old' });
+
+    wrapper = mount(TestComponent);
+
+    // The article fetch is already in flight while the list is pending.
+    expect(api.fetchArticle).toHaveBeenCalledWith('old');
+
+    resolveList({
+      ids: ['new', 'old'],
+      article_cache: [{ id: 'new', title: 'New Title', markdown: 'New' }]
+    });
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('old');
+    expect(wrapper.vm.article.title).toBe('Old Title');
+    // The early fetch was consumed, not duplicated.
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists the fetched list for the next visit', async () => {
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2'],
+      article_cache: [{ id: '1', title: 'Title 1', markdown: 'Content 1' }]
+    });
+    api.fetchArticle.mockResolvedValue({
+      id: '1',
+      title: 'Title 1',
+      markdown: 'Content 1'
+    });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    const stored = JSON.parse(localStorage.getItem('blog:list-cache:v1'));
+    expect(stored.ids).toEqual(['1', '2']);
+    expect(stored.article_cache).toHaveLength(1);
+  });
+
+  it('renders from the persisted list immediately and refreshes in the background', async () => {
+    localStorage.setItem(
+      'blog:list-cache:v1',
+      JSON.stringify({
+        ids: ['1', '2'],
+        article_cache: [
+          { id: '1', title: 'Stored Title', markdown: 'Stored Content' }
+        ]
+      })
+    );
+    let resolveList;
+    api.fetchArticleList.mockReturnValue(
+      new Promise((resolve) => {
+        resolveList = resolve;
+      })
+    );
+    api.fetchArticle.mockImplementation(async (id) => ({
+      id,
+      title: `Title ${id}`,
+      markdown: `Content ${id}`
+    }));
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    // Rendered from storage without waiting for the network list, while a
+    // background refresh is in flight.
+    expect(wrapper.vm.article.title).toBe('Stored Title');
+    expect(api.fetchArticleList).toHaveBeenCalledTimes(1);
+
+    resolveList({
+      ids: ['1', '2'],
+      article_cache: [
+        { id: '1', title: 'Fresh Title', markdown: 'Fresh Content' }
+      ]
+    });
+    await flushPromises();
+
+    expect(wrapper.vm.article.title).toBe('Fresh Title');
+    const stored = JSON.parse(localStorage.getItem('blog:list-cache:v1'));
+    expect(stored.article_cache[0].title).toBe('Fresh Title');
+  });
+
+  it('ignores a corrupt persisted list and loads from the network', async () => {
+    localStorage.setItem('blog:list-cache:v1', 'not-json');
+    api.fetchArticleList.mockResolvedValue({ ids: ['1'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({
+      id: '1',
+      title: 'Title 1',
+      markdown: 'Content 1'
+    });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(wrapper.vm.article.id).toBe('1');
+    expect(wrapper.vm.article.title).toBe('Title 1');
   });
 });

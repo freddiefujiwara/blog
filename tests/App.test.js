@@ -8,6 +8,7 @@ describe('App', () => {
   let router;
 
   beforeEach(async () => {
+    localStorage.clear();
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
       if (url.includes('?o=rss')) {
         return {

@@ -2,7 +2,12 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import { fetchArticle, fetchArticleList } from '../services/api';
-import { resolveArticleId, buildNavigationLinks } from '../articleNavigation';
+import { loadCachedList, saveCachedList } from '../services/listCache';
+import {
+  resolveArticleId,
+  extractRequestedId,
+  buildNavigationLinks
+} from '../articleNavigation';
 
 export function useBlog() {
   const route = useRoute();
@@ -13,6 +18,8 @@ export function useBlog() {
   const currentId = ref('');
   const loading = ref(false);
   const articleCache = ref({});
+  const pendingArticleFetches = new Map();
+  let listRefreshInFlight = false;
 
   const articleHtml = computed(() => {
     if (!article.value) {
@@ -30,6 +37,20 @@ export function useBlog() {
   const prevTitle = computed(() => articleCache.value[navigationLinks.value.prevId]?.title || '');
   const nextTitle = computed(() => articleCache.value[navigationLinks.value.nextId]?.title || '');
 
+  // Starts fetching an article before the article list has arrived, so a
+  // deep-linked article downloads in parallel with the list instead of
+  // waiting for it. The pending promise is consumed by getArticle.
+  const startArticleFetch = (id) => {
+    if (!id || articleCache.value[id] || pendingArticleFetches.has(id)) {
+      return;
+    }
+    const promise = fetchArticle(id);
+    // If the fetch ends up unused (e.g. the id is not in the list), its
+    // rejection must not surface as an unhandled rejection.
+    promise.catch(() => {});
+    pendingArticleFetches.set(id, promise);
+  };
+
   const getArticle = async (id) => {
     if (articleCache.value[id]) {
       article.value = articleCache.value[id];
@@ -39,6 +60,25 @@ export function useBlog() {
         document.title = article.value.title;
       }
       return;
+    }
+
+    const pending = pendingArticleFetches.get(id);
+    if (pending) {
+      pendingArticleFetches.delete(id);
+      try {
+        const data = await pending;
+        articleCache.value[id] = data;
+        article.value = data;
+        currentId.value = id;
+        errorMessage.value = '';
+        if (data?.title) {
+          document.title = data.title;
+        }
+        return;
+      } catch {
+        // Fall through to a fresh fetch so error handling matches the
+        // behavior when no early fetch was started.
+      }
     }
 
     try {
@@ -73,17 +113,67 @@ export function useBlog() {
     };
   };
 
-  const getArticleList = async () => {
-    if (articleIds.value.length > 0) {
-      return articleIds.value;
-    }
-    const data = await fetchArticleList();
+  const applyListData = (data) => {
     articleIds.value = data.ids;
     if (data.article_cache) {
       data.article_cache.forEach((item) => {
         articleCache.value[item.id] = item;
       });
     }
+  };
+
+  // Seeds the in-memory list from the list persisted on a previous visit and
+  // refreshes it in the background, so repeat visits render immediately.
+  const primeListFromCache = () => {
+    if (articleIds.value.length > 0) {
+      return;
+    }
+    const cached = loadCachedList();
+    if (!cached) {
+      return;
+    }
+    applyListData(cached);
+    refreshArticleList();
+  };
+
+  const refreshArticleList = async () => {
+    if (listRefreshInFlight) {
+      return;
+    }
+    listRefreshInFlight = true;
+    try {
+      const data = await fetchArticleList();
+      applyListData(data);
+      saveCachedList(data);
+      // Keep the displayed article in sync when the refresh brought a
+      // newer version of it.
+      const fresh = currentId.value
+        ? articleCache.value[currentId.value]
+        : null;
+      if (fresh && article.value && fresh !== article.value) {
+        article.value = fresh;
+        if (fresh.title) {
+          document.title = fresh.title;
+        }
+      }
+    } catch {
+      // Keep showing the persisted list when the refresh fails.
+    } finally {
+      listRefreshInFlight = false;
+    }
+  };
+
+  const getArticleList = async () => {
+    if (articleIds.value.length > 0) {
+      return articleIds.value;
+    }
+    primeListFromCache();
+    if (articleIds.value.length > 0) {
+      return articleIds.value;
+    }
+    const data = await fetchArticleList();
+    applyListData(data);
+    saveCachedList(data);
     return data.ids;
   };
 
@@ -106,6 +196,15 @@ export function useBlog() {
     if (loading.value) return;
     loading.value = true;
     try {
+      primeListFromCache();
+      // On a direct article visit, start downloading the article right away
+      // instead of waiting for the article list to arrive first.
+      const requestedId = route
+        ? route.params?.id || ''
+        : extractRequestedId(getLocationContext());
+      if (requestedId) {
+        startArticleFetch(requestedId);
+      }
       const ids = await getArticleList();
       const articleId = resolveArticleId(ids, getLocationContext());
       if (!articleId) {
