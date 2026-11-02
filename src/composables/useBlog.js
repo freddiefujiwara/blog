@@ -124,16 +124,19 @@ export function useBlog() {
 
   // Seeds the in-memory list from the list persisted on a previous visit and
   // refreshes it in the background, so repeat visits render immediately.
+  // Returns true when the in-memory list came from the persisted cache (and
+  // may therefore be stale).
   const primeListFromCache = () => {
     if (articleIds.value.length > 0) {
-      return;
+      return false;
     }
     const cached = loadCachedList();
     if (!cached) {
-      return;
+      return false;
     }
     applyListData(cached);
     refreshArticleList();
+    return true;
   };
 
   const refreshArticleList = async () => {
@@ -196,7 +199,7 @@ export function useBlog() {
     if (loading.value) return;
     loading.value = true;
     try {
-      primeListFromCache();
+      const usedCachedList = primeListFromCache();
       // On a direct article visit, start downloading the article right away
       // instead of waiting for the article list to arrive first.
       const requestedId = route
@@ -205,7 +208,20 @@ export function useBlog() {
       if (requestedId) {
         startArticleFetch(requestedId);
       }
-      const ids = await getArticleList();
+      let ids = await getArticleList();
+      if (usedCachedList && requestedId && !ids.includes(requestedId)) {
+        // The persisted list predates the requested article, so resolving
+        // against it would fall back to a stale "newest" article and send
+        // the reader to the wrong post. Fetch the fresh list first.
+        try {
+          const data = await fetchArticleList();
+          applyListData(data);
+          saveCachedList(data);
+          ids = data.ids;
+        } catch {
+          // Keep the persisted list; the fallback below still applies.
+        }
+      }
       const articleId = resolveArticleId(ids, getLocationContext());
       if (!articleId) {
         throw new Error('最新記事が見つかりませんでした。');

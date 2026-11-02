@@ -539,4 +539,68 @@ describe('useBlog composable', () => {
     expect(wrapper.vm.article.id).toBe('1');
     expect(wrapper.vm.article.title).toBe('Title 1');
   });
+
+  it('fetches the fresh list when a deep-linked id is missing from the persisted list', async () => {
+    localStorage.setItem(
+      'blog:list-cache:v1',
+      JSON.stringify({
+        ids: ['1', '2'],
+        article_cache: [
+          { id: '1', title: 'Stored Title', markdown: 'Stored Content' }
+        ]
+      })
+    );
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['3', '1', '2'],
+      article_cache: []
+    });
+    api.fetchArticle.mockImplementation(async (id) => ({
+      id,
+      title: `Title ${id}`,
+      markdown: `Content ${id}`
+    }));
+
+    mockRoute.path = '/3';
+    mockRoute.params = { id: '3' };
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    // The requested article wins over the stale list's newest entry.
+    expect(wrapper.vm.article.id).toBe('3');
+    expect(wrapper.vm.article.title).toBe('Title 3');
+    expect(mockRouter.replace).not.toHaveBeenCalledWith({
+      name: 'post',
+      params: { id: '1' }
+    });
+  });
+
+  it('falls back to the fresh newest article when the id is in neither list', async () => {
+    localStorage.setItem(
+      'blog:list-cache:v1',
+      JSON.stringify({ ids: ['1', '2'], article_cache: [] })
+    );
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['9', '1', '2'],
+      article_cache: []
+    });
+    api.fetchArticle.mockImplementation(async (id) => ({
+      id,
+      title: `Title ${id}`,
+      markdown: `Content ${id}`
+    }));
+
+    mockRoute.path = '/gone';
+    mockRoute.params = { id: 'gone' };
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    // The fallback target is the fresh list's first article, not the
+    // stale persisted list's.
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      name: 'post',
+      params: { id: '9' }
+    });
+  });
 });
