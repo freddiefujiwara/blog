@@ -291,6 +291,73 @@ article a:hover {
   color: var(--link-active);
 }
 
+/* OGP link cards, emitted by blog-gas for standalone link paragraphs */
+article a.link-card {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  margin: 1.5rem 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: normal;
+  line-height: 1.5;
+}
+
+article a.link-card:hover {
+  border-color: var(--link);
+  color: inherit;
+}
+
+article .link-card-image {
+  width: 112px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+article .link-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+article .link-card-title {
+  font-weight: 700;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+article .link-card-description {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+article .link-card-domain {
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  margin-top: auto;
+}
+
+@media (max-width: 560px) {
+  article .link-card-image {
+    width: 84px;
+    height: 84px;
+  }
+}
+
 article img {
   max-width: 100%;
   height: auto;
