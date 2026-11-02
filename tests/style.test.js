@@ -21,16 +21,17 @@ describe('article link styles (long URL overflow regression)', () => {
   });
 });
 
-describe('navigation height stability', () => {
-  it('reserves a fixed minimum height for the prev/next navigation', () => {
-    const block = blockFor('.navigation');
+describe('compact one-line navigation', () => {
+  it('keeps nav titles on a single line with an ellipsis', () => {
+    const block = blockFor('.nav-title');
     expect(block).not.toBe('');
-    expect(block).toMatch(/min-height:\s*96px/);
+    expect(block).toMatch(/white-space:\s*nowrap/);
+    expect(block).toMatch(/text-overflow:\s*ellipsis/);
   });
 
-  it('reserves room for two stacked links on small screens', () => {
-    const media = css.match(/@media \(max-width: 768px\) \{([\s\S]*?)\n\}/);
-    expect(media).not.toBeNull();
-    expect(media[1]).toMatch(/\.navigation\s*\{[^}]*min-height:\s*193px/);
+  it('does not reserve a fixed height for the navigation', () => {
+    const block = blockFor('.navigation');
+    expect(block).not.toBe('');
+    expect(block).not.toMatch(/min-height/);
   });
 });
