@@ -3,6 +3,7 @@
     <nav class="site-nav">
       <a class="brand" href="https://freddiefujiwara.com/">藤原史和｜川口を歩くQAエンジニア</a>
       <ul>
+        <li><a href="https://freddiefujiwara.com/">トップ</a></li>
         <li><a href="https://freddiefujiwara.com/#about">プロフィール</a></li>
         <li><a href="https://freddiefujiwara.com/#activity">活動・発信</a></li>
         <li><a href="https://freddiefujiwara.com/#contact">情報交換</a></li>
