@@ -361,75 +361,56 @@ article th {
 .navigation {
   display: flex;
   justify-content: space-between;
-  gap: 12px 32px;
-  margin: 20px 0;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0;
   border-top: 1px solid var(--border);
-  padding-top: 10px;
-  /* Reserve room for the label plus a two-line title so the article
-     title below never shifts when moving between articles. */
-  min-height: 96px;
+  padding: 10px 0;
 }
 
 .navigation-top {
   margin-top: 0;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   border-top: none;
   border-bottom: 1px solid var(--border);
-  padding-top: 0;
-  padding-bottom: 10px;
 }
 
 .nav-link {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   max-width: 50%;
-  padding: 6px 2px;
+  padding: 4px 2px;
   color: var(--text);
+  font-size: 0.85rem;
   text-decoration: none;
 }
 
 .nav-next {
   margin-left: auto;
-  text-align: right;
-}
-
-.nav-next .nav-text {
-  align-items: flex-end;
 }
 
 .nav-arrow {
   flex-shrink: 0;
   color: var(--link);
-  line-height: 1.9;
-}
-
-.nav-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.nav-label {
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  color: var(--muted-2);
 }
 
 .nav-title {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link:hover .nav-title {
   color: var(--link);
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .nav-link {
+    font-size: 0.8rem;
+  }
 }
 
 .footer-link {
@@ -462,21 +443,4 @@ article th {
 .status {
   color: var(--muted);
   font-size: 0.95rem;
-}
-
-@media (max-width: 768px) {
-  .navigation {
-    flex-direction: column;
-    justify-content: flex-start;
-    /* Two stacked links (label + two-line title each) plus the gap. */
-    min-height: 193px;
-  }
-
-  .nav-link {
-    max-width: 100%;
-  }
-
-  .nav-next {
-    align-self: flex-end;
-  }
 }
