@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolveArticleId, buildNavigationLinks } from '../src/articleNavigation';
+import {
+  resolveArticleId,
+  buildNavigationLinks,
+  extractRequestedId
+} from '../src/articleNavigation';
 
 describe('articleNavigation helpers', () => {
   it('returns first id when query is missing', () => {
@@ -89,5 +93,34 @@ describe('articleNavigation helpers', () => {
 
     const links2 = buildNavigationLinks(['a', 'b'], 'a', '///');
     expect(links2.nextLink).toBe('/b');
+  });
+
+  it('extracts the requested id without checking the list', () => {
+    expect(
+      extractRequestedId({ path: '/blog/b', search: '', hash: '' })
+    ).toBe('b');
+    // Unknown ids are returned as-is; membership is resolveArticleId's job.
+    expect(
+      extractRequestedId({ path: '/blog/unknown', search: '', hash: '' })
+    ).toBe('unknown');
+    expect(
+      extractRequestedId({ path: '/blog', search: '', hash: '#xyz' })
+    ).toBe('xyz');
+    expect(
+      extractRequestedId({ path: '/blog', search: '?id=q1', hash: '' })
+    ).toBe('q1');
+    expect(extractRequestedId({ path: '/blog', search: '', hash: '' })).toBe(
+      ''
+    );
+  });
+
+  it('prefers hash over path and search when extracting', () => {
+    expect(
+      extractRequestedId({
+        path: '/blog/from-path',
+        search: '?id=from-search',
+        hash: '#from-hash'
+      })
+    ).toBe('from-hash');
   });
 });
