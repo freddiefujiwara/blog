@@ -5,6 +5,7 @@
   --bg: #fbfaf7;
   --text: #221d16;
   --muted: #5d5546;
+  --muted-2: #8a8071;
   --surface: #ffffff;
   --surface-elevated: #f7e9e2;
   --border: #e3ddd0;
@@ -21,6 +22,7 @@
     --bg: #17140f;
     --text: #f2ecdf;
     --muted: #c2b8a4;
+    --muted-2: #948a77;
     --surface: #211c15;
     --surface-elevated: #33231b;
     --border: #3a332a;
@@ -49,6 +51,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s, color 0.2s;
 }
