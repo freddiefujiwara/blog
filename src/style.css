@@ -365,6 +365,9 @@ article th {
   margin: 20px 0;
   border-top: 1px solid var(--border);
   padding-top: 10px;
+  /* Reserve room for the label plus a two-line title so the article
+     title below never shifts when moving between articles. */
+  min-height: 96px;
 }
 
 .navigation-top {
@@ -464,6 +467,9 @@ article th {
 @media (max-width: 768px) {
   .navigation {
     flex-direction: column;
+    justify-content: flex-start;
+    /* Two stacked links (label + two-line title each) plus the gap. */
+    min-height: 193px;
   }
 
   .nav-link {

@@ -20,3 +20,17 @@ describe('article link styles (long URL overflow regression)', () => {
     expect(block).toMatch(/overflow-wrap:\s*anywhere/);
   });
 });
+
+describe('navigation height stability', () => {
+  it('reserves a fixed minimum height for the prev/next navigation', () => {
+    const block = blockFor('.navigation');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/min-height:\s*96px/);
+  });
+
+  it('reserves room for two stacked links on small screens', () => {
+    const media = css.match(/@media \(max-width: 768px\) \{([\s\S]*?)\n\}/);
+    expect(media).not.toBeNull();
+    expect(media[1]).toMatch(/\.navigation\s*\{[^}]*min-height:\s*193px/);
+  });
+});
