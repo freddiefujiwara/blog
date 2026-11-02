@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import NavigationLinks from '../../src/components/NavigationLinks.vue';
 
+const routerLinkStub = { template: '<a :href="$attrs.to"><slot /></a>' };
+
 describe('NavigationLinks', () => {
   it('renders nothing when no links are provided', () => {
     const wrapper = mount(NavigationLinks, {
@@ -12,7 +14,7 @@ describe('NavigationLinks', () => {
     expect(wrapper.find('nav').exists()).toBe(false);
   });
 
-  it('renders links with formatted titles when provided', () => {
+  it('renders text links with labels and full titles when provided', () => {
     const wrapper = mount(NavigationLinks, {
       props: {
         prevLink: '/prev',
@@ -21,21 +23,25 @@ describe('NavigationLinks', () => {
         nextTitle: 'Next'
       },
       global: {
-        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
+        stubs: { RouterLink: routerLinkStub }
       }
     });
     expect(wrapper.find('nav').exists()).toBe(true);
     const links = wrapper.findAll('a');
     expect(links).toHaveLength(2);
-    // Previous: 16 chars of "Previous Article Title" is "Previous Article"
-    expect(links[0].text()).toBe('<<Previous Article…');
+    expect(links[0].classes()).toContain('nav-link');
+    expect(links[0].classes()).toContain('nav-prev');
+    expect(links[0].find('.nav-label').text()).toBe('前の記事');
+    // Titles are shown in full (no truncation); wrapping is left to CSS.
+    expect(links[0].find('.nav-title').text()).toBe('Previous Article Title');
     expect(links[0].attributes('href')).toBe('/prev');
-    // Next: "Next" is short
-    expect(links[1].text()).toBe('Next>>');
+    expect(links[1].classes()).toContain('nav-next');
+    expect(links[1].find('.nav-label').text()).toBe('次の記事');
+    expect(links[1].find('.nav-title').text()).toBe('Next');
     expect(links[1].attributes('href')).toBe('/next');
   });
 
-  it('renders fallback text when titles are missing', () => {
+  it('renders labels only when titles are missing', () => {
     const wrapper = mount(NavigationLinks, {
       props: {
         prevLink: '/prev',
@@ -44,30 +50,30 @@ describe('NavigationLinks', () => {
         nextTitle: ''
       },
       global: {
-        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
+        stubs: { RouterLink: routerLinkStub }
       }
     });
     const links = wrapper.findAll('a');
-    expect(links[0].text()).toBe('前の記事');
-    expect(links[1].text()).toBe('次の記事');
+    expect(links[0].find('.nav-label').text()).toBe('前の記事');
+    expect(links[0].find('.nav-title').exists()).toBe(false);
+    expect(links[1].find('.nav-label').text()).toBe('次の記事');
+    expect(links[1].find('.nav-title').exists()).toBe(false);
   });
 
-  it('handles exactly 16 characters in title', () => {
-    const sixteenChars = '1234567890123456';
+  it('renders a long title in full without truncation markers', () => {
+    const longTitle = 'This is a very long title for the next article';
     const wrapper = mount(NavigationLinks, {
       props: {
-        prevLink: '/prev',
-        prevTitle: sixteenChars,
         nextLink: '/next',
-        nextTitle: sixteenChars
+        nextTitle: longTitle
       },
       global: {
-        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
+        stubs: { RouterLink: routerLinkStub }
       }
     });
-    const links = wrapper.findAll('a');
-    expect(links[0].text()).toBe('<<' + sixteenChars);
-    expect(links[1].text()).toBe(sixteenChars + '>>');
+    expect(wrapper.find('.nav-title').text()).toBe(longTitle);
+    expect(wrapper.find('a').text()).not.toContain('…');
+    expect(wrapper.find('a').text()).not.toContain('>>');
   });
 
   it('applies top class when top prop is true', () => {
@@ -90,24 +96,12 @@ describe('NavigationLinks', () => {
         nextTitle: 'Next'
       },
       global: {
-        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
+        stubs: { RouterLink: routerLinkStub }
       }
     });
     const links = wrapper.findAll('a');
     expect(links).toHaveLength(1);
-    expect(links[0].text()).toBe('Next>>');
-  });
-
-  it('renders long next title with truncation', () => {
-    const wrapper = mount(NavigationLinks, {
-      props: {
-        nextLink: '/next',
-        nextTitle: 'This is a very long title for the next article'
-      },
-      global: {
-        stubs: { RouterLink: { template: '<a :href="$attrs.to"><slot /></a>' } }
-      }
-    });
-    expect(wrapper.find('a').text()).toBe('This is a very l…>>');
+    expect(links[0].classes()).toContain('nav-next');
+    expect(links[0].find('.nav-title').text()).toBe('Next');
   });
 });
