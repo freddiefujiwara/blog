@@ -46,7 +46,7 @@ props: {
 prevLink: '/prev',
 prevTitle: '2026-11-01 サーバー代ゼロ。お金をかけないホームページとブログの続け方',
 nextLink: '/next',
-nextTitle: '2026-11-02 AI「Muse」を1週間使い倒したら'
+nextTitle: '2026-11-02【招待コード有】AI「Muse」を1週間使い倒したら'
 },
 global: {
 stubs: { RouterLink: routerLinkStub}
@@ -57,7 +57,7 @@ expect(links[0].find('.nav-title').text()).toBe(
 'サーバー代ゼロ。お金をかけないホームページとブログの続け方'
 );
 expect(links[1].find('.nav-title').text()).toBe(
-'AI「Muse」を1週間使い倒したら'
+'【招待コード有】AI「Muse」を1週間使い倒したら'
 );
 // The full title (with date) stays available via aria-label.
 expect(links[0].attributes('aria-label')).toContain('2026-11-01');

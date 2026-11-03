@@ -54,6 +54,6 @@ const hasNavigation = computed(() => Boolean(props.prevLink || props.nextLink));
 // overflow is trimmed with an ellipsis by CSS.
 const formatNavTitle = (title, fallback) => {
   if (!title) return fallback;
-  return title.replace(/^\d{4}-\d{2}-\d{2}\s+/, '');
+  return title.replace(/^\d{4}-\d{2}-\d{2}\s*/, '');
 };
 </script>

@@ -57,4 +57,10 @@ describe('compact one-line navigation', () => {
     expect(block).not.toBe('');
     expect(block).not.toMatch(/min-height/);
   });
+
+  it('lets a lone nav link use the full row width', () => {
+    const block = blockFor('.nav-link:only-child');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/max-width:\s*100%/);
+  });
 });
