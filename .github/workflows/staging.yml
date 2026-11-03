@@ -1,0 +1,44 @@
+name: Deploy Staging Preview
+
+on:
+  push:
+    branches-ignore: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staging-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build staging variant
+        env:
+          VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec"
+          VITE_STAGING: "1"
+        run: npm run build:staging
+
+      - name: Deploy staging preview to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-staging
+          destination_dir: staging
+          keep_files: true

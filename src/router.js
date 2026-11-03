@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import BlogView from './pages/BlogView.vue'
 
-const BASE = '/blog/'
+const BASE = import.meta.env.BASE_URL
 
 const router = createRouter({
   history: createWebHistory(BASE),
