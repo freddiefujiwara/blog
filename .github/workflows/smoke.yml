@@ -2,8 +2,8 @@ name: Production smoke
 
 on:
   schedule:
-    # 07:00 JST every day
-    - cron: "0 22 * * *"
+    # 06:00 JST every day
+    - cron: "0 21 * * *"
   workflow_dispatch:
 
 jobs:
