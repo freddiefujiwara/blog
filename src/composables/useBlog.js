@@ -1,8 +1,8 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { marked } from 'marked';
 import { fetchArticle, fetchArticleList } from '../services/api';
 import { loadCachedList, saveCachedList } from '../services/listCache';
+import { renderMarkdown } from '../services/markdown';
 import {
   resolveArticleId,
   extractRequestedId,
@@ -25,7 +25,7 @@ export function useBlog() {
     if (!article.value) {
       return '';
     }
-    return marked.parse(article.value.markdown ?? '');
+    return renderMarkdown(article.value.markdown);
   });
 
   const navigationLinks = computed(() =>

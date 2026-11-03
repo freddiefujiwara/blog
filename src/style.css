@@ -517,3 +517,13 @@ article th {
   color: var(--muted);
   font-size: 0.95rem;
 }
+
+/* Keep anchored headings clear of the sticky site nav (56px tall)
+   when an in-article fragment link scrolls to them. */
+.article-content h2,
+.article-content h3,
+.article-content h4,
+.article-content h5,
+.article-content h6 {
+  scroll-margin-top: 72px;
+}
