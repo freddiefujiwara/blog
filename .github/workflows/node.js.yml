@@ -54,6 +54,12 @@ jobs:
 
       - name: Build
         run: npm run build
+      - name: Generate OGP image
+        run: |
+          # URL-encoded title: ブログ
+          JSON_RESPONSE=$(curl -L -s "https://script.google.com/macros/s/AKfycbzbMAKxkzHlwN8SY7ygJA34xYESMNNdkGNt8vv1XMcZSksgHsUwOxCCdP-wgg6fv7M/exec?t=%E3%83%96%E3%83%AD%E3%82%B0")
+          echo $JSON_RESPONSE | jq -r '.png' | base64 -d > ./dist/ogp.png
+          ls -lh ./dist/ogp.png
 
       - name: Build staging variant into dist/staging
         env:
