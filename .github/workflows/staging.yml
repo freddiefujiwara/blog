@@ -42,3 +42,31 @@ jobs:
           publish_dir: ./dist-staging
           destination_dir: staging
           keep_files: true
+
+  e2e:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for GitHub Pages to publish the preview
+        run: sleep 60
+
+      - name: Run staging checks
+        env:
+          APP: blog
+          HOME: /root
+        run: npx playwright test e2e/staging.check.js
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traces
+          path: test-results/
+          retention-days: 7

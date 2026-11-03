@@ -8,7 +8,9 @@
     "build": "vite build && cp 404.html dist/",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:staging": "vite build --base /blog/staging/ --outDir dist-staging && cp 404.html dist-staging/"
+    "build:staging": "vite build --base /blog/staging/ --outDir dist-staging && cp 404.html dist-staging/",
+    "test:staging": "playwright test e2e/staging.check.js",
+    "test:smoke": "playwright test"
   },
   "dependencies": {
     "marked": "^12.0.2",
@@ -16,6 +18,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@vitejs/plugin-vue": "^5.0.4",
     "@vitest/coverage-v8": "^1.6.1",
     "@vue/test-utils": "^2.4.3",
