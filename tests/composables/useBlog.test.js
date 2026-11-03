@@ -59,7 +59,7 @@ describe('useBlog composable', () => {
     await flushPromises();
 
     expect(wrapper.vm.article.title).toBe('Title 1');
-    expect(wrapper.vm.articleHtml).toContain('<h1 id="Content 1">Content 1</h1>');
+    expect(wrapper.vm.articleHtml).toMatch(/<h1 id="h-[0-9a-f]{8}">Content 1<\/h1>/);
     expect(document.title).toBe('Title 1');
   });
 
