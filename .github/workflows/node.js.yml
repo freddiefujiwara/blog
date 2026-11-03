@@ -63,7 +63,7 @@ jobs:
 
       - name: Build staging variant into dist/staging
         env:
-          VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGup1NGdyYPcn9GEcFYhPzG9J9ipJK/exec"
+          VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec"
           VITE_STAGING: "1"
         run: |
           npm run build:staging
