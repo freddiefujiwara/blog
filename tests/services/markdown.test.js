@@ -40,24 +40,23 @@ describe('renderMarkdown', () => {
 });
 
 describe('renderMarkdown link targets', () => {
-  it('opens external links in a new tab', () => {
+  it('opens external sites in a new tab', () => {
     const html = renderMarkdown('[例](https://example.com/page)');
     expect(html).toContain('<a href="https://example.com/page" target="_blank" rel="noopener noreferrer">例</a>');
   });
 
-  it('opens other apps on the same site in a new tab', () => {
+  it('keeps links to other apps on this site in the same tab', () => {
     const html = renderMarkdown('[持ち物](https://freddiefujiwara.com/list-of-stuff/)');
-    expect(html).toContain('target="_blank"');
+    expect(html).toContain('<a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a>');
+    expect(html).not.toContain('target=');
     const pathHtml = renderMarkdown('[持ち物](/list-of-stuff/)');
-    expect(pathHtml).toContain('target="_blank"');
+    expect(pathHtml).not.toContain('target=');
   });
 
   it('keeps links under /blog in the same tab', () => {
-    const urlHtml = renderMarkdown('[前回](https://freddiefujiwara.com/blog/abc)');
-    expect(urlHtml).toContain('<a href="https://freddiefujiwara.com/blog/abc">前回</a>');
-    const pathHtml = renderMarkdown('[前回](/blog/abc)');
-    expect(pathHtml).toContain('<a href="/blog/abc">前回</a>');
-    expect(pathHtml).not.toContain('target=');
+    const html = renderMarkdown('[前回](https://freddiefujiwara.com/blog/abc)');
+    expect(html).toContain('<a href="https://freddiefujiwara.com/blog/abc">前回</a>');
+    expect(html).not.toContain('target=');
   });
 
   it('keeps fragment links in the same tab', () => {
