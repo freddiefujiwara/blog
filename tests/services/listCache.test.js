@@ -57,4 +57,26 @@ describe('listCache service', () => {
     });
     expect(loadCachedList()).toBeNull();
   });
+
+  it('uses a separate storage key for staging builds', async () => {
+    vi.stubEnv('VITE_STAGING', '1');
+    vi.resetModules();
+    try {
+      const stagingCache = await import('../../src/services/listCache');
+      stagingCache.saveCachedList({ ids: ['9'], article_cache: [] });
+      // The production key stays untouched, so the two environments
+      // can never read each other's cached list on the shared origin.
+      expect(localStorage.getItem('blog:list-cache:v1')).toBeNull();
+      expect(
+        localStorage.getItem('blog:list-cache:v1:staging')
+      ).not.toBeNull();
+      expect(stagingCache.loadCachedList()).toEqual({
+        ids: ['9'],
+        article_cache: []
+      });
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
 });

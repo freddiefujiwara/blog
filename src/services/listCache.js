@@ -1,4 +1,13 @@
-const STORAGE_KEY = 'blog:list-cache:v1';
+import { isStagingBuild } from '../staging-banner';
+
+// Production and staging are served from the same origin, so an
+// unscoped key would let one environment render the other's cached
+// article list (the staging preview jumping to a production-only
+// article). Staging builds (VITE_STAGING=1) use their own key; the
+// production key is unchanged so existing visitors keep their cache.
+const STORAGE_KEY = isStagingBuild()
+  ? 'blog:list-cache:v1:staging'
+  : 'blog:list-cache:v1';
 
 // Loads the last article list saved by saveCachedList. Returns null when
 // nothing usable is stored (first visit, cleared storage, corrupt data).
