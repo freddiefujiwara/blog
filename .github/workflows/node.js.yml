@@ -9,25 +9,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [18.x, 20.x]
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-
       - name: Install dependencies
         run: npm install
-
       - name: Run tests
         run: npm test
-
       - name: Build
         run: npm run build
 
@@ -36,28 +30,28 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     strategy:
       matrix:
         node-version: [20.x]
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-
       - name: Install dependencies
         run: npm install
-
       - name: Build
         run: npm run build
-
+      - name: Generate OGP image
+        run: |
+          # URL-encoded title: ブログ
+          JSON_RESPONSE=$(curl -L -s "https://script.google.com/macros/s/AKfycbzbMAKxkzHlwN8SY7ygJA34xYESMNNdkGNt8vv1XMcZSksgHsUwOxCCdP-wgg6fv7M/exec?t=%E3%83%96%E3%83%AD%E3%82%B0")
+          echo $JSON_RESPONSE | jq -r '.png' | base64 -d > ./dist/ogp.png
+          ls -lh ./dist/ogp.png
       - name: Build staging variant into dist/staging
         env:
-          VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec"
+          VITE_GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGup1NGdyYPcn9GEcFYhPzG9J9ipJK/exec"
           VITE_STAGING: "1"
         run: |
           npm run build:staging
