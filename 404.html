@@ -15,11 +15,14 @@
     <meta property="og:site_name" content="藤原史和｜川口を歩くQAエンジニア" />
     <meta name="twitter:card" content="summary_large_image" />
     <script>
-      // Project Pages が /blog/ 配下なので 1
-      var segmentCount = 1;
-
       var l = window.location;
       var pathParts = l.pathname.split('/');
+
+      // Project Pages が /blog/ 配下なので 1。
+      // ただしステージングは /blog/staging/ と1階層深いので 2
+      // （1のままだと /blog/staging/<id> が本番側へ書き換わり、
+      // ステージングにしかない記事が空表示になる）
+      var segmentCount = pathParts[2] === 'staging' ? 2 : 1;
 
       // /blog/abc -> /blog/?/abc に変換して index を読ませる
       var newPath =
