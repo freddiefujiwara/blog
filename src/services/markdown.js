@@ -22,9 +22,32 @@ export const hashHeadingText = (text) => {
 //   [障害1：…](#h-xxxxxxxx)
 // Ids are unique within one article: the second and later headings
 // with the same text gain a "-2", "-3", ... suffix.
+// Link targets inside an article: destinations under /blog keep the
+// reader circulating within the blog, so they stay in the same tab.
+// Everything else (other apps on this site, external sites) opens in
+// a new tab, so the article itself stays open. Fragment links jump
+// within the page and non-web links (mailto: and friends) are left
+// exactly as they are.
+export const isBlogInternalUrl = (href) => {
+  if (!href) return false;
+  if (href === '/blog' || href.startsWith('/blog/')) return true;
+  return /^https?:\/\/freddiefujiwara\.com\/blog(\/|$)/.test(href);
+};
+
+export const opensInNewTab = (href) => {
+  if (!href || href.startsWith('#')) return false;
+  if (isBlogInternalUrl(href)) return false;
+  return /^https?:\/\//i.test(href) || href.startsWith('/');
+};
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
+  renderer.link = (href, title, text) => {
+    const titleAttr = title ? ` title="${title}"` : '';
+    const target = opensInNewTab(href) ? ' target="_blank" rel="noopener noreferrer"' : '';
+    return `<a href="${href}"${titleAttr}${target}>${text}</a>`;
+  };
   renderer.heading = (text, level) => {
     const plain = text
       .replace(/<[^>]*>/g, '')
