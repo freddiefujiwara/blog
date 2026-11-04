@@ -513,6 +513,70 @@ article th {
   pointer-events: none;
 }
 
+.share-links {
+  margin-top: 40px;
+}
+
+.share-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.share-heading::before,
+.share-heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.share-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.share-pill:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.share-pill svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  flex: none;
+}
+
+.share-copy {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 .status {
   color: var(--muted);
   font-size: 0.95rem;
