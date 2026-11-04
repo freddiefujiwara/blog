@@ -280,6 +280,70 @@ describe('App', () => {
     });
   });
 
+  it('offers title search in the nav and hero, fed by the list titles', async () => {
+    fetch.mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
+      if (url.includes('?id=')) {
+        const id = url.split('?id=')[1];
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id, title: `Title ${id}`, markdown: '本文です。' })
+        };
+      }
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          ids: ['latest-id', 'older-id'],
+          titles: { 'latest-id': '最新の記事タイトル', 'older-id': '川口の記事タイトル' },
+          article_cache: []
+        })
+      };
+    });
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    expect(wrapper.find('.nav-search input').exists()).toBe(true);
+    const input = wrapper.find('.hero-search input');
+    expect(input.exists()).toBe(true);
+
+    await input.setValue('川口');
+    const results = wrapper.findAll('.hero-search .title-search-item a');
+    expect(results).toHaveLength(1);
+    expect(results[0].text()).toBe('川口の記事タイトル');
+    expect(results[0].attributes('href')).toBe('/blog/older-id');
+  });
+
+  it('primes the search from the cached list so it works before the fetch lands', async () => {
+    localStorage.setItem('blog:list-cache:v1', JSON.stringify({
+      ids: ['cached-id'],
+      titles: { 'cached-id': '川口のキャッシュ記事' },
+      article_cache: []
+    }));
+    fetch.mockImplementation(async () => {
+      throw new Error('network down');
+    });
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    const input = wrapper.find('.hero-search input');
+    expect(input.exists()).toBe(true);
+    await input.setValue('川口');
+    const results = wrapper.findAll('.hero-search .title-search-item a');
+    expect(results).toHaveLength(1);
+    expect(results[0].text()).toBe('川口のキャッシュ記事');
+    expect(wrapper.find('.hero-search .title-search-status').exists()).toBe(false);
+  });
+
   it('links the hero to the latest article, same as the footer link', async () => {
     const wrapper = mount(App, {
       global: {
