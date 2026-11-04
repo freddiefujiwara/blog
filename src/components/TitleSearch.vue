@@ -11,7 +11,7 @@
       <li v-for="entry in matches" :key="entry.id" class="title-search-item">
         <router-link :to="`/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
       </li>
-      <li v-if="matches.length === 0" class="title-search-empty">該当する記事がありません</li>
+      <li v-if="matches.length === 0 && articles.length > 0" class="title-search-empty">該当する記事がありません</li>
     </ul>
   </div>
 </template>

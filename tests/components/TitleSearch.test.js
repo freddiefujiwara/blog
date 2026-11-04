@@ -36,6 +36,16 @@ describe('TitleSearch', () => {
     expect(links[0].text()).toContain('全持ち物リスト');
   });
 
+  it('does not claim no matches while the article list has not loaded yet', async () => {
+    const wrapper = mount(TitleSearch, {
+      props: { articles: [] },
+      global: { stubs: { RouterLink: RouterLinkStub } }
+    });
+    await wrapper.find('input').setValue('川口');
+    expect(wrapper.find('.title-search-empty').exists()).toBe(false);
+    expect(wrapper.findAll('.title-search-item')).toHaveLength(0);
+  });
+
   it('shows a no-match message when nothing fits', async () => {
     const wrapper = mountSearch();
     await wrapper.find('input').setValue('存在しない言葉');
