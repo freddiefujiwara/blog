@@ -1,7 +1,13 @@
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../constants';
+import { isStagingBuild } from '../staging-banner';
+
+// Staging previews bypass the browser's HTTP cache for API responses,
+// so a reload always shows the current data. Production keeps the
+// default caching behavior.
+const apiFetch = (url) => (isStagingBuild() ? fetch(url, { cache: 'no-store' }) : fetch(url));
 
 export const fetchRSS = async () => {
-  const response = await fetch(RSS_ENDPOINT);
+  const response = await apiFetch(RSS_ENDPOINT);
   if (!response.ok) {
     throw new Error('RSSの取得に失敗しました。');
   }
@@ -9,7 +15,7 @@ export const fetchRSS = async () => {
 };
 
 export const fetchArticle = async (id) => {
-  const articleResponse = await fetch(`${LIST_ENDPOINT}?id=${id}`);
+  const articleResponse = await apiFetch(`${LIST_ENDPOINT}?id=${id}`);
   if (!articleResponse.ok) {
     throw new Error('記事の取得に失敗しました。');
   }
@@ -44,7 +50,7 @@ export const buildSearchableArticles = (data) => {
 // returns ids and titles only (no article bodies), which keeps the
 // search responsive even when the article cache is cold.
 export const fetchArticleTitles = async () => {
-  const response = await fetch(`${LIST_ENDPOINT}?o=titles`);
+  const response = await apiFetch(`${LIST_ENDPOINT}?o=titles`);
   if (!response.ok) {
     throw new Error('記事タイトル一覧の取得に失敗しました。');
   }
@@ -56,7 +62,7 @@ export const fetchArticleTitles = async () => {
 };
 
 export const fetchArticleList = async () => {
-  const listResponse = await fetch(LIST_ENDPOINT);
+  const listResponse = await apiFetch(LIST_ENDPOINT);
   if (!listResponse.ok) {
     throw new Error('記事一覧の取得に失敗しました。');
   }

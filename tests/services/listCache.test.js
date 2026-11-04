@@ -69,23 +69,21 @@ describe('listCache service', () => {
     expect(loadCachedList()).toBeNull();
   });
 
-  it('uses a separate storage key for staging builds', async () => {
+  it('never saves or loads the cache in staging builds', async () => {
     vi.stubEnv('VITE_STAGING', '1');
     vi.resetModules();
     try {
       const stagingCache = await import('../../src/services/listCache');
       stagingCache.saveCachedList({ ids: ['9'], article_cache: [] });
-      // The production key stays untouched, so the two environments
-      // can never read each other's cached list on the shared origin.
       expect(localStorage.getItem('blog:list-cache:v1')).toBeNull();
-      expect(
-        localStorage.getItem('blog:list-cache:v1:staging')
-      ).not.toBeNull();
-      expect(stagingCache.loadCachedList()).toEqual({
-        ids: ['9'],
-        titles: {},
-        article_cache: []
-      });
+      expect(localStorage.getItem('blog:list-cache:v1:staging')).toBeNull();
+      // Even a list stored by an older staging build is ignored, so a
+      // preview can never render stale articles.
+      localStorage.setItem(
+        'blog:list-cache:v1:staging',
+        JSON.stringify({ ids: ['9'], article_cache: [] })
+      );
+      expect(stagingCache.loadCachedList()).toBeNull();
     } finally {
       vi.unstubAllEnvs();
       vi.resetModules();
