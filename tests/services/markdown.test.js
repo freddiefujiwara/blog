@@ -71,3 +71,39 @@ describe('renderMarkdown link targets', () => {
     expect(html).not.toContain('target=');
   });
 });
+
+describe('renderMarkdown bare URLs in Japanese text', () => {
+  it('stops a bare URL at Japanese text that follows without a space', () => {
+    const html = renderMarkdown('ステージング（https://freddiefujiwara.com/staging/）で新セクションの表示を確認済み。本人のマージ待ち。');
+    expect(html).toContain('>https://freddiefujiwara.com/staging/</a>）で新セクションの表示を確認済み。本人のマージ待ち。');
+    expect(html).not.toContain('マージ待ち。</a>');
+  });
+
+  it('links only the URL when a space follows it', () => {
+    const html = renderMarkdown('URLは https://freddiefujiwara.com のまま。');
+    expect(html).toContain('>https://freddiefujiwara.com</a> のまま。');
+  });
+
+  it('keeps a bare /blog URL in the same tab', () => {
+    const html = renderMarkdown('前回（https://freddiefujiwara.com/blog/abc）を見てください');
+    expect(html).toContain('<a href="https://freddiefujiwara.com/blog/abc">https://freddiefujiwara.com/blog/abc</a>）を見てください');
+    expect(html).not.toContain('target=');
+  });
+
+  it('leaves Markdown link destinations untouched', () => {
+    const html = renderMarkdown('[例](https://example.com/page)');
+    expect(html).toContain('<a href="https://example.com/page" target="_blank" rel="noopener noreferrer">例</a>');
+  });
+
+  it('leaves URLs inside code spans untouched', () => {
+    const html = renderMarkdown('`https://example.com` を参照');
+    expect(html).toContain('<code>https://example.com</code>');
+    expect(html).not.toContain('&lt;https');
+  });
+
+  it('leaves URLs inside HTML attributes untouched', () => {
+    const html = renderMarkdown('<a href="https://example.com/x">タイトル</a>');
+    expect(html).toContain('<a href="https://example.com/x">タイトル</a>');
+    expect(html).not.toContain('&lt;https');
+  });
+});

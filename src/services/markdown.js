@@ -40,6 +40,33 @@ export const opensInNewTab = (href) => {
   return /^https?:\/\//i.test(href) || href.startsWith('/');
 };
 
+// Bare URLs written directly into the text are a hazard in Japanese
+// articles: the parser's own autolink keeps consuming characters
+// until it meets whitespace, so a URL placed right against Japanese
+// text (no space after it) swallows the rest of the sentence into
+// the link. Pin bare URLs down before parsing by wrapping them in
+// <...>, which limits the link to the ASCII URL characters only.
+// A URL that already has a delimiter is left untouched: Markdown
+// link destinations (preceded by "("), link text inside "[...]",
+// <...> autolinks, and HTML attribute values (preceded by a quote
+// or "="). URLs inside code spans and fenced code blocks are also
+// left exactly as written.
+const BARE_URL_PATTERN = /https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&*+,;=%]+/g;
+const DELIMITED_PRECEDERS = new Set(['(', '[', '<', '"', "'", '=']);
+const CODE_SEGMENT_PATTERN = /(```[\s\S]*?(?:```|$)|`[^`\n]+`)/g;
+
+const wrapBareUrls = (text) => text.replace(BARE_URL_PATTERN, (match, offset, source) => {
+  const prev = offset > 0 ? source[offset - 1] : '';
+  if (DELIMITED_PRECEDERS.has(prev)) return match;
+  const url = match.replace(/[.,;:!?]+$/, '');
+  return `<${url}>${match.slice(url.length)}`;
+});
+
+export const delimitBareUrls = (markdown) => String(markdown ?? '')
+  .split(CODE_SEGMENT_PATTERN)
+  .map((segment, index) => (index % 2 === 1 ? segment : wrapBareUrls(segment)))
+  .join('');
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
@@ -63,5 +90,5 @@ export const renderMarkdown = (markdown) => {
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${level} id="${id}">${text}</h${level}>\n`;
   };
-  return marked.parse(markdown ?? '', { renderer });
+  return marked.parse(delimitBareUrls(markdown ?? ''), { renderer });
 };
