@@ -25,7 +25,7 @@
         <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
       </div>
       <div class="hero-search">
-        <TitleSearch :articles="searchableArticles" />
+        <TitleSearch :articles="searchableArticles" :state="searchState" />
       </div>
     </header>
     <div class="layout">
@@ -62,6 +62,7 @@ const year = new Date().getFullYear();
 // the first id in the article list is the latest article.
 const latestArticlePath = ref('');
 const searchableArticles = ref([]);
+const searchState = ref('loading');
 
 onMounted(async () => {
   try {
@@ -70,9 +71,11 @@ onMounted(async () => {
       latestArticlePath.value = `/${data.ids[0]}`;
     }
     searchableArticles.value = buildSearchableArticles(data);
+    searchState.value = 'ready';
   } catch {
-    // If the list fails to load, the hero simply stays non-clickable
-    // and the search offers nothing.
+    // If the list fails to load, the hero simply stays non-clickable,
+    // and the search says so instead of pretending there are no hits.
+    searchState.value = 'failed';
   }
 });
 </script>

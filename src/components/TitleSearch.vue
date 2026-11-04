@@ -8,10 +8,16 @@
       aria-label="記事タイトルで探す"
     >
     <ul v-if="query.trim()" class="title-search-results">
-      <li v-for="entry in matches" :key="entry.id" class="title-search-item">
-        <router-link :to="`/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
+      <li v-if="state === 'loading'" class="title-search-status">
+        <span class="title-search-spinner" aria-hidden="true"></span>タイトル一覧を読み込み中…
       </li>
-      <li v-if="matches.length === 0 && articles.length > 0" class="title-search-empty">該当する記事がありません</li>
+      <li v-else-if="state === 'failed'" class="title-search-status">タイトル一覧を取得できませんでした</li>
+      <template v-else>
+        <li v-for="entry in matches" :key="entry.id" class="title-search-item">
+          <router-link :to="`/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
+        </li>
+        <li v-if="matches.length === 0" class="title-search-empty">該当する記事がありません</li>
+      </template>
     </ul>
   </div>
 </template>
@@ -28,6 +34,13 @@ const props = defineProps({
   articles: {
     type: Array,
     default: () => []
+  },
+  // 'loading' while the title list is on its way from the API (which
+  // can take a while), 'failed' when it never arrived, else 'ready'.
+  // Without this, typing early looks exactly like "no such article".
+  state: {
+    type: String,
+    default: 'ready'
   }
 });
 

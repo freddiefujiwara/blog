@@ -36,14 +36,29 @@ describe('TitleSearch', () => {
     expect(links[0].text()).toContain('全持ち物リスト');
   });
 
-  it('does not claim no matches while the article list has not loaded yet', async () => {
+  it('shows a loading status, not a no-match claim, while the list is loading', async () => {
     const wrapper = mount(TitleSearch, {
-      props: { articles: [] },
+      props: { articles: [], state: 'loading' },
       global: { stubs: { RouterLink: RouterLinkStub } }
     });
     await wrapper.find('input').setValue('川口');
+    const status = wrapper.find('.title-search-status');
+    expect(status.exists()).toBe(true);
+    expect(status.text()).toContain('読み込み中');
     expect(wrapper.find('.title-search-empty').exists()).toBe(false);
     expect(wrapper.findAll('.title-search-item')).toHaveLength(0);
+  });
+
+  it('shows a failure status when the list could not be loaded', async () => {
+    const wrapper = mount(TitleSearch, {
+      props: { articles: [], state: 'failed' },
+      global: { stubs: { RouterLink: RouterLinkStub } }
+    });
+    await wrapper.find('input').setValue('川口');
+    const status = wrapper.find('.title-search-status');
+    expect(status.exists()).toBe(true);
+    expect(status.text()).toContain('取得できませんでした');
+    expect(wrapper.find('.title-search-empty').exists()).toBe(false);
   });
 
   it('shows a no-match message when nothing fits', async () => {
