@@ -36,6 +36,10 @@ jobs:
         run: npm run build
 
   deploy:
+    # Production deploys happen on merge (push), on the daily schedule and
+    # on manual dispatch — never from a pull request. Pull requests are
+    # verified on staging only (see staging.yml).
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -77,8 +81,8 @@ jobs:
           mkdir -p dist/staging
           cp -r dist-staging/* dist/staging/
 
-                - name: Generate article shells (staging)
-                        run: node scripts/generate-article-shells.mjs dist/staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec?o=rss" https://freddiefujiwara.com/blog/staging/ --allow-empty
+      - name: Generate article shells (staging)
+        run: node scripts/generate-article-shells.mjs dist/staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec?o=rss" https://freddiefujiwara.com/blog/staging/ --allow-empty
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
