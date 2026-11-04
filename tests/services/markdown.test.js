@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashHeadingText, renderMarkdown } from '../../src/services/markdown';
+import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarker } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -105,5 +105,60 @@ describe('renderMarkdown bare URLs in Japanese text', () => {
     const html = renderMarkdown('<a href="https://example.com/x">タイトル</a>');
     expect(html).toContain('<a href="https://example.com/x">タイトル</a>');
     expect(html).not.toContain('&lt;https');
+  });
+});
+
+describe('extractTocFromHtml', () => {
+  it('lists ## and ### headings with the ids renderMarkdown assigned', () => {
+    const html = renderMarkdown('# タイトル\n\n## 見出しA\n\n本文\n\n### 小見出し\n\n#### 深すぎる見出し\n\n## 見出しB');
+    const toc = extractTocFromHtml(html);
+    expect(toc.map((e) => e.level)).toEqual([2, 3, 2]);
+    expect(toc.map((e) => e.text)).toEqual(['見出しA', '小見出し', '見出しB']);
+    expect(toc[0].id).toBe(hashHeadingText('見出しA'));
+    expect(toc[1].id).toBe(hashHeadingText('小見出し'));
+    for (const entry of toc) {
+      expect(html).toContain(`id="${entry.id}"`);
+    }
+  });
+
+  it('keeps the duplicate suffix so repeated headings stay distinct', () => {
+    const html = renderMarkdown('## 同じ見出し\n\n## 同じ見出し');
+    const toc = extractTocFromHtml(html);
+    expect(toc).toHaveLength(2);
+    expect(toc[0].id).toBe(hashHeadingText('同じ見出し'));
+    expect(toc[1].id).toBe(`${hashHeadingText('同じ見出し')}-2`);
+  });
+
+  it('strips inline markup from heading text', () => {
+    const html = renderMarkdown('## **太字**と`コード`の見出し');
+    const toc = extractTocFromHtml(html);
+    expect(toc).toHaveLength(1);
+    expect(toc[0].text).toBe('太字とコードの見出し');
+  });
+
+  it('returns an empty list when there are no matching headings', () => {
+    expect(extractTocFromHtml('<p>本文だけ</p>')).toEqual([]);
+    expect(extractTocFromHtml('')).toEqual([]);
+    expect(extractTocFromHtml(null)).toEqual([]);
+  });
+});
+
+describe('splitHtmlAtTocMarker', () => {
+  it('splits at a paragraph containing only the marker', () => {
+    const parts = splitHtmlAtTocMarker('<p>Intro</p><p>[[目次]]</p><p>Body</p>');
+    expect(parts).toEqual({ before: '<p>Intro</p>', after: '<p>Body</p>' });
+  });
+
+  it('accepts the full-width bracket variant', () => {
+    const parts = splitHtmlAtTocMarker('<p>Intro</p><p>［［目次］］</p><p>Body</p>');
+    expect(parts).toEqual({ before: '<p>Intro</p>', after: '<p>Body</p>' });
+  });
+
+  it('returns null when the marker is not alone in its paragraph', () => {
+    expect(splitHtmlAtTocMarker('<p>前 [[目次]] 後</p>')).toBeNull();
+  });
+
+  it('returns null when there is no marker', () => {
+    expect(splitHtmlAtTocMarker('<p>Intro</p>')).toBeNull();
   });
 });

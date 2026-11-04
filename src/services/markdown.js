@@ -67,6 +67,50 @@ export const delimitBareUrls = (markdown) => String(markdown ?? '')
   .map((segment, index) => (index % 2 === 1 ? segment : wrapBareUrls(segment)))
   .join('');
 
+// Builds an article's table of contents from its rendered HTML.
+// Reading the entries back out of the rendered markup guarantees the
+// ids match the heading anchors exactly (including the "-2" suffixes
+// renderMarkdown gives repeated headings), however the heading text
+// was marked up. Only ## and ### sections are listed.
+export const extractTocFromHtml = (html) => {
+  const toc = [];
+  const pattern = /<h([23]) id="(h-[0-9a-f]{8}(?:-\d+)?)">([\s\S]*?)<\/h\1>/g;
+  let match;
+  while ((match = pattern.exec(String(html ?? ''))) !== null) {
+    const text = match[3]
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+    if (text) {
+      toc.push({ level: Number(match[1]), id: match[2], text });
+    }
+  }
+  return toc;
+};
+
+// An author can choose where the table of contents appears by putting
+// a paragraph that contains only this marker in the document (the
+// full-width bracket variant is accepted too). Without a marker the
+// TOC sits right under the title, as before. The marker paragraph is
+// never shown to readers.
+const TOC_MARKER_PATTERN = /<p>(?:\[\[目次\]\]|［［目次］］)<\/p>/;
+
+export const splitHtmlAtTocMarker = (html) => {
+  const source = String(html ?? '');
+  const match = TOC_MARKER_PATTERN.exec(source);
+  if (!match) {
+    return null;
+  }
+  return {
+    before: source.slice(0, match.index),
+    after: source.slice(match.index + match[0].length)
+  };
+};
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
