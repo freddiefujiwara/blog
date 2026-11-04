@@ -9,6 +9,9 @@ const STORAGE_KEY = isStagingBuild()
   ? 'blog:list-cache:v1:staging'
   : 'blog:list-cache:v1';
 
+const isTitlesMap = (value) =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 // Loads the last article list saved by saveCachedList. Returns null when
 // nothing usable is stored (first visit, cleared storage, corrupt data).
 export const loadCachedList = () => {
@@ -23,6 +26,7 @@ export const loadCachedList = () => {
     }
     return {
       ids: data.ids,
+      titles: isTitlesMap(data.titles) ? data.titles : {},
       article_cache: Array.isArray(data.article_cache) ? data.article_cache : []
     };
   } catch {
@@ -38,6 +42,7 @@ export const saveCachedList = (data) => {
       STORAGE_KEY,
       JSON.stringify({
         ids: data.ids,
+        titles: isTitlesMap(data.titles) ? data.titles : {},
         article_cache: Array.isArray(data.article_cache) ? data.article_cache : []
       })
     );

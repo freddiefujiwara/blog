@@ -9,6 +9,7 @@
       :next-title="nextTitle"
       :top="true"
     />
+    <TitleSearch v-if="article" :articles="searchableArticles" />
     <ArticleContent :article="article" :article-html="articleHtml" :toc="toc" />
     <ShareLinks v-if="article" :title="article.title" :url="articleUrl" />
     <StatusMessage :message="errorMessage" />
@@ -40,13 +41,14 @@ import { useBlog } from '../composables/useBlog';
 import { useRSS } from '../composables/useRSS';
 import NavigationLinks from '../components/NavigationLinks.vue';
 import ArticleContent from '../components/ArticleContent.vue';
+import TitleSearch from '../components/TitleSearch.vue';
 import ShareLinks from '../components/ShareLinks.vue';
 import StatusMessage from '../components/StatusMessage.vue';
 import { RSS_ENDPOINT } from '../constants';
 import { extractTocFromHtml } from '../services/markdown';
 import { buildArticleUrl } from '../share';
 
-const { article, articleHtml, articleIds, currentId, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
+const { article, articleHtml, articleIds, searchableArticles, currentId, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
 
 const toc = computed(() => extractTocFromHtml(articleHtml.value));
 

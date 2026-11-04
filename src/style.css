@@ -513,6 +513,53 @@ article th {
   pointer-events: none;
 }
 
+.title-search {
+  margin: 16px 0 4px;
+}
+
+.title-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.title-search-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.title-search-results {
+  margin: 8px 0 0;
+  padding: 8px 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.title-search-item a {
+  display: block;
+  padding: 8px 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.title-search-item a:hover {
+  color: var(--primary);
+  background: var(--surface-elevated);
+}
+
+.title-search-empty {
+  padding: 8px 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .table-of-contents {
   margin: 20px 0 28px;
   padding: 16px 20px;
