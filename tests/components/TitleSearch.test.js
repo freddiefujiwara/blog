@@ -44,7 +44,7 @@ describe('TitleSearch', () => {
     await wrapper.find('input').setValue('川口');
     const status = wrapper.find('.title-search-status');
     expect(status.exists()).toBe(true);
-    expect(status.text()).toContain('読み込み中');
+    expect(status.text()).toContain('検索中');
     expect(wrapper.find('.title-search-empty').exists()).toBe(false);
     expect(wrapper.findAll('.title-search-item')).toHaveLength(0);
   });
@@ -57,7 +57,7 @@ describe('TitleSearch', () => {
     await wrapper.find('input').setValue('川口');
     const status = wrapper.find('.title-search-status');
     expect(status.exists()).toBe(true);
-    expect(status.text()).toContain('取得できませんでした');
+    expect(status.text()).toContain('失敗しました');
     expect(wrapper.find('.title-search-empty').exists()).toBe(false);
   });
 

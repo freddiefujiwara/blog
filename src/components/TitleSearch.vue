@@ -9,9 +9,9 @@
     >
     <ul v-if="query.trim()" class="title-search-results">
       <li v-if="state === 'loading'" class="title-search-status">
-        <span class="title-search-spinner" aria-hidden="true"></span>タイトル一覧を読み込み中…
+        <span class="title-search-spinner" aria-hidden="true"></span>検索中…
       </li>
-      <li v-else-if="state === 'failed'" class="title-search-status">タイトル一覧を取得できませんでした</li>
+      <li v-else-if="state === 'failed'" class="title-search-status">読み込みに失敗しました。再読み込みしてください</li>
       <template v-else>
         <li v-for="entry in matches" :key="entry.id" class="title-search-item">
           <router-link :to="`/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
