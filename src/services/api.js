@@ -17,6 +17,29 @@ export const fetchArticle = async (id) => {
   return data;
 };
 
+// Maps a list response to the {id, title} entries the title search
+// offers, newest first. Titles come from the response's titles map;
+// pre-cached articles fill any gaps (older responses have no map).
+export const buildSearchableArticles = (data) => {
+  if (!data || !Array.isArray(data.ids)) {
+    return [];
+  }
+  const titles = data.titles && typeof data.titles === 'object' && !Array.isArray(data.titles)
+    ? data.titles
+    : {};
+  const cached = {};
+  if (Array.isArray(data.article_cache)) {
+    data.article_cache.forEach((item) => {
+      if (item?.id && item?.title) {
+        cached[item.id] = item.title;
+      }
+    });
+  }
+  return data.ids
+    .map((id) => ({ id, title: titles[id] || cached[id] || '' }))
+    .filter((entry) => entry.title);
+};
+
 export const fetchArticleList = async () => {
   const listResponse = await fetch(LIST_ENDPOINT);
   if (!listResponse.ok) {

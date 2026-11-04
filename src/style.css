@@ -513,8 +513,26 @@ article th {
   pointer-events: none;
 }
 
+.hero-search {
+  position: absolute;
+  top: 14px;
+  right: clamp(16px, 4vw, 40px);
+  z-index: 3;
+  width: min(330px, calc(100vw - 32px));
+}
+
+.hero-search .title-search-input {
+  border-color: transparent;
+  box-shadow: 0 2px 12px rgba(16, 11, 6, 0.35);
+}
+
+.hero-search .title-search-results {
+  max-height: 216px;
+  overflow-y: auto;
+}
+
 .title-search {
-  margin: 16px 0 4px;
+  position: relative;
 }
 
 .title-search-input {
@@ -534,12 +552,18 @@ article th {
 }
 
 .title-search-results {
-  margin: 8px 0 0;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  margin: 0;
   padding: 8px 0;
   list-style: none;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(20, 14, 8, 0.18);
 }
 
 .title-search-item a {

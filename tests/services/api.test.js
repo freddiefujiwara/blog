@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fetchArticle, fetchArticleList, fetchRSS } from '../../src/services/api';
+import { buildSearchableArticles, fetchArticle, fetchArticleList, fetchRSS } from '../../src/services/api';
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../../src/constants';
 
 describe('api service', () => {
@@ -95,6 +95,34 @@ describe('api service', () => {
       });
 
       await expect(fetchArticleList()).rejects.toThrow('最新記事が見つかりませんでした。');
+    });
+  });
+
+  describe('buildSearchableArticles', () => {
+    it('maps ids to titles in list order', () => {
+      const data = {
+        ids: ['1', '2'],
+        titles: { 1: 'Title 1', 2: 'Title 2' },
+        article_cache: []
+      };
+      expect(buildSearchableArticles(data)).toEqual([
+        { id: '1', title: 'Title 1' },
+        { id: '2', title: 'Title 2' }
+      ]);
+    });
+
+    it('falls back to article_cache titles when the titles map is missing', () => {
+      const data = {
+        ids: ['1', '2'],
+        article_cache: [{ id: '1', title: 'Cached 1', markdown: 'x' }]
+      };
+      expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Cached 1' }]);
+    });
+
+    it('returns an empty list for unusable input', () => {
+      expect(buildSearchableArticles(null)).toEqual([]);
+      expect(buildSearchableArticles({})).toEqual([]);
+      expect(buildSearchableArticles({ ids: 'nope' })).toEqual([]);
     });
   });
 });

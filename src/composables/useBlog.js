@@ -18,7 +18,6 @@ export function useBlog() {
   const currentId = ref('');
   const loading = ref(false);
   const articleCache = ref({});
-  const articleTitles = ref({});
   const pendingArticleFetches = new Map();
   let listRefreshInFlight = false;
 
@@ -37,18 +36,6 @@ export function useBlog() {
   const nextLink = computed(() => navigationLinks.value.nextLink);
   const prevTitle = computed(() => articleCache.value[navigationLinks.value.prevId]?.title || '');
   const nextTitle = computed(() => articleCache.value[navigationLinks.value.nextId]?.title || '');
-
-  // Every article the title search can offer, newest first. Titles come
-  // from the list response's titles map; the pre-cached articles fill
-  // any gaps (for example while an older API response is still cached).
-  const searchableArticles = computed(() =>
-    articleIds.value
-      .map((id) => ({
-        id,
-        title: articleTitles.value[id] || articleCache.value[id]?.title || ''
-      }))
-      .filter((entry) => entry.title)
-  );
 
   // Starts fetching an article before the article list has arrived, so a
   // deep-linked article downloads in parallel with the list instead of
@@ -128,9 +115,6 @@ export function useBlog() {
 
   const applyListData = (data) => {
     articleIds.value = data.ids;
-    if (data.titles && typeof data.titles === 'object' && !Array.isArray(data.titles)) {
-      articleTitles.value = data.titles;
-    }
     if (data.article_cache) {
       data.article_cache.forEach((item) => {
         articleCache.value[item.id] = item;
@@ -284,7 +268,6 @@ export function useBlog() {
     article,
     articleHtml,
     articleIds,
-    searchableArticles,
     currentId,
     errorMessage,
     prevLink,

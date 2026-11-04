@@ -602,44 +602,4 @@ describe('useBlog composable', () => {
       name: 'post',
       params: { id: '9' }
     });
-  });
-
-  it('exposes every article title for search, in list order', async () => {
-    api.fetchArticleList.mockResolvedValue({
-      ids: ['1', '2', '3'],
-      titles: { 1: 'Title 1', 2: 'Title 2', 3: 'Title 3' },
-      article_cache: []
-    });
-    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
-
-    const wrapper = mount(TestComponent);
-    await flushPromises();
-
-    expect(wrapper.vm.searchableArticles).toEqual([
-      { id: '1', title: 'Title 1' },
-      { id: '2', title: 'Title 2' },
-      { id: '3', title: 'Title 3' }
-    ]);
-    wrapper.unmount();
-  });
-  it('falls back to cached article titles when the list has no titles map', async () => {
-    api.fetchArticleList.mockResolvedValue({
-      ids: ['1', '2'],
-      article_cache: [{ id: '1', title: 'Cached 1', markdown: '# Content 1' }]
-    });
-    api.fetchArticle.mockImplementation((id) =>
-      Promise.resolve({ id, title: `Cached ${id}`, markdown: '# Content' })
-    );
-
-    const wrapper = mount(TestComponent);
-    await flushPromises();
-
-    // '1' comes from the list's article_cache; '2' is only known once
-    // its article has been fetched (here, by the neighbour prefetch).
-    expect(wrapper.vm.searchableArticles).toEqual([
-      { id: '1', title: 'Cached 1' },
-      { id: '2', title: 'Cached 2' }
-    ]);
-    wrapper.unmount();
-  });
-});
+  });});
