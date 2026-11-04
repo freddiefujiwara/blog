@@ -8,6 +8,7 @@ import {
   decodeEntities,
   generateArticleShells,
   parseRssItems,
+  stripLeadingDate,
   truncateDescription
 } from '../scripts/generate-article-shells.mjs';
 
@@ -42,6 +43,19 @@ const TEMPLATE = `<!DOCTYPE html>
   </head>
   <body><div id="app"></div></body>
 </html>`;
+
+describe('stripLeadingDate', () => {
+  it('先頭の日付と空白を取り除く', () => {
+    expect(stripLeadingDate('2026-11-04 テスト記事')).toBe('テスト記事');
+  });
+  it('日付の直後に空白がない場合も取り除く', () => {
+    expect(stripLeadingDate('2026-11-02【招待コード有】AIの話')).toBe('【招待コード有】AIの話');
+  });
+  it('日付で始まらないタイトルはそのまま', () => {
+    expect(stripLeadingDate('日付なしの記事')).toBe('日付なしの記事');
+    expect(stripLeadingDate('あと2026-11-02の話')).toBe('あと2026-11-02の話');
+  });
+});
 
 describe('decodeEntities', () => {
   it('主要な実体参照を戻す', () => {
