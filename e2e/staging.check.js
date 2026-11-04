@@ -63,3 +63,23 @@ for (const app of targets) {
     });
   }
 }
+
+// Blog-only: articles in the staging RSS must have a per-article OGP shell
+// served at the extensionless article URL, with a reachable OGP image.
+// Skips when the staging RSS currently has no items.
+if (!TARGET || TARGET === "blog") {
+  test("blog staging serves a per-article OGP shell", async ({ request }) => {
+    const rss = await request.get(`${execUrl(GAS.blog.staging)}?o=rss`);
+    const xml = await rss.text();
+    const item = xml.match(/<item>[\s\S]*?<link>([^<]+)<\/link>/);
+    test.skip(!item, "staging RSS has no items");
+    const shell = await request.get(item[1]);
+    expect(shell.status()).toBe(200);
+    const body = await shell.text();
+    expect(body).toContain('property="og:title"');
+    const img = body.match(/<meta property="og:image" content="([^"]+)"/);
+    expect(img, "shell carries an og:image").not.toBeNull();
+    const imgResp = await request.get(img[1]);
+    expect(imgResp.status()).toBe(200);
+  });
+}
