@@ -522,7 +522,10 @@ article th {
   margin-left: 24px;
 }
 
-.nav-search .title-search-results {
+.nav-search .title-search .title-search-results {
+  left: auto;
+  right: 0;
+  width: min(340px, calc(100vw - 32px));
   max-height: 320px;
   overflow-y: auto;
 }
@@ -587,7 +590,8 @@ article th {
   outline-offset: 1px;
 }
 
-.title-search-results {
+.title-search .title-search-results {
+  display: block;
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -602,14 +606,14 @@ article th {
   box-shadow: 0 8px 24px rgba(20, 14, 8, 0.18);
 }
 
-.title-search-item a {
+.title-search .title-search-item a {
   display: block;
   padding: 8px 16px;
   color: var(--text);
   text-decoration: none;
 }
 
-.title-search-item a:hover {
+.title-search .title-search-item a:hover {
   color: var(--primary);
   background: var(--surface-elevated);
 }
