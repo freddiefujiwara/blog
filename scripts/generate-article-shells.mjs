@@ -44,6 +44,12 @@ const tagText = (block, tag) => {
   return m ? decodeEntities(m[1]).trim() : '';
 };
 
+// Article titles start with their publication date ("2026-11-02 ..." or
+// "2026-11-02【...】"). The date adds little on a share card, so the OGP
+// image is rendered without it. Only the image text is affected — the
+// og:title metadata and the article itself keep the full title.
+export const stripLeadingDate = (title) => title.replace(/^\d{4}-\d{2}-\d{2}\s*/, '');
+
 export const articleIdFromLink = (link) => link.replace(/\/+$/, '').split('/').pop() ?? '';
 
 export const parseRssItems = (xml) => {
@@ -137,7 +143,7 @@ export const generateArticleShells = async (
   await mapWithConcurrency(items, IMAGE_CONCURRENCY, async (item) => {
     let imageUrl = `${baseUrl}ogp/${item.id}.png`;
     try {
-      const png = await fetchOgpImage(item.title, fetchImpl);
+      const png = await fetchOgpImage(stripLeadingDate(item.title), fetchImpl);
       await writeFile(join(ogpDir, `${item.id}.png`), png);
     } catch (err) {
       // One bad image must not sink the whole deploy: fall back to the
