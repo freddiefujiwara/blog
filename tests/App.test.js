@@ -280,7 +280,7 @@ describe('App', () => {
     });
   });
 
-  it('offers title search in the hero, fed by the list titles', async () => {
+  it('offers title search in the nav and hero, fed by the list titles', async () => {
     fetch.mockImplementation(async (url) => {
       if (url.includes('?o=rss')) {
         return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
@@ -308,6 +308,7 @@ describe('App', () => {
     });
     await flushPromises();
 
+    expect(wrapper.find('.nav-search input').exists()).toBe(true);
     const input = wrapper.find('.hero-search input');
     expect(input.exists()).toBe(true);
 

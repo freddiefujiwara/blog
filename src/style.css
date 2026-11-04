@@ -513,6 +513,32 @@ article th {
   pointer-events: none;
 }
 
+/* Wide screens: the search lives in the site nav (see .nav-search);
+   narrower ones keep it in the hero, full-width on phones. Only one
+   of the two instances is visible at a time. */
+.nav-search {
+  width: 230px;
+  flex: none;
+  margin-left: 24px;
+}
+
+.nav-search .title-search-results {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .nav-search {
+    display: none;
+  }
+}
+
+@media (min-width: 901px) {
+  .hero-search {
+    display: none;
+  }
+}
+
 .hero-search {
   position: absolute;
   top: 14px;

@@ -10,6 +10,9 @@
         <li><a href="/blog/" class="active" aria-current="page">ブログ</a></li>
         <li><a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a></li>
       </ul>
+      <div class="nav-search">
+        <TitleSearch :articles="searchableArticles" :state="searchState" />
+      </div>
     </nav>
     <header class="header hero">
       <router-link
