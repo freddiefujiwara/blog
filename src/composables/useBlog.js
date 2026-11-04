@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { fetchArticle, fetchArticleList } from '../services/api';
+import { fetchArticle, fetchArticleList, fetchArticleTitles } from '../services/api';
 import { loadCachedList, saveCachedList } from '../services/listCache';
 import { renderMarkdown } from '../services/markdown';
 import {
@@ -173,6 +173,22 @@ export function useBlog() {
     primeListFromCache();
     if (articleIds.value.length > 0) {
       return articleIds.value;
+    }
+    // Fast path: learn the ids from the lightweight titles response
+    // (no article bodies) and let the full list catch up in the
+    // background. The full list can take tens of seconds when the API
+    // cache is cold, and the reader should not have to wait for ten
+    // articles to read one. If the titles response is unavailable
+    // (older API deployment), fall back to the full list.
+    try {
+      const data = await fetchArticleTitles();
+      if (data?.ids?.length) {
+        articleIds.value = data.ids;
+        refreshArticleList();
+        return data.ids;
+      }
+    } catch {
+      // Fall through to the full list.
     }
     const data = await fetchArticleList();
     applyListData(data);

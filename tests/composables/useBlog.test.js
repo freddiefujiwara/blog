@@ -63,6 +63,31 @@ describe('useBlog composable', () => {
     expect(document.title).toBe('Title 1');
   });
 
+  it('renders the article from the titles fast path without waiting for the full list', async () => {
+    api.fetchArticleTitles.mockResolvedValue({ ids: ['1', '2'], titles: { 1: 'Title 1', 2: 'Title 2' } });
+    api.fetchArticleList.mockReturnValue(new Promise(() => {})); // full list still in flight
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(api.fetchArticleTitles).toHaveBeenCalled();
+    expect(wrapper.vm.article.title).toBe('Title 1');
+    expect(wrapper.vm.articleIds).toEqual(['1', '2']);
+  });
+
+  it('falls back to the full list when the titles response fails', async () => {
+    api.fetchArticleTitles.mockRejectedValue(new Error('Titles Error'));
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(api.fetchArticleList).toHaveBeenCalled();
+    expect(wrapper.vm.article.title).toBe('Title 1');
+  });
+
   it('handles error on mount', async () => {
     api.fetchArticleList.mockRejectedValue(new Error('List Error'));
 
