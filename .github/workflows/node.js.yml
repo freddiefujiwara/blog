@@ -70,7 +70,7 @@ jobs:
           ls -lh ./dist/ogp.png
 
       - name: Generate article shells
-        run: node scripts/generate-article-shells.mjs dist "https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec?o=rss" https://freddiefujiwara.com/blog/
+        run: node scripts/generate-article-shells.mjs dist "https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec" https://freddiefujiwara.com/blog/
 
       - name: Build staging variant into dist/staging
         env:
@@ -82,7 +82,7 @@ jobs:
           cp -r dist-staging/* dist/staging/
 
       - name: Generate article shells (staging)
-        run: node scripts/generate-article-shells.mjs dist/staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec?o=rss" https://freddiefujiwara.com/blog/staging/ --allow-empty
+        run: node scripts/generate-article-shells.mjs dist/staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec" https://freddiefujiwara.com/blog/staging/ --allow-empty
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
