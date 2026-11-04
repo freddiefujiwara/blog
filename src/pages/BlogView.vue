@@ -9,7 +9,7 @@
       :next-title="nextTitle"
       :top="true"
     />
-    <ArticleContent :article="article" :article-html="articleHtml" />
+    <ArticleContent :article="article" :article-html="articleHtml" :toc="toc" />
     <ShareLinks v-if="article" :title="article.title" :url="articleUrl" />
     <StatusMessage :message="errorMessage" />
     <NavigationLinks
@@ -43,9 +43,12 @@ import ArticleContent from '../components/ArticleContent.vue';
 import ShareLinks from '../components/ShareLinks.vue';
 import StatusMessage from '../components/StatusMessage.vue';
 import { RSS_ENDPOINT } from '../constants';
+import { extractTocFromHtml } from '../services/markdown';
 import { buildArticleUrl } from '../share';
 
 const { article, articleHtml, articleIds, currentId, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
+
+const toc = computed(() => extractTocFromHtml(articleHtml.value));
 
 const articleUrl = computed(() => (currentId.value ? buildArticleUrl(currentId.value) : ''));
 const { rssXml, fetchRSS } = useRSS();

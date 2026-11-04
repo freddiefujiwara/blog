@@ -67,6 +67,31 @@ export const delimitBareUrls = (markdown) => String(markdown ?? '')
   .map((segment, index) => (index % 2 === 1 ? segment : wrapBareUrls(segment)))
   .join('');
 
+// Builds an article's table of contents from its rendered HTML.
+// Reading the entries back out of the rendered markup guarantees the
+// ids match the heading anchors exactly (including the "-2" suffixes
+// renderMarkdown gives repeated headings), however the heading text
+// was marked up. Only ## and ### sections are listed.
+export const extractTocFromHtml = (html) => {
+  const toc = [];
+  const pattern = /<h([23]) id="(h-[0-9a-f]{8}(?:-\d+)?)">([\s\S]*?)<\/h\1>/g;
+  let match;
+  while ((match = pattern.exec(String(html ?? ''))) !== null) {
+    const text = match[3]
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+    if (text) {
+      toc.push({ level: Number(match[1]), id: match[2], text });
+    }
+  }
+  return toc;
+};
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
