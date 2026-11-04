@@ -64,3 +64,23 @@ describe('compact one-line navigation', () => {
     expect(block).toMatch(/max-width:\s*100%/);
   });
 });
+
+describe('title search results inside the site nav', () => {
+  it('scopes the results list under .title-search so the nav list styles cannot leak in', () => {
+    const block = blockFor('.title-search .title-search-results');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/display:\s*block/);
+    const item = blockFor('.title-search .title-search-item a');
+    expect(item).not.toBe('');
+    expect(item).toMatch(/display:\s*block/);
+    // The nav's links are nowrap; long result titles must wrap.
+    expect(item).toMatch(/white-space:\s*normal/);
+  });
+
+  it('lets the nav dropdown open wider than the input, anchored to its right edge', () => {
+    const block = blockFor('.nav-search .title-search .title-search-results');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/right:\s*0/);
+    expect(block).toMatch(/width:\s*min\(340px/);
+  });
+});

@@ -17,10 +17,21 @@ describe('listCache service', () => {
   it('round-trips a saved list', () => {
     const data = {
       ids: ['1', '2'],
+      titles: { 1: 'Title 1', 2: 'Title 2' },
       article_cache: [{ id: '1', title: 'Title 1', markdown: 'Content 1' }]
     };
     saveCachedList(data);
     expect(loadCachedList()).toEqual(data);
+  });
+
+  it('defaults titles to an empty map for lists saved before titles existed', () => {
+    saveCachedList({ ids: ['1'], article_cache: [] });
+    expect(loadCachedList().titles).toEqual({});
+    localStorage.setItem(
+      'blog:list-cache:v1',
+      JSON.stringify({ ids: ['1'], article_cache: [] })
+    );
+    expect(loadCachedList().titles).toEqual({});
   });
 
   it('returns null for corrupt JSON', () => {
@@ -40,10 +51,10 @@ describe('listCache service', () => {
 
   it('defaults article_cache to an empty array', () => {
     localStorage.setItem('blog:list-cache:v1', JSON.stringify({ ids: ['1'] }));
-    expect(loadCachedList()).toEqual({ ids: ['1'], article_cache: [] });
+    expect(loadCachedList()).toEqual({ ids: ['1'], titles: {}, article_cache: [] });
 
     saveCachedList({ ids: ['2'] });
-    expect(loadCachedList()).toEqual({ ids: ['2'], article_cache: [] });
+    expect(loadCachedList()).toEqual({ ids: ['2'], titles: {}, article_cache: [] });
   });
 
   it('does not throw when storage is unavailable', () => {
@@ -58,22 +69,21 @@ describe('listCache service', () => {
     expect(loadCachedList()).toBeNull();
   });
 
-  it('uses a separate storage key for staging builds', async () => {
+  it('never saves or loads the cache in staging builds', async () => {
     vi.stubEnv('VITE_STAGING', '1');
     vi.resetModules();
     try {
       const stagingCache = await import('../../src/services/listCache');
       stagingCache.saveCachedList({ ids: ['9'], article_cache: [] });
-      // The production key stays untouched, so the two environments
-      // can never read each other's cached list on the shared origin.
       expect(localStorage.getItem('blog:list-cache:v1')).toBeNull();
-      expect(
-        localStorage.getItem('blog:list-cache:v1:staging')
-      ).not.toBeNull();
-      expect(stagingCache.loadCachedList()).toEqual({
-        ids: ['9'],
-        article_cache: []
-      });
+      expect(localStorage.getItem('blog:list-cache:v1:staging')).toBeNull();
+      // Even a list stored by an older staging build is ignored, so a
+      // preview can never render stale articles.
+      localStorage.setItem(
+        'blog:list-cache:v1:staging',
+        JSON.stringify({ ids: ['9'], article_cache: [] })
+      );
+      expect(stagingCache.loadCachedList()).toBeNull();
     } finally {
       vi.unstubAllEnvs();
       vi.resetModules();

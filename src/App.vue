@@ -10,6 +10,9 @@
         <li><a href="/blog/" class="active" aria-current="page">ブログ</a></li>
         <li><a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a></li>
       </ul>
+      <div class="nav-search">
+        <TitleSearch :articles="searchableArticles" :state="searchState" />
+      </div>
     </nav>
     <header class="header hero">
       <router-link
@@ -23,6 +26,9 @@
       <div v-else class="hero-inner">
         <p class="hero-place">KAWAGUCHI — BLOG</p>
         <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
+      </div>
+      <div class="hero-search">
+        <TitleSearch :articles="searchableArticles" :state="searchState" />
       </div>
     </header>
     <div class="layout">
@@ -50,22 +56,44 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { fetchArticleList } from './services/api';
+import TitleSearch from './components/TitleSearch.vue';
+import { buildSearchableArticles, fetchArticleTitles } from './services/api';
+import { loadCachedList } from './services/listCache';
 
 const year = new Date().getFullYear();
 
 // Same destination as the footer's "最新記事（トップ）へ戻る" link:
 // the first id in the article list is the latest article.
 const latestArticlePath = ref('');
+const searchableArticles = ref([]);
+const searchState = ref('loading');
 
 onMounted(async () => {
+  // Prime from the list cached on the previous visit so the search is
+  // usable immediately; the fetch below refreshes it in the background.
+  const cached = loadCachedList();
+  if (cached?.ids?.length) {
+    latestArticlePath.value = `/${cached.ids[0]}`;
+    searchableArticles.value = buildSearchableArticles(cached);
+    if (searchableArticles.value.length) {
+      searchState.value = 'ready';
+    }
+  }
   try {
-    const data = await fetchArticleList();
+    const data = await fetchArticleTitles();
     if (data?.ids?.[0]) {
       latestArticlePath.value = `/${data.ids[0]}`;
     }
+    searchableArticles.value = buildSearchableArticles(data);
+    searchState.value = 'ready';
   } catch {
-    // If the list fails to load, the hero simply stays non-clickable.
+    // If the fetch fails, primed data (when there is any) keeps the
+    // search working; without it the search reports the failure
+    // instead of pretending there are no hits, and the hero simply
+    // stays non-clickable.
+    if (!searchableArticles.value.length) {
+      searchState.value = 'failed';
+    }
   }
 });
 </script>

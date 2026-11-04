@@ -513,6 +513,150 @@ article th {
   pointer-events: none;
 }
 
+/* Wide screens: the search lives in the site nav (see .nav-search);
+   narrower ones keep it in the hero, full-width on phones. Only one
+   of the two instances is visible at a time. */
+.nav-search {
+  width: 230px;
+  flex: none;
+  margin-left: 24px;
+}
+
+.nav-search .title-search .title-search-results {
+  left: auto;
+  right: 0;
+  width: min(340px, calc(100vw - 32px));
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .nav-search {
+    display: none;
+  }
+}
+
+@media (min-width: 901px) {
+  .hero-search {
+    display: none;
+  }
+}
+
+.hero-search {
+  position: absolute;
+  top: 14px;
+  right: clamp(16px, 4vw, 40px);
+  z-index: 3;
+  width: min(330px, calc(100vw - 32px));
+}
+
+.hero-search .title-search-input {
+  border-color: transparent;
+  box-shadow: 0 2px 12px rgba(16, 11, 6, 0.35);
+}
+
+.hero-search .title-search-results {
+  max-height: 216px;
+  overflow-y: auto;
+}
+
+@media (max-width: 560px) {
+  .hero-search {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
+
+.title-search {
+  position: relative;
+}
+
+.title-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  font: inherit;
+  /* 16px or larger: below that, iOS Safari zooms the page in when
+     the field is focused. */
+  font-size: 16px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.title-search-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.title-search .title-search-results {
+  display: block;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  margin: 0;
+  padding: 8px 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(20, 14, 8, 0.18);
+}
+
+.title-search .title-search-item a {
+  display: block;
+  padding: 8px 16px;
+  color: var(--text);
+  text-decoration: none;
+  /* The site nav's links are nowrap; result titles must wrap instead */
+  white-space: normal;
+}
+
+.title-search .title-search-item a:hover {
+  color: var(--primary);
+  background: var(--surface-elevated);
+}
+
+.title-search-empty {
+  padding: 8px 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.title-search-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.title-search-spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: title-search-spin 0.8s linear infinite;
+}
+
+@keyframes title-search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-search-spinner {
+    animation: none;
+  }
+}
+
 .table-of-contents {
   margin: 20px 0 28px;
   padding: 16px 20px;
