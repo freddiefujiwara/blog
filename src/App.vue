@@ -57,7 +57,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
-import { buildSearchableArticles, fetchArticleList } from './services/api';
+import { buildSearchableArticles, fetchArticleTitles } from './services/api';
+import { loadCachedList } from './services/listCache';
 
 const year = new Date().getFullYear();
 
@@ -68,17 +69,31 @@ const searchableArticles = ref([]);
 const searchState = ref('loading');
 
 onMounted(async () => {
+  // Prime from the list cached on the previous visit so the search is
+  // usable immediately; the fetch below refreshes it in the background.
+  const cached = loadCachedList();
+  if (cached?.ids?.length) {
+    latestArticlePath.value = `/${cached.ids[0]}`;
+    searchableArticles.value = buildSearchableArticles(cached);
+    if (searchableArticles.value.length) {
+      searchState.value = 'ready';
+    }
+  }
   try {
-    const data = await fetchArticleList();
+    const data = await fetchArticleTitles();
     if (data?.ids?.[0]) {
       latestArticlePath.value = `/${data.ids[0]}`;
     }
     searchableArticles.value = buildSearchableArticles(data);
     searchState.value = 'ready';
   } catch {
-    // If the list fails to load, the hero simply stays non-clickable,
-    // and the search says so instead of pretending there are no hits.
-    searchState.value = 'failed';
+    // If the fetch fails, primed data (when there is any) keeps the
+    // search working; without it the search reports the failure
+    // instead of pretending there are no hits, and the hero simply
+    // stays non-clickable.
+    if (!searchableArticles.value.length) {
+      searchState.value = 'failed';
+    }
   }
 });
 </script>

@@ -40,6 +40,21 @@ export const buildSearchableArticles = (data) => {
     .filter((entry) => entry.title);
 };
 
+// Lightweight list fetch for the hero link and title search: the API
+// returns ids and titles only (no article bodies), which keeps the
+// search responsive even when the article cache is cold.
+export const fetchArticleTitles = async () => {
+  const response = await fetch(`${LIST_ENDPOINT}?o=titles`);
+  if (!response.ok) {
+    throw new Error('記事タイトル一覧の取得に失敗しました。');
+  }
+  const data = await response.json();
+  if (!data?.ids?.length) {
+    throw new Error('最新記事が見つかりませんでした。');
+  }
+  return data;
+};
+
 export const fetchArticleList = async () => {
   const listResponse = await fetch(LIST_ENDPOINT);
   if (!listResponse.ok) {
