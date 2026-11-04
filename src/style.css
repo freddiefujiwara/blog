@@ -611,6 +611,8 @@ article th {
   padding: 8px 16px;
   color: var(--text);
   text-decoration: none;
+  /* The site nav's links are nowrap; result titles must wrap instead */
+  white-space: normal;
 }
 
 .title-search .title-search-item a:hover {

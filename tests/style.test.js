@@ -73,6 +73,8 @@ describe('title search results inside the site nav', () => {
     const item = blockFor('.title-search .title-search-item a');
     expect(item).not.toBe('');
     expect(item).toMatch(/display:\s*block/);
+    // The nav's links are nowrap; long result titles must wrap.
+    expect(item).toMatch(/white-space:\s*normal/);
   });
 
   it('lets the nav dropdown open wider than the input, anchored to its right edge', () => {
