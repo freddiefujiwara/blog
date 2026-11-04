@@ -10,6 +10,7 @@
       :top="true"
     />
     <ArticleContent :article="article" :article-html="articleHtml" />
+    <ShareLinks v-if="article" :title="article.title" :url="articleUrl" />
     <StatusMessage :message="errorMessage" />
     <NavigationLinks
       v-if="article"
@@ -34,15 +35,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useBlog } from '../composables/useBlog';
 import { useRSS } from '../composables/useRSS';
 import NavigationLinks from '../components/NavigationLinks.vue';
 import ArticleContent from '../components/ArticleContent.vue';
+import ShareLinks from '../components/ShareLinks.vue';
 import StatusMessage from '../components/StatusMessage.vue';
 import { RSS_ENDPOINT } from '../constants';
+import { buildArticleUrl } from '../share';
 
-const { article, articleHtml, articleIds, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
+const { article, articleHtml, articleIds, currentId, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
+
+const articleUrl = computed(() => (currentId.value ? buildArticleUrl(currentId.value) : ''));
 const { rssXml, fetchRSS } = useRSS();
 
 const copyText = ref('コピー');

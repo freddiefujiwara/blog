@@ -268,6 +268,7 @@ export function useBlog() {
     article,
     articleHtml,
     articleIds,
+    currentId,
     errorMessage,
     prevLink,
     nextLink,

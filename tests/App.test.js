@@ -84,7 +84,7 @@ describe('App', () => {
     });
     await flushPromises();
 
-    const rssLink = wrapper.find('a[target="_blank"]');
+    const rssLink = wrapper.find('.footer-link a[target="_blank"]');
     expect(rssLink.exists()).toBe(true);
     expect(rssLink.text()).toBe('RSS');
     expect(rssLink.attributes('href')).toBe('https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec?o=rss');
