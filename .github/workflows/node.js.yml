@@ -78,7 +78,7 @@ jobs:
           cp -r dist-staging/* dist/staging/
 
                 - name: Generate article shells (staging)
-                        run: node scripts/generate-article-shells.mjs dist/staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec?oo=rss" https://freddiefujiwara.com/blog/staging/ --allow-empty
+                        run: node scripts/generate-article-shells.mjs dist/staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec?o=rss" https://freddiefujiwara.com/blog/staging/ --allow-empty
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
