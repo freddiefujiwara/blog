@@ -1,9 +1,20 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { trackPageView, GA_MEASUREMENT_ID } from '../src/analytics';
+import { isStagingBuild } from '../src/staging-banner.js';
+
+vi.mock('../src/staging-banner.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    isStagingBuild: vi.fn(actual.isStagingBuild),
+  };
+});
 
 describe('analytics (GA4 page-view tracking)', () => {
   afterEach(() => {
     delete window.gtag;
+    vi.mocked(isStagingBuild).mockReset();
+    vi.mocked(isStagingBuild).mockImplementation(() => false);
   });
 
   it('uses the freddiefujiwara.com measurement ID', () => {
@@ -22,6 +33,13 @@ describe('analytics (GA4 page-view tracking)', () => {
 
   it('does nothing when gtag is not loaded', () => {
     expect(() => trackPageView('/x')).not.toThrow();
+  });
+
+  it('sends nothing on a staging build', () => {
+    vi.mocked(isStagingBuild).mockReturnValue(true);
+    window.gtag = vi.fn();
+    trackPageView('/some-article-id');
+    expect(window.gtag).not.toHaveBeenCalled();
   });
 });
 
