@@ -40,6 +40,32 @@ describe('ArticleContent', () => {
     );
   });
 
+  it('swaps a link-card image that already failed before mount, without an error event', async () => {
+    // Simulate an image whose load already finished (and failed)
+    // before the component mounted: complete, but zero natural width.
+    const proto = window.HTMLImageElement.prototype;
+    const completeDesc = Object.getOwnPropertyDescriptor(proto, 'complete');
+    const widthDesc = Object.getOwnPropertyDescriptor(proto, 'naturalWidth');
+    Object.defineProperty(proto, 'complete', { configurable: true, get: () => true });
+    Object.defineProperty(proto, 'naturalWidth', { configurable: true, get: () => 0 });
+    try {
+      const wrapper = mount(ArticleContent, {
+        props: {
+          article: { title: 'T' },
+          articleHtml:
+            '<a class="link-card" href="https://example.com/"><img class="link-card-image" src="https://example.com/dead.jpg" alt=""></a>'
+        }
+      });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('img.link-card-image').element.getAttribute('src')).toBe(
+        'https://tshop.r10s.jp/rukusu/cabinet/images/junbi.jpg'
+      );
+    } finally {
+      if (completeDesc) Object.defineProperty(proto, 'complete', completeDesc);
+      if (widthDesc) Object.defineProperty(proto, 'naturalWidth', widthDesc);
+    }
+  });
+
   it('leaves non-card images alone when they fail to load', () => {
     const wrapper = mount(ArticleContent, {
       props: {
