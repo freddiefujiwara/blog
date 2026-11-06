@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
+import { trackPageView, trackNavClick, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -50,6 +50,26 @@ describe('analytics (GA4 page-view tracking)', () => {
     vi.mocked(isStagingBuild).mockReturnValue(true);
     window.gtag = vi.fn();
     trackPageView('/some-article-id');
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  it('sends a nav_click event with the nav item', () => {
+    window.gtag = vi.fn();
+    trackNavClick('about');
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'nav_click', {
+      nav_item: 'about',
+    });
+  });
+
+  it('nav_click does nothing when gtag is not loaded', () => {
+    expect(() => trackNavClick('blog')).not.toThrow();
+  });
+
+  it('sends no nav_click on a staging build', () => {
+    vi.mocked(isStagingBuild).mockReturnValue(true);
+    window.gtag = vi.fn();
+    trackNavClick('blog');
     expect(window.gtag).not.toHaveBeenCalled();
   });
 });
