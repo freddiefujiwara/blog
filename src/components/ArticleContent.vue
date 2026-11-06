@@ -1,5 +1,5 @@
 <template>
-  <article v-if="article" class="article-content">
+  <article v-if="article" class="article-content" @error.capture="handleImageError">
     <h1>{{ article.title }}</h1>
     <template v-if="markerParts">
       <div v-html="markerParts.before"></div>
@@ -17,6 +17,7 @@
 import { computed } from 'vue';
 import TableOfContents from './TableOfContents.vue';
 import { splitHtmlAtTocMarker } from '../services/markdown.js';
+import { LINK_CARD_FALLBACK_IMAGE } from '../constants.js';
 
 const props = defineProps({
   article: {
@@ -37,4 +38,16 @@ const props = defineProps({
 // rendered at that spot instead of right under the title, so the
 // opening lines stay untouched. The marker itself is removed.
 const markerParts = computed(() => splitHtmlAtTocMarker(props.articleHtml));
+
+// Link-card images come from arbitrary shop sites and sometimes fail
+// to load; swap in the placeholder once, like the possessions list
+// does, instead of leaving a broken image behind.
+const handleImageError = (event) => {
+  const target = event.target;
+  if (!target || target.tagName !== 'IMG') return;
+  if (!target.classList.contains('link-card-image')) return;
+  if (target.dataset.errored) return;
+  target.dataset.errored = 'true';
+  target.src = LINK_CARD_FALLBACK_IMAGE;
+};
 </script>
