@@ -3,12 +3,12 @@
     <nav class="site-nav">
       <a class="brand" href="https://freddiefujiwara.com/">藤原史和｜川口を歩くQAエンジニア</a>
       <ul>
-        <li><a href="https://freddiefujiwara.com/">トップ</a></li>
-        <li><a href="https://freddiefujiwara.com/#about">プロフィール</a></li>
-        <li><a href="https://freddiefujiwara.com/#activity">活動・発信</a></li>
-        <li><a href="https://freddiefujiwara.com/#contact">情報交換</a></li>
-        <li><a href="/blog/" class="active" aria-current="page">ブログ</a></li>
-        <li><a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a></li>
+        <li><a href="https://freddiefujiwara.com/" @click="trackNavClick('top')">トップ</a></li>
+        <li><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">プロフィール</a></li>
+        <li><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">活動・発信</a></li>
+        <li><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">情報交換</a></li>
+        <li><a href="/blog/" class="active" aria-current="page" @click="trackNavClick('blog')">ブログ</a></li>
+        <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">持ち物</a></li>
       </ul>
       <div class="nav-search">
         <TitleSearch :articles="searchableArticles" :state="searchState" />
@@ -60,6 +60,7 @@
 import { ref, onMounted } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
+import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
 
 const year = new Date().getFullYear();
