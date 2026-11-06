@@ -94,21 +94,20 @@ export const extractTocFromHtml = (html) => {
 
 // An author can choose where the table of contents appears by putting
 // a paragraph that contains only this marker in the document (the
-// full-width bracket variant is accepted too). Without a marker the
+// full-width bracket variant is accepted too). Several markers may be
+// used; the TOC box appears at each of them. Without a marker the
 // TOC sits right under the title, as before. The marker paragraph is
 // never shown to readers.
 const TOC_MARKER_PATTERN = /<p>(?:\[\[目次\]\]|［［目次］］)<\/p>/;
 
-export const splitHtmlAtTocMarker = (html) => {
-  const source = String(html ?? '');
-  const match = TOC_MARKER_PATTERN.exec(source);
-  if (!match) {
-    return null;
-  }
-  return {
-    before: source.slice(0, match.index),
-    after: source.slice(match.index + match[0].length)
-  };
+// Splits the article HTML at every [[目次]] marker paragraph and
+// returns the pieces in order, or null when the document carries no
+// marker. The caller renders the (whole-article) table of contents
+// between the pieces, so an article can show its TOC at several
+// spots — for example at the top of every section of a long list.
+export const splitHtmlAtTocMarkers = (html) => {
+  const parts = String(html ?? '').split(new RegExp(TOC_MARKER_PATTERN.source, 'g'));
+  return parts.length > 1 ? parts : null;
 };
 
 export const renderMarkdown = (markdown) => {

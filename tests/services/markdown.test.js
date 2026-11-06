@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarker } from '../../src/services/markdown';
+import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarkers } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -143,22 +143,33 @@ describe('extractTocFromHtml', () => {
   });
 });
 
-describe('splitHtmlAtTocMarker', () => {
+describe('splitHtmlAtTocMarkers', () => {
   it('splits at a paragraph containing only the marker', () => {
-    const parts = splitHtmlAtTocMarker('<p>Intro</p><p>[[目次]]</p><p>Body</p>');
-    expect(parts).toEqual({ before: '<p>Intro</p>', after: '<p>Body</p>' });
+    expect(splitHtmlAtTocMarkers('<p>Intro</p><p>[[目次]]</p><p>Body</p>')).toEqual([
+      '<p>Intro</p>',
+      '<p>Body</p>'
+    ]);
   });
 
   it('accepts the full-width bracket variant', () => {
-    const parts = splitHtmlAtTocMarker('<p>Intro</p><p>［［目次］］</p><p>Body</p>');
-    expect(parts).toEqual({ before: '<p>Intro</p>', after: '<p>Body</p>' });
+    expect(splitHtmlAtTocMarkers('<p>Intro</p><p>［［目次］］</p><p>Body</p>')).toEqual([
+      '<p>Intro</p>',
+      '<p>Body</p>'
+    ]);
+  });
+
+  it('splits at every marker when several are present', () => {
+    const html = '<p>A</p><p>[[目次]]</p><p>B</p><p>[[目次]]</p><p>C</p>';
+    expect(splitHtmlAtTocMarkers(html)).toEqual(['<p>A</p>', '<p>B</p>', '<p>C</p>']);
   });
 
   it('returns null when the marker is not alone in its paragraph', () => {
-    expect(splitHtmlAtTocMarker('<p>前 [[目次]] 後</p>')).toBeNull();
+    expect(splitHtmlAtTocMarkers('<p>前 [[目次]] 後</p>')).toBeNull();
   });
 
   it('returns null when there is no marker', () => {
-    expect(splitHtmlAtTocMarker('<p>Intro</p>')).toBeNull();
+    expect(splitHtmlAtTocMarkers('<p>Intro</p>')).toBeNull();
+    expect(splitHtmlAtTocMarkers('')).toBeNull();
+    expect(splitHtmlAtTocMarkers(null)).toBeNull();
   });
 });

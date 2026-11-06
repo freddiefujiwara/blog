@@ -73,6 +73,32 @@ describe('ArticleContent', () => {
     expect(html.indexOf('table-of-contents')).toBeLessThan(html.indexOf('<p>Body</p>'));
   });
 
+  it('renders the whole-article TOC at each marker when there are several', () => {
+    const articleHtml =
+      '<h2 id="h-11111111">A</h2><p>[[目次]]</p>' +
+      '<h3 id="h-22222222">A1</h3>' +
+      '<h2 id="h-44444444">B</h2><p>[[目次]]</p>' +
+      '<h3 id="h-55555555">B1</h3>';
+    const wrapper = mount(ArticleContent, {
+      props: {
+        article: { title: 'T' },
+        articleHtml,
+        toc
+      },
+      global: { stubs: { RouterLink: true } }
+    });
+    const boxes = wrapper.findAll('.table-of-contents');
+    expect(boxes).toHaveLength(2);
+    // every box carries the full article TOC, unchanged
+    expect(boxes[0].text()).toContain('One');
+    expect(boxes[0].text()).toContain('Three');
+    expect(boxes[1].text()).toContain('One');
+    expect(boxes[1].text()).toContain('Three');
+    expect(wrapper.html()).not.toContain('[[目次]]');
+    const html = wrapper.html();
+    expect(html.indexOf('<h2 id="h-11111111">A</h2>')).toBeLessThan(html.indexOf('table-of-contents'));
+  });
+
   it('renders no TOC box and no marker remnant when the marker is present but there are too few headings', () => {
     const wrapper = mount(ArticleContent, {
       props: {
