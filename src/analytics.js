@@ -6,6 +6,31 @@ import { isStagingBuild } from './staging-banner.js';
 
 export const GA_MEASUREMENT_ID = 'G-W2C6FNCW86';
 
+// The router hands us its base-relative full path (e.g. "/<article-id>"),
+// which lacks the app base ("/blog/"). GA expects the real URL path, so
+// put the base back; otherwise one article is recorded under two
+// different page paths and splits in every ranking. Query strings and
+// fragments are not part of the page path and are dropped.
+export function canonicalPagePath(pagePath, baseUrl = import.meta.env.BASE_URL) {
+  const rawPath = String(pagePath || '/').split(/[?#]/)[0] || '/';
+  const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const trimmedBase = String(baseUrl || '/').replace(/^\/+|\/+$/g, '');
+  if (!trimmedBase) {
+    return path;
+  }
+  const base = `/${trimmedBase}/`;
+  if (path === `/${trimmedBase}`) {
+    return base;
+  }
+  if (path.startsWith(base)) {
+    return path;
+  }
+  if (path === '/') {
+    return base;
+  }
+  return `${base.slice(0, -1)}${path}`;
+}
+
 export function trackPageView(pagePath) {
   // Staging traffic (previews, ledger articles, checks) must not
   // pollute the production measurement, so send nothing there.
@@ -16,7 +41,7 @@ export function trackPageView(pagePath) {
     return;
   }
   window.gtag('event', 'page_view', {
-    page_path: pagePath,
+    page_path: canonicalPagePath(pagePath),
     page_title: document.title,
   });
 }

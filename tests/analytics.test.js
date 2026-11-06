@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, GA_MEASUREMENT_ID } from '../src/analytics';
+import { trackPageView, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -21,18 +21,29 @@ describe('analytics (GA4 page-view tracking)', () => {
     expect(GA_MEASUREMENT_ID).toBe('G-W2C6FNCW86');
   });
 
-  it('sends a page_view event with the given path', () => {
+  it('sends a page_view event with the canonical path (app base restored)', () => {
     window.gtag = vi.fn();
     trackPageView('/some-article-id');
     expect(window.gtag).toHaveBeenCalledTimes(1);
     expect(window.gtag).toHaveBeenCalledWith('event', 'page_view', {
-      page_path: '/some-article-id',
+      page_path: '/blog/some-article-id',
       page_title: document.title,
     });
   });
 
   it('does nothing when gtag is not loaded', () => {
     expect(() => trackPageView('/x')).not.toThrow();
+  });
+
+  it('canonicalPagePath restores the app base exactly once', () => {
+    expect(canonicalPagePath('/some-article-id', '/blog/')).toBe('/blog/some-article-id');
+    expect(canonicalPagePath('/blog/some-article-id', '/blog/')).toBe('/blog/some-article-id');
+    expect(canonicalPagePath('/', '/blog/')).toBe('/blog/');
+    expect(canonicalPagePath('/blog', '/blog/')).toBe('/blog/');
+    expect(canonicalPagePath('/some-article-id?utm_source=x#frag', '/blog/')).toBe(
+      '/blog/some-article-id',
+    );
+    expect(canonicalPagePath('/some-article-id', '/')).toBe('/some-article-id');
   });
 
   it('sends nothing on a staging build', () => {
