@@ -1,5 +1,5 @@
 <template>
-  <article v-if="article" class="article-content" @error.capture="handleImageError">
+  <article v-if="article" ref="rootEl" class="article-content" @error.capture="handleImageError">
     <h1>{{ article.title }}</h1>
     <template v-if="markerSegments">
       <template v-for="(part, index) in markerSegments" :key="index">
@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import TableOfContents from './TableOfContents.vue';
 import { splitHtmlAtTocMarkers } from '../services/markdown.js';
 import { LINK_CARD_FALLBACK_IMAGE } from '../constants.js';
@@ -44,12 +44,37 @@ const markerSegments = computed(() => splitHtmlAtTocMarkers(props.articleHtml));
 // Link-card images come from arbitrary shop sites and sometimes fail
 // to load; swap in the placeholder once, like the possessions list
 // does, instead of leaving a broken image behind.
+const rootEl = ref(null);
+
+const swapToFallback = (img) => {
+  if (img.dataset.errored) return;
+  img.dataset.errored = 'true';
+  img.src = LINK_CARD_FALLBACK_IMAGE;
+};
+
 const handleImageError = (event) => {
   const target = event.target;
   if (!target || target.tagName !== 'IMG') return;
   if (!target.classList.contains('link-card-image')) return;
-  if (target.dataset.errored) return;
-  target.dataset.errored = 'true';
-  target.src = LINK_CARD_FALLBACK_IMAGE;
+  swapToFallback(target);
 };
+
+// An image that fails before the error listener is ready (or whose
+// failure the browser had already cached) never fires an error event
+// the handler can catch; it just sits there complete with zero width.
+// Sweep for those after every render so they get the placeholder too.
+const sweepBrokenCardImages = () => {
+  if (!rootEl.value) return;
+  rootEl.value
+    .querySelectorAll('img.link-card-image')
+    .forEach((img) => {
+      if (img.complete && img.naturalWidth === 0) swapToFallback(img);
+    });
+};
+
+onMounted(sweepBrokenCardImages);
+watch(
+  () => props.articleHtml,
+  () => nextTick(sweepBrokenCardImages)
+);
 </script>
