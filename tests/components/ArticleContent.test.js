@@ -21,6 +21,37 @@ describe('ArticleContent', () => {
     expect(wrapper.find('div').html()).toContain('<p>Test Content</p>');
   });
 
+  it('swaps a failed link-card image for the fallback image, once', async () => {
+    const wrapper = mount(ArticleContent, {
+      props: {
+        article: { title: 'T' },
+        articleHtml:
+          '<a class="link-card" href="https://example.com/"><img class="link-card-image" src="https://example.com/dead.jpg" alt=""></a>'
+      }
+    });
+    const img = wrapper.find('img.link-card-image').element;
+    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toBe(
+      'https://tshop.r10s.jp/rukusu/cabinet/images/junbi.jpg'
+    );
+    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toBe(
+      'https://tshop.r10s.jp/rukusu/cabinet/images/junbi.jpg'
+    );
+  });
+
+  it('leaves non-card images alone when they fail to load', () => {
+    const wrapper = mount(ArticleContent, {
+      props: {
+        article: { title: 'T' },
+        articleHtml: '<p><img src="https://example.com/photo.jpg" alt=""></p>'
+      }
+    });
+    const img = wrapper.find('img').element;
+    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toBe('https://example.com/photo.jpg');
+  });
+
   const toc = [
     { level: 2, id: 'h-aaaaaaaa', text: 'One' },
     { level: 2, id: 'h-bbbbbbbb', text: 'Two' },
