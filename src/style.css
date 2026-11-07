@@ -864,6 +864,28 @@ article .music-player .aplayer.aplayer-withlist .aplayer-info {
   border-bottom: 1px solid var(--border);
 }
 
+/* The track titles are the point of the player, so they get the
+   full text color at a readable size and weight — APlayer leaves
+   them uncolored at 12px regular, which reads faint in Japanese. */
+article .music-player .aplayer .aplayer-info .aplayer-music .aplayer-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+article .music-player .aplayer .aplayer-list ol li {
+  font-size: 14px;
+}
+
+article .music-player .aplayer .aplayer-list ol li .aplayer-list-title {
+  color: var(--text);
+  font-weight: 500;
+}
+
+article .music-player .aplayer .aplayer-list ol li .aplayer-list-index {
+  color: var(--muted);
+}
+
 article .music-player .aplayer .aplayer-info .aplayer-music .aplayer-author,
 article .music-player .aplayer .aplayer-list ol li .aplayer-list-author {
   color: var(--muted);
