@@ -843,12 +843,49 @@ article th {
   scroll-margin-top: 72px;
 }
 
-/* APlayer (the embedded music player) always renders on a white
-   panel, but its title elements carry no color of their own and
-   inherit the page's text color — near-white in dark mode — so the
-   track titles vanished against the panel. Pin dark text inside
-   the player; elements APlayer colors itself (author, time) keep
-   their grays. */
-.aplayer {
-  color: #333;
+/* APlayer (the embedded music player) ships a bright stock theme:
+   a white panel, Arial, and title elements with no color of their
+   own — they inherit the page's text color (near-white in dark
+   mode, so the track titles vanished) and clash with the site's
+   warm palette in light mode too. Restyle it onto the site's
+   design tokens so it follows light/dark mode like everything
+   else. The selectors are scoped through article .music-player to
+   outweigh the vendor stylesheet, which is injected at runtime. */
+article .music-player .aplayer {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(34, 29, 22, 0.08);
+  font-family: inherit;
+}
+
+article .music-player .aplayer.aplayer-withlist .aplayer-info {
+  border-bottom: 1px solid var(--border);
+}
+
+article .music-player .aplayer .aplayer-info .aplayer-music .aplayer-author,
+article .music-player .aplayer .aplayer-list ol li .aplayer-list-author {
+  color: var(--muted);
+}
+
+article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-time {
+  color: var(--muted-2);
+}
+
+article .music-player .aplayer .aplayer-list ol li {
+  border-top: 1px solid var(--border);
+}
+
+article .music-player .aplayer .aplayer-list ol li:hover,
+article .music-player .aplayer .aplayer-list ol li.aplayer-list-light {
+  background: var(--surface-elevated);
+}
+
+article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-bar-wrap .aplayer-bar {
+  background: var(--border);
+}
+
+article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-bar-wrap .aplayer-bar .aplayer-loaded {
+  background: var(--muted-2);
 }

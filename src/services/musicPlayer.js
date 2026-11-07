@@ -160,6 +160,20 @@ export const destroyMusicPlayer = () => {
   currentPlayer = null;
 };
 
+// The player's accent (play button, progress, active-track bar)
+// follows the site's primary color instead of APlayer's stock
+// blue, in whichever of light/dark the reader is using.
+const playerTheme = () => {
+  try {
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue('--primary')
+      .trim();
+    return value || '#b23a1f';
+  } catch {
+    return '#b23a1f';
+  }
+};
+
 // Replaces the placeholders under rootEl with one playlist player
 // sitting where the first placeholder was. No placeholders (the
 // common case) leaves the article untouched.
@@ -180,7 +194,7 @@ export const mountMusicPlayer = async (rootEl) => {
   if (!APlayer || !container.isConnected) return;
   currentPlayer = new APlayer({
     container,
-    theme: '#4a90d9',
+    theme: playerTheme(),
     listFolded: false,
     customAudioType: { gas: gasAudioType },
     audio: tracks.map((track) => ({
