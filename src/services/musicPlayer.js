@@ -66,10 +66,10 @@ export const decodeBase64ToBlob = (base64, mime) => {
 // a track that already played never asks music-gas again.
 const blobCache = new Map();
 
-export const fetchTrackBlob = (file) => {
+export const fetchTrackBlob = (file, endpoint = MUSIC_ENDPOINT) => {
   if (blobCache.has(file)) return blobCache.get(file);
   const promise = (async () => {
-    const url = musicTrackApiUrl(file);
+    const url = musicTrackApiUrl(file, endpoint);
     if (!url) throw new Error('music endpoint is not configured');
     const response = await fetch(url);
     const payload = await response.json();

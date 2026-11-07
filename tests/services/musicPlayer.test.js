@@ -48,9 +48,12 @@ describe('musicTrackApiUrl', () => {
     expect(musicTrackApiUrl(null, endpoint)).toBe('');
   });
 
-  it('is empty while the endpoint is not configured', () => {
+  it('is empty for an explicitly empty endpoint', () => {
     expect(musicTrackApiUrl('x.mp3', '')).toBe('');
-    expect(musicTrackApiUrl('x.mp3')).toBe('');
+  });
+
+  it('builds on the configured default endpoint when none is passed', () => {
+    expect(musicTrackApiUrl('x.mp3')).toContain('track=x.mp3');
   });
 });
 
@@ -70,9 +73,8 @@ describe('decodeBase64ToBlob', () => {
 });
 
 describe('fetchTrackBlob', () => {
-  it('rejects while the endpoint is not configured', async () => {
-    // MUSIC_ENDPOINT is empty in the test environment.
-    await expect(fetchTrackBlob('anything.mp3')).rejects.toThrow('not configured');
+  it('rejects for an explicitly empty endpoint', async () => {
+    await expect(fetchTrackBlob('anything.mp3', '')).rejects.toThrow('not configured');
   });
 });
 
