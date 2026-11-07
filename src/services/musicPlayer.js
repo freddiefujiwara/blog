@@ -93,16 +93,49 @@ export const fetchTrackBlob = (file, endpoint = MUSIC_ENDPOINT) => {
 // playback, but our replacement bytes arrive seconds later — left
 // as-is, the element would replay the PREVIOUS track from its
 // start in the meantime. So the old source is detached
-// synchronously, before the fetch starts. Whether to resume is
-// captured at the same moment: pausing the element flips
-// player.paused (APlayer mirrors the element's play/pause events),
-// so reading it after the fetch would wrongly say "paused".
+// synchronously, before the fetch starts.
+//
+// Whether to resume is decided when the bytes ARRIVE, by reading
+// player.paused then — not at handler entry. APlayer signals its
+// intent through that flag after the handler returns: its play()
+// flips it to false synchronously (setUIPlaying in the vendored
+// source), and the ended → skipForward → play() sequence of a
+// natural track end does exactly that. Reading the flag at entry
+// missed the loop-around case: right after a track ends the
+// player still reads paused, so the first track of the next round
+// loaded but never started. Reading it late also honors a pause
+// the reader presses while the fetch is in flight.
 let latestActivation = 0;
 const liveObjectUrls = new Set();
 
+// Once one track is in, quietly fetch the rest of the playlist in
+// the background, one at a time. Most switches then find their
+// bytes already in the session cache, which also keeps iOS from
+// treating a long-delayed programmatic play() as unsolicited
+// autoplay. Runs at most once per page session.
+let prefetchStarted = false;
+const prefetchRemainingTracks = (player) => {
+  if (prefetchStarted) return;
+  const audios = (player && player.list && player.list.audios) || [];
+  const files = [];
+  audios.forEach((entry) => {
+    try {
+      const file = new URL(entry.url).searchParams.get('track') || '';
+      if (file && AUDIO_FILE_PATTERN.test(file)) files.push(file);
+    } catch (err) {
+      // A malformed playlist entry must not break the prefetch.
+    }
+  });
+  if (!files.length) return;
+  prefetchStarted = true;
+  files.reduce(
+    (chain, file) => chain.then(() => fetchTrackBlob(file)).catch(() => {}),
+    Promise.resolve()
+  );
+};
+
 export const gasAudioType = (audioElement, audio, player) => {
   const activation = ++latestActivation;
-  const shouldResume = Boolean(player && !player.paused);
   audioElement.pause();
   audioElement.removeAttribute('src');
   audioElement.load();
@@ -124,7 +157,8 @@ export const gasAudioType = (audioElement, audio, player) => {
       const objectUrl = URL.createObjectURL(blob);
       liveObjectUrls.add(objectUrl);
       audioElement.src = objectUrl;
-      if (shouldResume) {
+      prefetchRemainingTracks(player);
+      if (player && !player.paused) {
         const attempt = audioElement.play();
         if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {});
       }

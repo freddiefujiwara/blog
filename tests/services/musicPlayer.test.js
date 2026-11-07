@@ -136,6 +136,71 @@ describe('gasAudioType', () => {
     expect(element.src).toBe('blob:fake-url');
     expect(element.play).not.toHaveBeenCalled();
   });
+
+  it('resumes when the player asks to play while the fetch is in flight', async () => {
+    // A natural track end under loop "all": APlayer runs
+    // skipForward (this handler) with the player still reading
+    // paused, then calls play(), which flips paused to false.
+    // The resume decision must see that later state.
+    let resolveFetch;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { resolveFetch = resolve; })));
+    const element = fakeElement('blob:previous-track');
+    const player = { paused: true, notice: vi.fn() };
+    gasAudioType(
+      element,
+      { url: 'https://example.com/exec?track=loop-wrap.mp3' },
+      player
+    );
+    player.paused = false;
+    resolveFetch({ json: async () => ({ ok: true, data: btoa('c'), mime: 'audio/mpeg' }) });
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    expect(element.src).toBe('blob:fake-url');
+    expect(element.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resume when the reader pauses while the fetch is in flight', async () => {
+    let resolveFetch;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { resolveFetch = resolve; })));
+    const element = fakeElement('blob:previous-track');
+    const player = { paused: false, notice: vi.fn() };
+    gasAudioType(
+      element,
+      { url: 'https://example.com/exec?track=pause-mid-fetch.mp3' },
+      player
+    );
+    player.paused = true;
+    resolveFetch({ json: async () => ({ ok: true, data: btoa('d'), mime: 'audio/mpeg' }) });
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    expect(element.src).toBe('blob:fake-url');
+    expect(element.play).not.toHaveBeenCalled();
+  });
+
+  it('prefetches the remaining playlist once a track has loaded', async () => {
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('e'), mime: 'audio/mpeg' })
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const element = fakeElement('blob:previous-track');
+    const player = {
+      paused: false,
+      notice: vi.fn(),
+      list: {
+        audios: [
+          { url: 'https://example.com/exec?track=pf-a.mp3' },
+          { url: 'https://example.com/exec?track=pf-b.mp3' },
+          { url: 'https://example.com/exec?track=pf-c.mp3' }
+        ]
+      }
+    };
+    gasAudioType(element, { url: 'https://example.com/exec?track=pf-a.mp3' }, player);
+    for (let i = 0; i < 10; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
+    }
+    const requested = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(requested.some((url) => url.includes('track=pf-b.mp3'))).toBe(true);
+    expect(requested.some((url) => url.includes('track=pf-c.mp3'))).toBe(true);
+  });
 });
 
 describe('mountMusicPlayer', () => {
