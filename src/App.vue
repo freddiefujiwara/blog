@@ -63,7 +63,7 @@ import { computed, ref, onMounted } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
 import TagIndex from './components/TagIndex.vue';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
-import { buildTagIndex, extractTagsMap } from './services/tags';
+import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
 
@@ -89,7 +89,7 @@ onMounted(async () => {
   if (cached?.ids?.length) {
     latestArticlePath.value = `/${cached.ids[0]}`;
     searchableArticles.value = buildSearchableArticles(cached);
-    tagsMap.value = extractTagsMap(cached);
+    tagsMap.value = mergeTagsMaps(tagsMap.value, extractTagsMap(cached));
     if (searchableArticles.value.length) {
       searchState.value = 'ready';
     }
@@ -100,7 +100,7 @@ onMounted(async () => {
       latestArticlePath.value = `/${data.ids[0]}`;
     }
     searchableArticles.value = buildSearchableArticles(data);
-    tagsMap.value = extractTagsMap(data);
+    tagsMap.value = mergeTagsMaps(tagsMap.value, extractTagsMap(data));
     searchState.value = 'ready';
   } catch {
     // If the fetch fails, primed data (when there is any) keeps the

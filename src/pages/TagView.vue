@@ -21,7 +21,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { buildSearchableArticles, fetchArticleTitles } from '../services/api';
 import { loadCachedList } from '../services/listCache';
-import { extractTagsMap, filterArticlesByTag } from '../services/tags';
+import { extractTagsMap, filterArticlesByTag, mergeTagsMaps } from '../services/tags';
 
 // Lists every article carrying one tag, newest first. The data is the
 // same titles payload the search uses (ids, titles, tags), primed from
@@ -43,7 +43,7 @@ const entries = computed(() =>
 
 const applyData = (data) => {
   articles.value = buildSearchableArticles(data);
-  tagsMap.value = extractTagsMap(data);
+  tagsMap.value = mergeTagsMaps(tagsMap.value, extractTagsMap(data));
 };
 
 const load = async () => {
