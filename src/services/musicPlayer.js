@@ -1,15 +1,18 @@
 // Embedded music player. blog-gas turns a document paragraph of the
-// form [[music|タイトル|DriveファイルID]] into a placeholder
-//   <div class="music-track" data-title="..." data-drive-id="..."></div>
+// form [[music|タイトル|音源ファイル名.mp3]] into a placeholder
+//   <div class="music-track" data-title="..." data-file="..."></div>
 // in the article HTML. This module collects the placeholders of an
-// article (in document order) into a single APlayer playlist whose
-// audio files stream straight from Google Drive. APlayer is a
-// vendored library under public/vendor and is loaded lazily, only
-// for articles that actually carry tracks.
+// article (in document order) into a single APlayer playlist. The
+// audio files are served by the blog itself from public/audio/
+// (Google Drive direct-download links answer with
+// Content-Disposition: attachment, which browsers refuse to play
+// in an <audio> element). APlayer is a vendored library under
+// public/vendor and is loaded lazily, only for articles that
+// actually carry tracks.
 
-const DRIVE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
 const TRACK_PLACEHOLDER_PATTERN =
-  /<div class="music-track" data-title="([^"]*)" data-drive-id="([A-Za-z0-9_-]+)"><\/div>/g;
+  /<div class="music-track" data-title="([^"]*)" data-file="([A-Za-z0-9_-]+\.mp3)"><\/div>/g;
 
 const unescapeHtml = (text) => String(text ?? '')
   .replace(/&quot;/g, '"')
@@ -26,16 +29,16 @@ export const extractMusicTracks = (html) => {
   const pattern = new RegExp(TRACK_PLACEHOLDER_PATTERN.source, 'g');
   let match;
   while ((match = pattern.exec(String(html ?? ''))) !== null) {
-    tracks.push({ title: unescapeHtml(match[1]), driveId: match[2] });
+    tracks.push({ title: unescapeHtml(match[1]), file: match[2] });
   }
   return tracks;
 };
 
-// Direct-download URL for a shared Drive file. The id is validated
-// again here so a malformed placeholder can never smuggle another
-// URL shape into the player.
-export const musicTrackUrl = (driveId) => (DRIVE_ID_PATTERN.test(driveId ?? '')
-  ? `https://drive.usercontent.google.com/download?id=${driveId}&export=download`
+// URL of a track's audio file under the blog's own /audio/. The
+// file name is validated again here so a malformed placeholder can
+// never point the player outside that directory.
+export const musicTrackUrl = (file) => (AUDIO_FILE_PATTERN.test(file ?? '')
+  ? `${import.meta.env.BASE_URL || '/'}audio/${file}`
   : '');
 
 let loadPromise = null;
@@ -80,8 +83,8 @@ export const mountMusicPlayer = async (rootEl) => {
   const placeholders = [...rootEl.querySelectorAll('.music-track')];
   if (!placeholders.length) return;
   const tracks = placeholders
-    .map((el) => ({ title: el.dataset.title || '', driveId: el.dataset.driveId || '' }))
-    .filter((track) => DRIVE_ID_PATTERN.test(track.driveId));
+    .map((el) => ({ title: el.dataset.title || '', file: el.dataset.file || '' }))
+    .filter((track) => AUDIO_FILE_PATTERN.test(track.file));
   const container = document.createElement('div');
   container.className = 'music-player';
   placeholders[0].replaceWith(container);
@@ -97,7 +100,7 @@ export const mountMusicPlayer = async (rootEl) => {
     audio: tracks.map((track) => ({
       name: track.title,
       artist: '藤原史和',
-      url: musicTrackUrl(track.driveId)
+      url: musicTrackUrl(track.file)
     }))
   });
 };
