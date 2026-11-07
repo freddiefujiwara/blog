@@ -365,6 +365,38 @@ article .music-player {
   margin: 16px 0;
 }
 
+/* Lyrics sheet: renderMarkdown rewrites a "**歌詞**" label and the
+   lyric lines after it into this box (see services/markdown.js).
+   Same surface treatment as the music player above it, so a song's
+   player and its lyrics read as one unit. */
+article .lyrics {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin: 20px 0;
+}
+
+article .lyrics-label {
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+article .lyrics-line {
+  margin: 0 0 3px;
+  line-height: 1.8;
+}
+
+article .lyrics-part {
+  color: var(--muted);
+  font-size: 0.85em;
+  margin: 14px 0 5px;
+}
+
+article .lyrics-label + .lyrics-part {
+  margin-top: 2px;
+}
+
 article img {
   max-width: 100%;
   height: auto;
