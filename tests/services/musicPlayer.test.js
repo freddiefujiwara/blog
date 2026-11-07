@@ -85,12 +85,56 @@ describe('gasAudioType', () => {
     URL.revokeObjectURL = vi.fn();
   });
 
+  const fakeElement = (src) => ({
+    src,
+    pause: vi.fn(),
+    removeAttribute: vi.fn(function (name) {
+      if (name === 'src') this.src = undefined;
+    }),
+    load: vi.fn(),
+    play: vi.fn(() => Promise.resolve())
+  });
+
   it('notices instead of throwing when the track url carries no file', () => {
     const notice = vi.fn();
-    const element = {};
+    const element = fakeElement('blob:previous-track');
     gasAudioType(element, { url: '' }, { paused: true, notice });
     expect(notice).toHaveBeenCalled();
     expect(element.src).toBeUndefined();
+  });
+
+  it('detaches the previous track synchronously, then resumes if it was playing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('a'), mime: 'audio/mpeg' })
+    })));
+    const element = fakeElement('blob:previous-track');
+    gasAudioType(
+      element,
+      { url: 'https://example.com/exec?track=switch-a.mp3' },
+      { paused: false, notice: vi.fn() }
+    );
+    expect(element.pause).toHaveBeenCalled();
+    expect(element.removeAttribute).toHaveBeenCalledWith('src');
+    expect(element.load).toHaveBeenCalled();
+    expect(element.src).toBeUndefined();
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    expect(element.src).toBe('blob:fake-url');
+    expect(element.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads without resuming when the player was paused', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('b'), mime: 'audio/mpeg' })
+    })));
+    const element = fakeElement('blob:previous-track');
+    gasAudioType(
+      element,
+      { url: 'https://example.com/exec?track=switch-b.mp3' },
+      { paused: true, notice: vi.fn() }
+    );
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    expect(element.src).toBe('blob:fake-url');
+    expect(element.play).not.toHaveBeenCalled();
   });
 });
 

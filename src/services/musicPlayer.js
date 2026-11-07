@@ -88,11 +88,24 @@ export const fetchTrackBlob = (file, endpoint = MUSIC_ENDPOINT) => {
 // monotonically increasing activation id keeps a slow fetch for an
 // earlier track from hijacking the element after the reader has
 // already moved on.
+//
+// APlayer follows the handler call by seeking to 0 and resuming
+// playback, but our replacement bytes arrive seconds later — left
+// as-is, the element would replay the PREVIOUS track from its
+// start in the meantime. So the old source is detached
+// synchronously, before the fetch starts. Whether to resume is
+// captured at the same moment: pausing the element flips
+// player.paused (APlayer mirrors the element's play/pause events),
+// so reading it after the fetch would wrongly say "paused".
 let latestActivation = 0;
 const liveObjectUrls = new Set();
 
 export const gasAudioType = (audioElement, audio, player) => {
   const activation = ++latestActivation;
+  const shouldResume = Boolean(player && !player.paused);
+  audioElement.pause();
+  audioElement.removeAttribute('src');
+  audioElement.load();
   let file = '';
   try {
     file = new URL(audio.url).searchParams.get('track') || '';
@@ -111,7 +124,7 @@ export const gasAudioType = (audioElement, audio, player) => {
       const objectUrl = URL.createObjectURL(blob);
       liveObjectUrls.add(objectUrl);
       audioElement.src = objectUrl;
-      if (player && !player.paused) {
+      if (shouldResume) {
         const attempt = audioElement.play();
         if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {});
       }
