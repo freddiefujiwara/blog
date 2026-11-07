@@ -17,6 +17,22 @@ const STORAGE_KEY = isStagingBuild()
 const isTitlesMap = (value) =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+// Keeps only the id -> array entries of a tags map, so a malformed
+// payload cannot poison the persisted list. Tag strings themselves are
+// normalized when the UI reads them (services/tags).
+const sanitizeTagsMap = (value) => {
+  if (!isTitlesMap(value)) {
+    return {};
+  }
+  const map = {};
+  Object.entries(value).forEach(([id, tags]) => {
+    if (Array.isArray(tags)) {
+      map[id] = tags;
+    }
+  });
+  return map;
+};
+
 // Loads the last article list saved by saveCachedList. Returns null when
 // nothing usable is stored (first visit, cleared storage, corrupt data).
 export const loadCachedList = () => {
@@ -35,6 +51,9 @@ export const loadCachedList = () => {
     return {
       ids: data.ids,
       titles: isTitlesMap(data.titles) ? data.titles : {},
+      // Lists saved before tags existed have no tags key at all; keep
+      // it absent (rather than an empty map) so their shape is unchanged.
+      ...(isTitlesMap(data.tags) ? { tags: sanitizeTagsMap(data.tags) } : {}),
       article_cache: Array.isArray(data.article_cache) ? data.article_cache : []
     };
   } catch {
@@ -54,6 +73,7 @@ export const saveCachedList = (data) => {
       JSON.stringify({
         ids: data.ids,
         titles: isTitlesMap(data.titles) ? data.titles : {},
+        ...(isTitlesMap(data.tags) ? { tags: sanitizeTagsMap(data.tags) } : {}),
         article_cache: Array.isArray(data.article_cache) ? data.article_cache : []
       })
     );
