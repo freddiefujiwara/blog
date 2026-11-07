@@ -4,6 +4,7 @@ import {
   extractArticleTags,
   extractTagsMap,
   filterArticlesByTag,
+  mergeTagsMaps,
   normalizeTagList,
   tagPath
 } from '../../src/services/tags';
@@ -48,6 +49,33 @@ describe('tags service', () => {
       expect(extractTagsMap({ tags: ['運営'] })).toEqual({});
       expect(extractTagsMap(null)).toEqual({});
       expect(extractTagsMap(undefined)).toEqual({});
+    });
+  });
+
+  describe('mergeTagsMaps', () => {
+    it('keeps current tags when the incoming map leaves the id out', () => {
+      expect(mergeTagsMaps({ a: ['運営'] }, {})).toEqual({ a: ['運営'] });
+      expect(mergeTagsMaps({ a: ['運営'] }, { b: ['技術'] })).toEqual({
+        a: ['運営'],
+        b: ['技術']
+      });
+    });
+
+    it('keeps current tags when the incoming list is empty', () => {
+      expect(mergeTagsMaps({ a: ['運営'] }, { a: [] })).toEqual({ a: ['運営'] });
+    });
+
+    it('replaces the entry when the incoming list is non-empty', () => {
+      expect(mergeTagsMaps({ a: ['運営'] }, { a: ['技術', '川口'] })).toEqual({
+        a: ['技術', '川口']
+      });
+    });
+
+    it('normalizes both sides and tolerates malformed input', () => {
+      expect(mergeTagsMaps(null, undefined)).toEqual({});
+      expect(mergeTagsMaps({ a: [' 運営 ', '運営'] }, { b: '技術' })).toEqual({
+        a: ['運営']
+      });
     });
   });
 

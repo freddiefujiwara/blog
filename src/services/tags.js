@@ -49,6 +49,34 @@ export const extractTagsMap = (data) => {
   return map;
 };
 
+// Merges an incoming tags map over the one the UI already holds: a
+// non-empty incoming list replaces the current entry, but an id the
+// incoming payload leaves out (or resolves to no tags) never erases
+// tags the UI already knows. The titles endpoint can transiently
+// resolve most ids to [] while its server-side tags cache is cold;
+// replacing the map wholesale in that moment made tag pages lose
+// articles (and the tag index shrink) until the cache warmed again.
+export const mergeTagsMaps = (current, incoming) => {
+  const merged = {};
+  if (isPlainMap(current)) {
+    Object.entries(current).forEach(([id, value]) => {
+      const tags = normalizeTagList(value);
+      if (tags.length) {
+        merged[id] = tags;
+      }
+    });
+  }
+  if (isPlainMap(incoming)) {
+    Object.entries(incoming).forEach(([id, value]) => {
+      const tags = normalizeTagList(value);
+      if (tags.length) {
+        merged[id] = tags;
+      }
+    });
+  }
+  return merged;
+};
+
 // Extracts the tag list from a single article response.
 export const extractArticleTags = (article) => {
   if (!isPlainMap(article)) {
