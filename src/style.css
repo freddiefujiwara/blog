@@ -661,6 +661,79 @@ article th {
   }
 }
 
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.tag-chip:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.tag-chip-count {
+  color: var(--muted-2);
+  font-size: 0.8rem;
+}
+
+.tag-index {
+  margin: 0 0 20px;
+}
+
+.tag-index-heading {
+  margin: 0;
+  color: var(--muted-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.tag-page-heading {
+  margin: 0 0 16px;
+  font-size: 1.6rem;
+  line-height: 1.4;
+}
+
+.tag-article-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-article-item a {
+  display: block;
+  padding: 10px 4px;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.tag-article-item a:hover {
+  color: var(--primary);
+  background: var(--surface-elevated);
+}
+
+.tag-page-status {
+  color: var(--muted);
+}
+
 .table-of-contents {
   margin: 20px 0 28px;
   padding: 16px 20px;

@@ -69,6 +69,36 @@ describe('listCache service', () => {
     expect(loadCachedList()).toBeNull();
   });
 
+  it('round-trips the tags map together with titles', () => {
+    const data = {
+      ids: ['1', '2'],
+      titles: { 1: 'Title 1', 2: 'Title 2' },
+      tags: { 1: ['運営', '技術'], 2: ['中国語'] },
+      article_cache: []
+    };
+    saveCachedList(data);
+    expect(loadCachedList()).toEqual(data);
+  });
+
+  it('keeps the tags key absent for lists saved before tags existed', () => {
+    saveCachedList({ ids: ['1'], titles: { 1: 'T' }, article_cache: [] });
+    expect(loadCachedList()).not.toHaveProperty('tags');
+    localStorage.setItem(
+      'blog:list-cache:v1',
+      JSON.stringify({ ids: ['1'], titles: { 1: 'T' }, article_cache: [] })
+    );
+    expect(loadCachedList()).not.toHaveProperty('tags');
+  });
+
+  it('drops malformed tags entries when saving and loading', () => {
+    saveCachedList({
+      ids: ['1', '2'],
+      tags: { 1: ['運営'], 2: '技術' },
+      article_cache: []
+    });
+    expect(loadCachedList().tags).toEqual({ 1: ['運営'] });
+  });
+
   it('never saves or loads the cache in staging builds', async () => {
     vi.stubEnv('VITE_STAGING', '1');
     vi.resetModules();

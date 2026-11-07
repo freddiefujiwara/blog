@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { mount, RouterLinkStub } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import ArticleContent from '../../src/components/ArticleContent.vue';
 
@@ -165,5 +165,36 @@ describe('ArticleContent', () => {
     });
     const html = wrapper.html();
     expect(html.indexOf('table-of-contents')).toBeLessThan(html.indexOf('<p>Intro</p>'));
+  });
+
+  it('renders tag chips under the title when the article carries tags', () => {
+    const wrapper = mount(ArticleContent, {
+      props: {
+        article: { title: 'T', tags: ['運営', '技術'] },
+        articleHtml: '<p>Body</p>'
+      },
+      global: { stubs: { RouterLink: RouterLinkStub } }
+    });
+    const html = wrapper.html();
+    expect(html.indexOf('<h1>')).toBeLessThan(html.indexOf('tag-chips'));
+    expect(html.indexOf('tag-chips')).toBeLessThan(html.indexOf('<p>Body</p>'));
+    const chips = wrapper.findAll('.tag-chip');
+    expect(chips.map((chip) => chip.text())).toEqual(['運営', '技術']);
+    const links = wrapper.findAllComponents(RouterLinkStub);
+    expect(links.map((link) => link.props().to)).toEqual([
+      `/tag/${encodeURIComponent('運営')}`,
+      `/tag/${encodeURIComponent('技術')}`
+    ]);
+  });
+
+  it('renders no tag chips when the article has no tags field', () => {
+    const wrapper = mount(ArticleContent, {
+      props: {
+        article: { title: 'T' },
+        articleHtml: '<p>Body</p>'
+      },
+      global: { stubs: { RouterLink: true } }
+    });
+    expect(wrapper.find('.tag-chips').exists()).toBe(false);
   });
 });

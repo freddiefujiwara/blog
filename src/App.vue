@@ -32,6 +32,7 @@
       </div>
     </header>
     <div class="layout">
+      <TagIndex :tags="tagIndex" />
       <router-view />
       <footer class="site-footer">
         <div class="foot-links">
@@ -57,9 +58,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
+import TagIndex from './components/TagIndex.vue';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
+import { buildTagIndex, extractTagsMap } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
 
@@ -70,6 +73,13 @@ const year = new Date().getFullYear();
 const latestArticlePath = ref('');
 const searchableArticles = ref([]);
 const searchState = ref('loading');
+// Tag index under the hero, fed by the same titles payload as the
+// search. Stays empty (and renders nothing) until the payload carries
+// tags, so older API responses change nothing visually.
+const tagsMap = ref({});
+const tagIndex = computed(() =>
+  buildTagIndex(searchableArticles.value, tagsMap.value)
+);
 
 onMounted(async () => {
   // Prime from the list cached on the previous visit so the search is
@@ -78,6 +88,7 @@ onMounted(async () => {
   if (cached?.ids?.length) {
     latestArticlePath.value = `/${cached.ids[0]}`;
     searchableArticles.value = buildSearchableArticles(cached);
+    tagsMap.value = extractTagsMap(cached);
     if (searchableArticles.value.length) {
       searchState.value = 'ready';
     }
@@ -88,6 +99,7 @@ onMounted(async () => {
       latestArticlePath.value = `/${data.ids[0]}`;
     }
     searchableArticles.value = buildSearchableArticles(data);
+    tagsMap.value = extractTagsMap(data);
     searchState.value = 'ready';
   } catch {
     // If the fetch fails, primed data (when there is any) keeps the

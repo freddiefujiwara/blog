@@ -1,6 +1,7 @@
 <template>
   <article v-if="article" ref="rootEl" class="article-content" @error.capture="handleImageError">
     <h1>{{ article.title }}</h1>
+    <TagChips :tags="articleTags" />
     <template v-if="markerSegments">
       <template v-for="(part, index) in markerSegments" :key="index">
         <div v-if="part" v-html="part"></div>
@@ -17,7 +18,9 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import TableOfContents from './TableOfContents.vue';
+import TagChips from './TagChips.vue';
 import { splitHtmlAtTocMarkers } from '../services/markdown.js';
+import { extractArticleTags } from '../services/tags.js';
 import { LINK_CARD_FALLBACK_IMAGE } from '../constants.js';
 
 const props = defineProps({
@@ -40,6 +43,10 @@ const props = defineProps({
 // opening lines stay untouched. Several markers may be used; the
 // whole-article TOC appears at each of them. Markers are removed.
 const markerSegments = computed(() => splitHtmlAtTocMarkers(props.articleHtml));
+
+// Tag chips under the title. Empty for articles without tags and for
+// article payloads from before the API carried them.
+const articleTags = computed(() => extractArticleTags(props.article));
 
 // Link-card images come from arbitrary shop sites and sometimes fail
 // to load; swap in the placeholder once, like the possessions list
