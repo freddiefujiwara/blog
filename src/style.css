@@ -361,6 +361,10 @@ article .link-card-domain {
   }
 }
 
+article .music-player {
+  margin: 16px 0;
+}
+
 article img {
   max-width: 100%;
   height: auto;
