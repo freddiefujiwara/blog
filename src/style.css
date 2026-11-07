@@ -842,3 +842,13 @@ article th {
 .article-content h3 {
   scroll-margin-top: 72px;
 }
+
+/* APlayer (the embedded music player) always renders on a white
+   panel, but its title elements carry no color of their own and
+   inherit the page's text color — near-white in dark mode — so the
+   track titles vanished against the panel. Pin dark text inside
+   the player; elements APlayer colors itself (author, time) keep
+   their grays. */
+.aplayer {
+  color: #333;
+}
