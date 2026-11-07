@@ -110,6 +110,65 @@ export const splitHtmlAtTocMarkers = (html) => {
   return parts.length > 1 ? parts : null;
 };
 
+// Lyrics blocks: an article can present a song's lyrics as a boxed
+// sheet by putting a paragraph that is only "**歌詞**" followed by
+// one paragraph per lyric line. The block is rewritten here — before
+// parsing — into a raw HTML box, because Markdown itself has no
+// grouping for it. The lines are consumed until the block can no
+// longer be a lyric line: a heading, a raw HTML block (the music
+// player placeholders, link cards), a Markdown link or marker line,
+// a long paragraph, or a sentence ending in "。" — prose paragraphs
+// (a section's introduction, an article's closing line) end lyrics
+// instead of being boxed in. Bracketed part labels ("[Chorus]")
+// become muted part headings inside the box.
+const LYRICS_LABEL = '**歌詞**';
+const LYRICS_PART_PATTERN = /^\[[^\]]*\]$/;
+
+const escapeHtmlText = (text) => String(text)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+
+const isLyricLine = (block) => {
+  if (!block || block.length > 40) return false;
+  if (block.startsWith('#')) return false;
+  if (block.startsWith('<')) return false;
+  if (block.startsWith('[[')) return false;
+  if (block.includes('](')) return false;
+  if (block.endsWith('。')) return false;
+  return true;
+};
+
+export const wrapLyricsBlocks = (markdown) => {
+  const blocks = String(markdown ?? '').split(/\n{2,}/);
+  const out = [];
+  let i = 0;
+  while (i < blocks.length) {
+    if (blocks[i].trim() !== LYRICS_LABEL) {
+      out.push(blocks[i]);
+      i += 1;
+      continue;
+    }
+    const lines = [];
+    let j = i + 1;
+    while (j < blocks.length && isLyricLine(blocks[j].trim())) {
+      lines.push(blocks[j].trim());
+      j += 1;
+    }
+    if (!lines.length) {
+      out.push(blocks[i]);
+      i += 1;
+      continue;
+    }
+    const inner = lines.map((line) => (LYRICS_PART_PATTERN.test(line)
+      ? `<p class="lyrics-part">${escapeHtmlText(line)}</p>`
+      : `<p class="lyrics-line">${escapeHtmlText(line)}</p>`)).join('');
+    out.push(`<div class="lyrics"><p class="lyrics-label">歌詞</p>${inner}</div>`);
+    i = j;
+  }
+  return out.join('\n\n');
+};
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
@@ -133,5 +192,5 @@ export const renderMarkdown = (markdown) => {
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${level} id="${id}">${text}</h${level}>\n`;
   };
-  return marked.parse(delimitBareUrls(markdown ?? ''), { renderer });
+  return marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer });
 };
