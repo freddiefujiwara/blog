@@ -65,6 +65,39 @@ describe('compact one-line navigation', () => {
   });
 });
 
+describe('article title links in lists (tag page, title search)', () => {
+  // List titles are links, so they take the accent color like the tag
+  // chips do; in the plain text color they read as body text and the
+  // reader cannot tell they are tappable (user report, 2026-11-07).
+  it('colors tag page article titles with the accent color', () => {
+    const block = blockFor('.tag-article-item a');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/color:\s*var\(--primary\)/);
+    expect(block).not.toMatch(/color:\s*var\(--text\)/);
+  });
+
+  it('keeps a distinct hover state on tag page article titles', () => {
+    const block = blockFor('.tag-article-item a:hover');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/color:\s*var\(--link-active\)/);
+    expect(block).toMatch(/background:\s*var\(--surface-elevated\)/);
+  });
+
+  it('colors title search result titles with the accent color', () => {
+    const block = blockFor('.title-search .title-search-item a');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/color:\s*var\(--primary\)/);
+    expect(block).not.toMatch(/color:\s*var\(--text\)/);
+  });
+
+  it('keeps a distinct hover state on title search result titles', () => {
+    const block = blockFor('.title-search .title-search-item a:hover');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/color:\s*var\(--link-active\)/);
+    expect(block).toMatch(/background:\s*var\(--surface-elevated\)/);
+  });
+});
+
 describe('title search results inside the site nav', () => {
   it('scopes the results list under .title-search so the nav list styles cannot leak in', () => {
     const block = blockFor('.title-search .title-search-results');
