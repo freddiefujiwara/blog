@@ -16,11 +16,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import TableOfContents from './TableOfContents.vue';
 import TagChips from './TagChips.vue';
 import { splitHtmlAtTocMarkers } from '../services/markdown.js';
 import { extractArticleTags } from '../services/tags.js';
+import { destroyMusicPlayer, mountMusicPlayer } from '../services/musicPlayer.js';
 import { LINK_CARD_FALLBACK_IMAGE } from '../constants.js';
 
 const props = defineProps({
@@ -79,9 +80,18 @@ const sweepBrokenCardImages = () => {
     });
 };
 
-onMounted(sweepBrokenCardImages);
+// Articles that carry [[music|...]] markers get their track
+// placeholders replaced by one playlist player after each render;
+// leaving the article destroys the player so playback stops.
+const refreshAfterRender = () => {
+  sweepBrokenCardImages();
+  mountMusicPlayer(rootEl.value);
+};
+
+onMounted(refreshAfterRender);
 watch(
   () => props.articleHtml,
-  () => nextTick(sweepBrokenCardImages)
+  () => nextTick(refreshAfterRender)
 );
+onBeforeUnmount(destroyMusicPlayer);
 </script>
