@@ -221,6 +221,42 @@ const playerTheme = () => {
   }
 };
 
+// A labelled random-playback toggle above the player. APlayer
+// ships its own order icon in the control bar, but it is a small
+// unlabelled glyph most readers never find, so the same setting
+// gets a text button here. The button defers to the built-in icon
+// when it exists (that handler flips the order and swaps its own
+// glyph), and the label re-reads player.options.order after every
+// change, whichever control was used.
+export const attachOrderToggle = (wrapper, player) => {
+  if (!wrapper || !player || !player.options) return null;
+  const bar = document.createElement('div');
+  bar.className = 'music-controls';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'music-order-toggle';
+  const sync = () => {
+    const random = player.options.order === 'random';
+    button.textContent = random ? 'ランダム再生：オン' : 'ランダム再生：オフ';
+    button.setAttribute('aria-pressed', random ? 'true' : 'false');
+    button.classList.toggle('is-random', random);
+  };
+  const icon = wrapper.querySelector('.aplayer-icon-order');
+  button.addEventListener('click', () => {
+    if (icon) {
+      icon.click();
+    } else {
+      player.options.order = player.options.order === 'random' ? 'list' : 'random';
+    }
+    sync();
+  });
+  if (icon) icon.addEventListener('click', () => { setTimeout(sync, 0); });
+  bar.appendChild(button);
+  wrapper.insertBefore(bar, wrapper.firstChild);
+  sync();
+  return button;
+};
+
 // Replaces the placeholders under rootEl with one playlist player
 // sitting where the first placeholder was. No placeholders (the
 // common case) leaves the article untouched.
@@ -243,6 +279,7 @@ export const mountMusicPlayer = async (rootEl) => {
     container,
     theme: playerTheme(),
     listFolded: false,
+    order: 'list',
     customAudioType: { gas: gasAudioType },
     audio: tracks.map((track) => ({
       name: track.title,
@@ -251,4 +288,5 @@ export const mountMusicPlayer = async (rootEl) => {
       type: 'gas'
     }))
   });
+  if (tracks.length > 1) attachOrderToggle(container, currentPlayer);
 };
