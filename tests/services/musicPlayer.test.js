@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  attachOrderToggle,
   decodeBase64ToBlob,
   destroyMusicPlayer,
   extractMusicTracks,
@@ -246,78 +245,5 @@ describe('mountMusicPlayer', () => {
     document.body.innerHTML = '<div id="root"><p>本文だけ</p></div>';
     await mountMusicPlayer(document.getElementById('root'));
     expect(FakeAPlayer.instances).toHaveLength(0);
-  });
-
-  it('starts in list order and adds the random toggle for playlists', async () => {
-    document.body.innerHTML = '<div id="root">'
-      + '<div class="music-track" data-title="曲1" data-file="one.mp3"></div>'
-      + '<div class="music-track" data-title="曲2" data-file="two.mp3"></div></div>';
-    await mountMusicPlayer(document.getElementById('root'));
-    const { options } = FakeAPlayer.instances[0];
-    expect(options.order).toBe('list');
-    const toggle = document.querySelector('.music-order-toggle');
-    expect(toggle).not.toBeNull();
-    expect(toggle.textContent).toBe('ランダム再生：オフ');
-    toggle.click();
-    expect(options.order).toBe('random');
-    expect(toggle.textContent).toBe('ランダム再生：オン');
-    destroyMusicPlayer();
-  });
-
-  it('adds no random toggle for a single track', async () => {
-    document.body.innerHTML = '<div id="root">'
-      + '<div class="music-track" data-title="曲1" data-file="one.mp3"></div></div>';
-    await mountMusicPlayer(document.getElementById('root'));
-    expect(FakeAPlayer.instances).toHaveLength(1);
-    expect(document.querySelector('.music-order-toggle')).toBeNull();
-    destroyMusicPlayer();
-  });
-});
-
-describe('attachOrderToggle', () => {
-  beforeEach(() => {
-    document.body.innerHTML = '';
-  });
-
-  it('returns null without a player or options', () => {
-    const wrapper = document.createElement('div');
-    expect(attachOrderToggle(null, { options: {} })).toBeNull();
-    expect(attachOrderToggle(wrapper, null)).toBeNull();
-    expect(attachOrderToggle(wrapper, {})).toBeNull();
-  });
-
-  it('flips the order directly when the player has no built-in icon', () => {
-    const wrapper = document.createElement('div');
-    document.body.appendChild(wrapper);
-    const player = { options: { order: 'list' } };
-    const button = attachOrderToggle(wrapper, player);
-    expect(button.getAttribute('aria-pressed')).toBe('false');
-    button.click();
-    expect(player.options.order).toBe('random');
-    expect(button.getAttribute('aria-pressed')).toBe('true');
-    expect(button.classList.contains('is-random')).toBe(true);
-    button.click();
-    expect(player.options.order).toBe('list');
-    expect(button.textContent).toBe('ランダム再生：オフ');
-  });
-
-  it('defers to the built-in icon and stays in sync with it', async () => {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = '<button type="button" class="aplayer-icon-order"></button>';
-    document.body.appendChild(wrapper);
-    const player = { options: { order: 'list' } };
-    const icon = wrapper.querySelector('.aplayer-icon-order');
-    // Stands in for APlayer's own handler: flips the order.
-    icon.addEventListener('click', () => {
-      player.options.order = player.options.order === 'random' ? 'list' : 'random';
-    });
-    const button = attachOrderToggle(wrapper, player);
-    button.click();
-    expect(player.options.order).toBe('random');
-    expect(button.textContent).toBe('ランダム再生：オン');
-    icon.click();
-    await new Promise((resolve) => { setTimeout(resolve, 0); });
-    expect(player.options.order).toBe('list');
-    expect(button.textContent).toBe('ランダム再生：オフ');
   });
 });

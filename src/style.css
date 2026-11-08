@@ -943,29 +943,3 @@ article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-bar-wr
 article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-bar-wrap .aplayer-bar .aplayer-loaded {
   background: var(--muted-2);
 }
-
-/* The labelled random-playback toggle above the player (the
-   built-in order icon is an unlabelled glyph most readers miss). */
-article .music-player .music-controls {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
-article .music-player .music-order-toggle {
-  font: inherit;
-  font-size: 13px;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
-
-article .music-player .music-order-toggle.is-random {
-  color: var(--surface);
-  background: var(--primary);
-  border-color: var(--primary);
-  font-weight: 700;
-}
