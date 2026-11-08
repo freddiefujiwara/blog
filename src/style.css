@@ -896,12 +896,19 @@ article .music-player .mp-toggles {
   gap: 8px;
 }
 
+article .music-player .mp-toggles {
+  justify-content: flex-end;
+  gap: 2px;
+  margin-top: 2px;
+}
+
 article .music-player .mp-controls {
   margin-bottom: 12px;
   justify-content: center;
 }
 
 article .music-player .mp-button {
+  touch-action: manipulation;
   font: inherit;
   font-size: 14px;
   color: var(--text);
@@ -963,11 +970,48 @@ article .music-player .mp-play:hover {
   background: var(--primary);
 }
 
+/* The mode switches stay quiet on purpose: small borderless
+   icons in a muted tone, full-strength only while active. The
+   primary color belongs to the play button alone. */
+article .music-player .mp-repeat,
+article .music-player .mp-random {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--muted-2);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+}
+
+article .music-player .mp-repeat:hover,
+article .music-player .mp-random:hover {
+  background: var(--surface-elevated);
+}
+
+article .music-player .mp-repeat svg,
+article .music-player .mp-random svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+article .music-player .mp-repeat.is-on,
 article .music-player .mp-random.is-on {
-  color: var(--surface);
-  background: var(--primary);
-  border-color: var(--primary);
+  color: var(--text);
+}
+
+article .music-player .mp-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  font-size: 9px;
   font-weight: 700;
+  line-height: 1;
 }
 
 article .music-player .mp-progress {

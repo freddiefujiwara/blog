@@ -197,8 +197,10 @@ describe('mountMusicPlayer', () => {
     expect(player.querySelector('.mp-prev').getAttribute('aria-label')).toBe('前へ');
     expect(player.querySelector('.mp-next svg')).not.toBeNull();
     expect(player.querySelector('.mp-next').getAttribute('aria-label')).toBe('次へ');
-    expect(player.querySelector('.mp-repeat').textContent).toBe('リピート：なし');
-    expect(player.querySelector('.mp-random').textContent).toBe('ランダム：オフ');
+    expect(player.querySelector('.mp-repeat').getAttribute('aria-label')).toBe('リピート：なし');
+    expect(player.querySelector('.mp-repeat svg')).not.toBeNull();
+    expect(player.querySelector('.mp-random').getAttribute('aria-label')).toBe('ランダム：オフ');
+    expect(player.querySelector('.mp-random svg')).not.toBeNull();
     const items = [...player.querySelectorAll('.mp-track .mp-track-title')];
     expect(items.map((n) => n.textContent)).toEqual(['曲1', '曲2']);
     destroyMusicPlayer();
@@ -225,31 +227,39 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
   });
 
-  it('cycles the repeat label なし → 全曲 → 1曲 → なし', async () => {
+  it('cycles the repeat state なし → 全曲 → 1曲 → なし', async () => {
     const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="cycle-a.mp3"></div>'
     );
     const button = player.querySelector('.mp-repeat');
+    const badge = button.querySelector('.mp-badge');
     button.click();
-    expect(button.textContent).toBe('リピート：全曲');
+    expect(button.getAttribute('aria-label')).toBe('リピート：全曲');
+    expect(button.classList.contains('is-on')).toBe(true);
+    expect(badge.hidden).toBe(true);
     button.click();
-    expect(button.textContent).toBe('リピート：1曲');
+    expect(button.getAttribute('aria-label')).toBe('リピート：1曲');
+    expect(badge.hidden).toBe(false);
     button.click();
-    expect(button.textContent).toBe('リピート：なし');
+    expect(button.getAttribute('aria-label')).toBe('リピート：なし');
+    expect(button.classList.contains('is-on')).toBe(false);
+    expect(badge.hidden).toBe(true);
     destroyMusicPlayer();
   });
 
-  it('toggles the random label and aria-pressed', async () => {
+  it('toggles the random state and aria-pressed', async () => {
     const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="rnd-a.mp3"></div>'
     );
     const button = player.querySelector('.mp-random');
     button.click();
-    expect(button.textContent).toBe('ランダム：オン');
+    expect(button.getAttribute('aria-label')).toBe('ランダム：オン');
     expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.classList.contains('is-on')).toBe(true);
     button.click();
-    expect(button.textContent).toBe('ランダム：オフ');
+    expect(button.getAttribute('aria-label')).toBe('ランダム：オフ');
     expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.classList.contains('is-on')).toBe(false);
     destroyMusicPlayer();
   });
 

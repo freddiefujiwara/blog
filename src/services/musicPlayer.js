@@ -15,10 +15,11 @@
 // (an earlier version embedded the APlayer library; its icon-only
 // controls were hard to read, so the controls here are labelled
 // controls: the transport buttons （前へ／再生／一時停止／次へ） use
-// the standard playback glyphs everyone reads, while the mode
-// switches stay labelled in Japanese — リピート：なし／全曲／1曲 and
-// ランダム：オフ／オン — over a seek bar with elapsed/total times
-// and a tappable track list).
+// the standard playback glyphs everyone reads. The mode switches
+// （リピート：なし／全曲／1曲 and ランダム：オフ／オン） are small,
+// quiet icons beside them — only the play button is meant to draw
+// the eye. A seek bar with elapsed/total times and a tappable
+// track list complete the player.)
 
 import { MUSIC_ENDPOINT } from '../constants.js';
 import { trackMusicPlay } from '../analytics.js';
@@ -151,7 +152,9 @@ const ICON_PATHS = {
   play: 'M8 5v14l11-7z',
   pause: 'M6 5h4v14H6zM14 5h4v14h-4z',
   prev: 'M6 5h2v14H6zM20 5v14L9 12z',
-  next: 'M16 5h2v14h-2zM4 5v14l11-7z'
+  next: 'M16 5h2v14h-2zM4 5v14l11-7z',
+  repeat: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z',
+  shuffle: 'M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z'
 };
 const iconSvg = (name) => (
   `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${ICON_PATHS[name]}"/></svg>`
@@ -240,10 +243,15 @@ const createPlayer = (container, tracks) => {
   const progressEl = el('div', 'mp-progress');
   progressEl.append(currentTimeEl, seekEl, totalTimeEl);
 
-  const repeatButton = el('button', 'mp-button mp-repeat', REPEAT_LABELS.none);
+  const repeatButton = el('button', 'mp-button mp-repeat');
   repeatButton.type = 'button';
-  const randomButton = el('button', 'mp-button mp-random', 'ランダム：オフ');
+  repeatButton.innerHTML = iconSvg('repeat');
+  const repeatBadge = el('span', 'mp-badge', '1');
+  repeatBadge.hidden = true;
+  repeatButton.appendChild(repeatBadge);
+  const randomButton = el('button', 'mp-button mp-random');
   randomButton.type = 'button';
+  randomButton.innerHTML = iconSvg('shuffle');
   randomButton.setAttribute('aria-pressed', 'false');
   const togglesEl = el('div', 'mp-toggles');
   togglesEl.append(repeatButton, randomButton);
@@ -396,16 +404,33 @@ const createPlayer = (container, tracks) => {
     startTrack(stepIndex(state.index, tracks.length, -1));
   });
 
+  // The mode switches are icons, so the Japanese state names live
+  // in the accessible label and tooltip; the visual state is just
+  // muted (off) versus full-strength (on), plus a "1" badge for
+  // repeat-one. Only the play button gets the primary color.
+  const syncRepeat = () => {
+    const label = REPEAT_LABELS[state.repeat];
+    repeatButton.setAttribute('aria-label', label);
+    repeatButton.title = label;
+    repeatButton.classList.toggle('is-on', state.repeat !== 'none');
+    repeatBadge.hidden = state.repeat !== 'one';
+  };
+  const syncRandom = () => {
+    const label = state.random ? 'ランダム：オン' : 'ランダム：オフ';
+    randomButton.setAttribute('aria-label', label);
+    randomButton.title = label;
+    randomButton.setAttribute('aria-pressed', state.random ? 'true' : 'false');
+    randomButton.classList.toggle('is-on', state.random);
+  };
+
   repeatButton.addEventListener('click', () => {
     state.repeat = REPEAT_CYCLE[state.repeat];
-    repeatButton.textContent = REPEAT_LABELS[state.repeat];
+    syncRepeat();
   });
 
   randomButton.addEventListener('click', () => {
     state.random = !state.random;
-    randomButton.textContent = state.random ? 'ランダム：オン' : 'ランダム：オフ';
-    randomButton.setAttribute('aria-pressed', state.random ? 'true' : 'false');
-    randomButton.classList.toggle('is-on', state.random);
+    syncRandom();
     // A fresh round starts with the current track as its first.
     state.played = new Set([state.index]);
   });
@@ -456,6 +481,8 @@ const createPlayer = (container, tracks) => {
   syncNow();
   syncPlayButton();
   syncProgress();
+  syncRepeat();
+  syncRandom();
 
   // The player's top KPI is how often the play button gets
   // pressed, and a press that waits seconds for the first fetch
