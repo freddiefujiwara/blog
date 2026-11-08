@@ -4,11 +4,12 @@
       <a class="brand" href="https://freddiefujiwara.com/">藤原史和｜川口を歩くQAエンジニア</a>
       <ul>
         <li><a href="https://freddiefujiwara.com/" @click="trackNavClick('top')">トップ</a></li>
-        <li><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">プロフィール</a></li>
-        <li><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">活動・発信</a></li>
-        <li><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">情報交換</a></li>
+        <li class="nav-section"><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">プロフィール</a></li>
+        <li class="nav-section"><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">活動・発信</a></li>
+        <li class="nav-section"><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">情報交換</a></li>
         <li><a href="/blog/" class="active" aria-current="page" @click="trackNavClick('blog')">ブログ</a></li>
-        <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">持ち物</a></li>
+        <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">持ち物リスト</a></li>
+        <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">川口の歌 ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
       </ul>
       <div class="nav-search">
         <TitleSearch :articles="searchableArticles" :state="searchState" />
@@ -66,8 +67,14 @@ import { buildSearchableArticles, fetchArticleTitles } from './services/api';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
+import { fetchMusicPlayCount, formatMusicPlayCount } from './services/musicCount';
 
 const year = new Date().getFullYear();
+
+// Cumulative 川口の歌 play count for the header nav, read from the
+// top site's music-count.json. Stays null (and renders nothing)
+// until a valid count arrives; any failure keeps it hidden.
+const musicPlayCount = ref(null);
 
 // Same destination as the footer's "最新記事（トップ）へ戻る" link:
 // the first id in the article list is the latest article.
@@ -83,6 +90,13 @@ const tagIndex = computed(() =>
 );
 
 onMounted(async () => {
+  // The play count is independent of the article list: fetch it in
+  // parallel and fill the nav in when (and only when) it succeeds.
+  fetchMusicPlayCount().then((count) => {
+    if (count !== null) {
+      musicPlayCount.value = count;
+    }
+  });
   // Prime from the list cached on the previous visit so the search is
   // usable immediately; the fetch below refreshes it in the background.
   const cached = loadCachedList();

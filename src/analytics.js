@@ -32,7 +32,7 @@ export function canonicalPagePath(pagePath, baseUrl = import.meta.env.BASE_URL) 
 }
 
 // Header nav clicks are measured as nav_click events with the item
-// key (top / about / activity / contact / blog / list), so the nav
+// key (top / about / activity / contact / blog / list / music), so the nav
 // can be trimmed later based on which items are actually used.
 // Same suppression rules as page views: nothing is sent on staging
 // builds or when gtag is not loaded.

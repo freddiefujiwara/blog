@@ -365,4 +365,57 @@ describe('App', () => {
     await flushPromises();
     expect(router.currentRoute.value.path).toBe('/latest-id');
   });
+
+  it('shows the shared nav with 川口の歌 and its play count', async () => {
+    fetch.mockImplementation(async (url) => {
+      if (String(url).includes('music-count.json')) {
+        return { ok: true, json: () => Promise.resolve({ count: 85, updated_at: 't' }) };
+      }
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
+      if (url.includes('?id=')) {
+        const id = url.split('?id=')[1];
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id, title: `Title ${id}`, markdown: '本文です。' })
+        };
+      }
+      return {
+        ok: true,
+        json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
+      };
+    });
+
+    const wrapper = mount(App, { global: { plugins: [router] } });
+    await flushPromises();
+
+    const labels = wrapper.findAll('.site-nav ul li').map((li) => li.text());
+    expect(labels).toEqual([
+      'トップ',
+      'プロフィール',
+      '活動・発信',
+      '情報交換',
+      'ブログ',
+      '持ち物リスト',
+      '川口の歌 ♪85回再生',
+    ]);
+    const musicLink = wrapper.find('.site-nav a[href="https://freddiefujiwara.com/music"]');
+    expect(musicLink.exists()).toBe(true);
+    expect(musicLink.find('.music-play-count').text()).toBe('85回再生');
+    // The three top-page section links fold away on narrow screens.
+    expect(
+      wrapper.findAll('.site-nav li.nav-section').map((li) => li.text())
+    ).toEqual(['プロフィール', '活動・発信', '情報交換']);
+  });
+
+  it('hides the play count when music-count.json has no valid count', async () => {
+    const wrapper = mount(App, { global: { plugins: [router] } });
+    await flushPromises();
+
+    const musicLink = wrapper.find('.site-nav a[href="https://freddiefujiwara.com/music"]');
+    expect(musicLink.exists()).toBe(true);
+    expect(musicLink.text()).toBe('川口の歌 ♪');
+    expect(wrapper.find('.music-play-count').exists()).toBe(false);
+  });
 });
