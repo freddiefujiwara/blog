@@ -191,9 +191,12 @@ describe('mountMusicPlayer', () => {
     );
     expect(document.querySelectorAll('.music-track')).toHaveLength(0);
     expect(player.querySelector('.mp-now').textContent).toBe('曲1');
-    expect(player.querySelector('.mp-play').textContent).toBe('再生');
-    expect(player.querySelector('.mp-prev').textContent).toBe('前へ');
-    expect(player.querySelector('.mp-next').textContent).toBe('次へ');
+    expect(player.querySelector('.mp-play').textContent).toBe('▶');
+    expect(player.querySelector('.mp-play').getAttribute('aria-label')).toBe('再生');
+    expect(player.querySelector('.mp-prev').textContent).toBe('⏮');
+    expect(player.querySelector('.mp-prev').getAttribute('aria-label')).toBe('前へ');
+    expect(player.querySelector('.mp-next').textContent).toBe('⏭');
+    expect(player.querySelector('.mp-next').getAttribute('aria-label')).toBe('次へ');
     expect(player.querySelector('.mp-repeat').textContent).toBe('リピート：なし');
     expect(player.querySelector('.mp-random').textContent).toBe('ランダム：オフ');
     const items = [...player.querySelectorAll('.mp-track .mp-track-title')];
@@ -327,6 +330,36 @@ describe('mountMusicPlayer', () => {
     audio.dispatchEvent(new Event('ended'));
     await flush();
     expect(playSpy.mock.calls.length).toBe(playsAfterAdvance);
+    destroyMusicPlayer();
+  });
+
+  it('warms the first track at mount so the first press is fast', async () => {
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="warm-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="warm-b.mp3"></div>'
+    );
+    await flush();
+    const requested = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(requested.some((url) => url.includes('track=warm-a.mp3'))).toBe(true);
+    destroyMusicPlayer();
+  });
+
+  it('counts play presses as music_play events', async () => {
+    window.gtag = vi.fn();
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="kpi-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="kpi-b.mp3"></div>'
+    );
+    player.querySelectorAll('.mp-track')[1].click();
+    await flush();
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', { method: 'list' });
+    player.querySelector('.mp-play').click();
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', { method: 'button' });
+    delete window.gtag;
     destroyMusicPlayer();
   });
 

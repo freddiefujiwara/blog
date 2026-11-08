@@ -14,11 +14,14 @@
 // The player itself is hand-rolled around a single <audio> element
 // (an earlier version embedded the APlayer library; its icon-only
 // controls were hard to read, so the controls here are labelled
-// buttons in Japanese: 再生／一時停止, 前へ, 次へ, a seek bar with
-// elapsed/total times, リピート：なし／全曲／1曲 and
-// ランダム：オフ／オン, over a tappable track list).
+// controls: the transport buttons （前へ／再生／一時停止／次へ） use
+// the standard playback glyphs everyone reads, while the mode
+// switches stay labelled in Japanese — リピート：なし／全曲／1曲 and
+// ランダム：オフ／オン — over a seek bar with elapsed/total times
+// and a tappable track list).
 
 import { MUSIC_ENDPOINT } from '../constants.js';
+import { trackMusicPlay } from '../analytics.js';
 
 const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
 const TRACK_PLACEHOLDER_PATTERN =
@@ -197,10 +200,14 @@ const createPlayer = (container, tracks) => {
   };
 
   const nowEl = el('p', 'mp-now', tracks[0].title);
-  const prevButton = el('button', 'mp-button mp-prev', '前へ');
-  const playButton = el('button', 'mp-button mp-play', '再生');
-  const nextButton = el('button', 'mp-button mp-next', '次へ');
+  const prevButton = el('button', 'mp-button mp-prev', '⏮');
+  const playButton = el('button', 'mp-button mp-play', '▶');
+  const nextButton = el('button', 'mp-button mp-next', '⏭');
   [prevButton, playButton, nextButton].forEach((b) => { b.type = 'button'; });
+  prevButton.setAttribute('aria-label', '前へ');
+  prevButton.title = '前へ';
+  nextButton.setAttribute('aria-label', '次へ');
+  nextButton.title = '次へ';
   const controlsEl = el('div', 'mp-controls');
   controlsEl.append(prevButton, playButton, nextButton);
 
@@ -236,6 +243,7 @@ const createPlayer = (container, tracks) => {
     );
     button.addEventListener('click', () => {
       state.wantPlay = true;
+      trackMusicPlay('list');
       startTrack(i);
     });
     item.appendChild(button);
@@ -257,7 +265,11 @@ const createPlayer = (container, tracks) => {
     });
   };
   const syncPlayButton = () => {
-    playButton.textContent = state.loading ? '読み込み中…' : (audio.paused ? '再生' : '一時停止');
+    const label = state.loading ? '読み込み中…' : (audio.paused ? '▶' : '⏸');
+    playButton.textContent = label;
+    const name = state.loading ? '読み込み中' : (audio.paused ? '再生' : '一時停止');
+    playButton.setAttribute('aria-label', name);
+    playButton.title = name;
   };
   const syncProgress = () => {
     const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
@@ -334,6 +346,7 @@ const createPlayer = (container, tracks) => {
       return;
     }
     state.wantPlay = true;
+    trackMusicPlay('button');
     if (state.loadedFile === tracks[state.index].file && audio.src) {
       tryPlay(audio);
     } else {
@@ -426,6 +439,15 @@ const createPlayer = (container, tracks) => {
   syncNow();
   syncPlayButton();
   syncProgress();
+
+  // The player's top KPI is how often the play button gets
+  // pressed, and a press that waits seconds for the first fetch
+  // is a press that may never come back. Warm the first track (and
+  // then the rest) as soon as the player appears, so the first
+  // press starts playback almost immediately.
+  fetchTrackBlob(tracks[0].file)
+    .then(() => prefetchRemaining())
+    .catch(() => {});
 
   return {
     destroy() {

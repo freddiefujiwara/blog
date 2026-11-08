@@ -898,6 +898,7 @@ article .music-player .mp-toggles {
 
 article .music-player .mp-controls {
   margin-bottom: 12px;
+  justify-content: center;
 }
 
 article .music-player .mp-button {
@@ -915,7 +916,19 @@ article .music-player .mp-button:hover {
   background: var(--surface-elevated);
 }
 
+article .music-player .mp-prev,
+article .music-player .mp-next {
+  font-size: 16px;
+  line-height: 1;
+  padding: 9px 18px;
+}
+
+/* The play button is the player's reason to exist (its press
+   count is the top KPI), so it stands a size above the rest. */
 article .music-player .mp-play {
+  font-size: 20px;
+  line-height: 1;
+  padding: 13px 30px;
   color: var(--surface);
   background: var(--primary);
   border-color: var(--primary);
