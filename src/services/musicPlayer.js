@@ -14,6 +14,7 @@
 // public/vendor, loaded lazily, only for articles with tracks.
 
 import { MUSIC_ENDPOINT } from '../constants.js';
+import { trackMusicPlay } from '../analytics.js';
 
 const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
 const TRACK_PLACEHOLDER_PATTERN =
@@ -250,5 +251,27 @@ export const mountMusicPlayer = async (rootEl) => {
       url: musicTrackApiUrl(track.file),
       type: 'gas'
     }))
+  });
+  // Report a music_play event when a track actually starts, once
+  // per track: pausing and resuming the same song must not count
+  // again, while switching tracks (or the loop wrapping around to
+  // another song) reports the new one. APlayer re-emits the audio
+  // element's play event on the player instance; with the gas
+  // audio type that fires when the fetched bytes start sounding,
+  // not on the reader's click, which is the moment that counts.
+  let reportedTrackFile = '';
+  currentPlayer.on('play', () => {
+    const list = currentPlayer && currentPlayer.list;
+    const audio = list && list.audios ? list.audios[list.index] : null;
+    if (!audio) return;
+    let file = '';
+    try {
+      file = new URL(audio.url).searchParams.get('track') || '';
+    } catch (err) {
+      file = '';
+    }
+    if (!file || file === reportedTrackFile) return;
+    reportedTrackFile = file;
+    trackMusicPlay(audio.name || '', file);
   });
 };
