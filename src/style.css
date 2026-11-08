@@ -363,6 +363,10 @@ article .link-card-domain {
 
 article .music-player {
   margin: 16px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
 }
 
 /* Lyrics sheet: renderMarkdown rewrites a "**歌詞**" label and the
@@ -875,71 +879,130 @@ article th {
   scroll-margin-top: 72px;
 }
 
-/* APlayer (the embedded music player) ships a bright stock theme:
-   a white panel, Arial, and title elements with no color of their
-   own — they inherit the page's text color (near-white in dark
-   mode, so the track titles vanished) and clash with the site's
-   warm palette in light mode too. Restyle it onto the site's
-   design tokens so it follows light/dark mode like everything
-   else. The selectors are scoped through article .music-player to
-   outweigh the vendor stylesheet, which is injected at runtime. */
-article .music-player .aplayer {
+/* The music player is hand-rolled (services/musicPlayer.js): a
+   single <audio> element with labelled Japanese buttons, styled
+   on the site's design tokens so it follows light/dark mode like
+   everything else. */
+article .music-player .mp-now {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+article .music-player .mp-controls,
+article .music-player .mp-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+article .music-player .mp-controls {
+  margin-bottom: 12px;
+}
+
+article .music-player .mp-button {
+  font: inherit;
+  font-size: 14px;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(34, 29, 22, 0.08);
-  font-family: inherit;
+  border-radius: 999px;
+  padding: 6px 16px;
+  cursor: pointer;
 }
 
-article .music-player .aplayer.aplayer-withlist .aplayer-info {
-  border-bottom: 1px solid var(--border);
-}
-
-/* The track titles are the point of the player, so they get the
-   full text color at a readable size and weight — APlayer leaves
-   them uncolored at 12px regular, which reads faint in Japanese. */
-article .music-player .aplayer .aplayer-info .aplayer-music .aplayer-title {
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-article .music-player .aplayer .aplayer-list ol li {
-  font-size: 14px;
-}
-
-article .music-player .aplayer .aplayer-list ol li .aplayer-list-title {
-  color: var(--text);
-  font-weight: 500;
-}
-
-article .music-player .aplayer .aplayer-list ol li .aplayer-list-index {
-  color: var(--muted);
-}
-
-article .music-player .aplayer .aplayer-info .aplayer-music .aplayer-author,
-article .music-player .aplayer .aplayer-list ol li .aplayer-list-author {
-  color: var(--muted);
-}
-
-article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-time {
-  color: var(--muted-2);
-}
-
-article .music-player .aplayer .aplayer-list ol li {
-  border-top: 1px solid var(--border);
-}
-
-article .music-player .aplayer .aplayer-list ol li:hover,
-article .music-player .aplayer .aplayer-list ol li.aplayer-list-light {
+article .music-player .mp-button:hover {
   background: var(--surface-elevated);
 }
 
-article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-bar-wrap .aplayer-bar {
-  background: var(--border);
+article .music-player .mp-play {
+  color: var(--surface);
+  background: var(--primary);
+  border-color: var(--primary);
+  font-weight: 700;
+  min-width: 96px;
 }
 
-article .music-player .aplayer .aplayer-info .aplayer-controller .aplayer-bar-wrap .aplayer-bar .aplayer-loaded {
-  background: var(--muted-2);
+article .music-player .mp-play:hover {
+  background: var(--primary);
+}
+
+article .music-player .mp-random.is-on {
+  color: var(--surface);
+  background: var(--primary);
+  border-color: var(--primary);
+  font-weight: 700;
+}
+
+article .music-player .mp-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+article .music-player .mp-time {
+  font-size: 12px;
+  color: var(--muted-2);
+  min-width: 32px;
+}
+
+article .music-player .mp-time.mp-total {
+  text-align: right;
+}
+
+article .music-player .mp-seek {
+  flex: 1;
+  accent-color: var(--primary);
+}
+
+article .music-player .mp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+article .music-player .mp-item {
+  border-top: 1px solid var(--border);
+}
+
+article .music-player .mp-track {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 9px 6px;
+  cursor: pointer;
+}
+
+article .music-player .mp-track:hover {
+  background: var(--surface-elevated);
+}
+
+article .music-player .mp-track.is-active {
+  background: var(--surface-elevated);
+  font-weight: 700;
+}
+
+article .music-player .mp-track-index {
+  color: var(--muted);
+}
+
+article .music-player .mp-status {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+
+article .music-player .mp-status:empty {
+  display: none;
+}
+
+article .music-player audio {
+  display: none;
 }
