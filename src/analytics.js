@@ -46,22 +46,20 @@ export function trackNavClick(navItem) {
   window.gtag('event', 'nav_click', { nav_item: navItem });
 }
 
-// Music player plays are measured as music_play events with the
-// track title and source file name, so it is visible which songs
-// actually get listened to (a page view alone cannot tell). Same
-// suppression rules as page views: nothing is sent on staging
-// builds or when gtag is not loaded.
-export function trackMusicPlay(trackTitle, trackFile) {
+// Play presses are the music player's top KPI: every deliberate
+// start of playback (the play button, or a track-list tap) is a
+// music_play event with its method, so the count can be read
+// straight from GA4. Automatic advances between tracks are not
+// presses and are not counted. Same suppression rules as the
+// other events.
+export function trackMusicPlay(method) {
   if (isStagingBuild()) {
     return;
   }
   if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
     return;
   }
-  window.gtag('event', 'music_play', {
-    track_title: trackTitle,
-    track_file: trackFile,
-  });
+  window.gtag('event', 'music_play', { method });
 }
 
 export function trackPageView(pagePath) {

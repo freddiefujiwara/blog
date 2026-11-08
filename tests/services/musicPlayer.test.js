@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   decodeBase64ToBlob,
   destroyMusicPlayer,
+  endedPlan,
   extractMusicTracks,
   fetchTrackBlob,
-  gasAudioType,
+  formatTime,
   mountMusicPlayer,
-  musicTrackApiUrl
+  musicTrackApiUrl,
+  stepIndex
 } from '../../src/services/musicPlayer';
 
 describe('extractMusicTracks', () => {
@@ -78,209 +80,308 @@ describe('fetchTrackBlob', () => {
   });
 });
 
-describe('gasAudioType', () => {
-  beforeEach(() => {
-    vi.unstubAllGlobals();
-    URL.createObjectURL = vi.fn(() => 'blob:fake-url');
-    URL.revokeObjectURL = vi.fn();
+describe('formatTime', () => {
+  it('formats minutes and zero-padded seconds', () => {
+    expect(formatTime(0)).toBe('0:00');
+    expect(formatTime(9)).toBe('0:09');
+    expect(formatTime(65)).toBe('1:05');
+    expect(formatTime(600)).toBe('10:00');
   });
 
-  const fakeElement = (src) => ({
-    src,
-    pause: vi.fn(),
-    removeAttribute: vi.fn(function (name) {
-      if (name === 'src') this.src = undefined;
-    }),
-    load: vi.fn(),
-    play: vi.fn(() => Promise.resolve())
+  it('reads unusable values as 0:00', () => {
+    expect(formatTime(NaN)).toBe('0:00');
+    expect(formatTime(Infinity)).toBe('0:00');
+    expect(formatTime(-3)).toBe('0:00');
+    expect(formatTime(undefined)).toBe('0:00');
+  });
+});
+
+describe('stepIndex', () => {
+  it('steps within the list and wraps at both ends', () => {
+    expect(stepIndex(0, 3, 1)).toBe(1);
+    expect(stepIndex(2, 3, 1)).toBe(0);
+    expect(stepIndex(0, 3, -1)).toBe(2);
+    expect(stepIndex(0, 0, 1)).toBe(0);
+  });
+});
+
+describe('endedPlan', () => {
+  const base = { index: 0, count: 3, repeat: 'none', random: false, played: new Set([0]) };
+
+  it('replays the same track for repeat one, whatever the mode', () => {
+    expect(endedPlan({ ...base, repeat: 'one' })).toEqual({ type: 'replay' });
+    expect(endedPlan({ ...base, repeat: 'one', random: true })).toEqual({ type: 'replay' });
   });
 
-  it('notices instead of throwing when the track url carries no file', () => {
-    const notice = vi.fn();
-    const element = fakeElement('blob:previous-track');
-    gasAudioType(element, { url: '' }, { paused: true, notice });
-    expect(notice).toHaveBeenCalled();
-    expect(element.src).toBeUndefined();
+  it('advances in list order and stops at the end without repeat', () => {
+    expect(endedPlan(base)).toEqual({ type: 'advance', candidates: [1] });
+    expect(endedPlan({ ...base, index: 2, played: new Set([2]) })).toEqual({ type: 'stop' });
   });
 
-  it('detaches the previous track synchronously, then resumes if it was playing', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      json: async () => ({ ok: true, data: btoa('a'), mime: 'audio/mpeg' })
-    })));
-    const element = fakeElement('blob:previous-track');
-    gasAudioType(
-      element,
-      { url: 'https://example.com/exec?track=switch-a.mp3' },
-      { paused: false, notice: vi.fn() }
-    );
-    expect(element.pause).toHaveBeenCalled();
-    expect(element.removeAttribute).toHaveBeenCalledWith('src');
-    expect(element.load).toHaveBeenCalled();
-    expect(element.src).toBeUndefined();
-    await new Promise((resolve) => { setTimeout(resolve, 0); });
-    expect(element.src).toBe('blob:fake-url');
-    expect(element.play).toHaveBeenCalledTimes(1);
+  it('wraps to the first track at the end with repeat all', () => {
+    expect(endedPlan({ ...base, index: 2, repeat: 'all', played: new Set([2]) }))
+      .toEqual({ type: 'advance', candidates: [0] });
   });
 
-  it('loads without resuming when the player was paused', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      json: async () => ({ ok: true, data: btoa('b'), mime: 'audio/mpeg' })
-    })));
-    const element = fakeElement('blob:previous-track');
-    gasAudioType(
-      element,
-      { url: 'https://example.com/exec?track=switch-b.mp3' },
-      { paused: true, notice: vi.fn() }
-    );
-    await new Promise((resolve) => { setTimeout(resolve, 0); });
-    expect(element.src).toBe('blob:fake-url');
-    expect(element.play).not.toHaveBeenCalled();
+  it('offers only unplayed tracks in random mode', () => {
+    expect(endedPlan({ ...base, random: true, played: new Set([0, 2]) }))
+      .toEqual({ type: 'advance', candidates: [1] });
   });
 
-  it('resumes when the player asks to play while the fetch is in flight', async () => {
-    // A natural track end under loop "all": APlayer runs
-    // skipForward (this handler) with the player still reading
-    // paused, then calls play(), which flips paused to false.
-    // The resume decision must see that later state.
-    let resolveFetch;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { resolveFetch = resolve; })));
-    const element = fakeElement('blob:previous-track');
-    const player = { paused: true, notice: vi.fn() };
-    gasAudioType(
-      element,
-      { url: 'https://example.com/exec?track=loop-wrap.mp3' },
-      player
-    );
-    player.paused = false;
-    resolveFetch({ json: async () => ({ ok: true, data: btoa('c'), mime: 'audio/mpeg' }) });
-    await new Promise((resolve) => { setTimeout(resolve, 0); });
-    expect(element.src).toBe('blob:fake-url');
-    expect(element.play).toHaveBeenCalledTimes(1);
+  it('stops a random round once every track has played (no repeat)', () => {
+    expect(endedPlan({ ...base, index: 1, random: true, played: new Set([0, 1, 2]) }))
+      .toEqual({ type: 'stop' });
   });
 
-  it('does not resume when the reader pauses while the fetch is in flight', async () => {
-    let resolveFetch;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { resolveFetch = resolve; })));
-    const element = fakeElement('blob:previous-track');
-    const player = { paused: false, notice: vi.fn() };
-    gasAudioType(
-      element,
-      { url: 'https://example.com/exec?track=pause-mid-fetch.mp3' },
-      player
-    );
-    player.paused = true;
-    resolveFetch({ json: async () => ({ ok: true, data: btoa('d'), mime: 'audio/mpeg' }) });
-    await new Promise((resolve) => { setTimeout(resolve, 0); });
-    expect(element.src).toBe('blob:fake-url');
-    expect(element.play).not.toHaveBeenCalled();
+  it('starts a fresh random round with repeat all', () => {
+    const plan = endedPlan({ ...base, index: 1, random: true, repeat: 'all', played: new Set([0, 1, 2]) });
+    expect(plan.type).toBe('advance');
+    expect(plan.resetPlayed).toBe(true);
+    expect(plan.candidates).toEqual([0, 2]);
   });
 
-  it('prefetches the remaining playlist once a track has loaded', async () => {
-    const fetchMock = vi.fn(async () => ({
-      json: async () => ({ ok: true, data: btoa('e'), mime: 'audio/mpeg' })
-    }));
-    vi.stubGlobal('fetch', fetchMock);
-    const element = fakeElement('blob:previous-track');
-    const player = {
-      paused: false,
-      notice: vi.fn(),
-      list: {
-        audios: [
-          { url: 'https://example.com/exec?track=pf-a.mp3' },
-          { url: 'https://example.com/exec?track=pf-b.mp3' },
-          { url: 'https://example.com/exec?track=pf-c.mp3' }
-        ]
-      }
-    };
-    gasAudioType(element, { url: 'https://example.com/exec?track=pf-a.mp3' }, player);
-    for (let i = 0; i < 10; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => { setTimeout(resolve, 0); });
-    }
-    const requested = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(requested.some((url) => url.includes('track=pf-b.mp3'))).toBe(true);
-    expect(requested.some((url) => url.includes('track=pf-c.mp3'))).toBe(true);
+  it('keeps a single-track playlist going with repeat all in random mode', () => {
+    const plan = endedPlan({ index: 0, count: 1, repeat: 'all', random: true, played: new Set([0]) });
+    expect(plan).toEqual({ type: 'advance', candidates: [0], resetPlayed: true });
+  });
+
+  it('stops for an empty playlist', () => {
+    expect(endedPlan({ index: 0, count: 0, repeat: 'all', random: false, played: new Set() }))
+      .toEqual({ type: 'stop' });
   });
 });
 
 describe('mountMusicPlayer', () => {
-  class FakeAPlayer {
-    static instances = [];
+  let playSpy;
+  let pauseSpy;
 
-    constructor(options) {
-      this.options = options;
-      this.handlers = {};
-      this.list = { index: 0, audios: options.audio };
-      FakeAPlayer.instances.push(this);
+  const flush = async () => {
+    for (let i = 0; i < 6; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
     }
+  };
 
-    on(event, handler) {
-      this.handlers[event] = handler;
-    }
-
-    emit(event) {
-      if (this.handlers[event]) this.handlers[event]();
-    }
-
-    destroy() {
-      this.destroyed = true;
-    }
-  }
+  const mountWith = async (tracksHtml) => {
+    document.body.innerHTML = `<div id="root">${tracksHtml}</div>`;
+    await mountMusicPlayer(document.getElementById('root'));
+    return document.querySelector('.music-player');
+  };
 
   beforeEach(() => {
-    FakeAPlayer.instances = [];
-    window.APlayer = FakeAPlayer;
+    vi.unstubAllGlobals();
     document.body.innerHTML = '';
+    let urlSeq = 0;
+    URL.createObjectURL = vi.fn(() => `blob:fake-${(urlSeq += 1)}`);
+    URL.revokeObjectURL = vi.fn();
+    playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve());
+    pauseSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => {});
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+    })));
   });
 
-  it('builds one playlist with the gas audio type', async () => {
-    document.body.innerHTML = '<div id="root"><p>導入</p>'
-      + '<div class="music-track" data-title="曲1" data-file="abc-DEF_123.mp3"></div>'
-      + '<div class="music-track" data-title="曲2" data-file="zzz.mp3"></div></div>';
-    await mountMusicPlayer(document.getElementById('root'));
-    expect(FakeAPlayer.instances).toHaveLength(1);
-    const { options } = FakeAPlayer.instances[0];
-    expect(options.customAudioType.gas).toBe(gasAudioType);
-    expect(options.audio.map((a) => [a.name, a.artist, a.type])).toEqual([
-      ['曲1', '藤原史和', 'gas'],
-      ['曲2', '藤原史和', 'gas']
-    ]);
+  it('builds the labelled controls and the track list', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="dom-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="dom-b.mp3"></div>'
+    );
     expect(document.querySelectorAll('.music-track')).toHaveLength(0);
-    expect(document.querySelector('.music-player')).toBe(options.container);
+    expect(player.querySelector('.mp-now').textContent).toBe('曲1');
+    expect(player.querySelector('.mp-play svg path').getAttribute('d')).toBe('M8 5v14l11-7z');
+    expect(player.querySelector('.mp-play').getAttribute('aria-label')).toBe('再生');
+    expect(player.querySelector('.mp-prev svg')).not.toBeNull();
+    expect(player.querySelector('.mp-prev').getAttribute('aria-label')).toBe('前へ');
+    expect(player.querySelector('.mp-next svg')).not.toBeNull();
+    expect(player.querySelector('.mp-next').getAttribute('aria-label')).toBe('次へ');
+    expect(player.querySelector('.mp-repeat').getAttribute('aria-label')).toBe('リピート：なし');
+    expect(player.querySelector('.mp-repeat svg')).not.toBeNull();
+    expect(player.querySelector('.mp-random').getAttribute('aria-label')).toBe('ランダム：オフ');
+    expect(player.querySelector('.mp-random svg')).not.toBeNull();
+    const items = [...player.querySelectorAll('.mp-track .mp-track-title')];
+    expect(items.map((n) => n.textContent)).toEqual(['曲1', '曲2']);
     destroyMusicPlayer();
-    expect(FakeAPlayer.instances[0].destroyed).toBe(true);
-  });
-
-  it('reports music_play once per track as playback starts', async () => {
-    window.gtag = vi.fn();
-    document.body.innerHTML = '<div id="root">'
-      + '<div class="music-track" data-title="曲1" data-file="abc-DEF_123.mp3"></div>'
-      + '<div class="music-track" data-title="曲2" data-file="zzz.mp3"></div></div>';
-    await mountMusicPlayer(document.getElementById('root'));
-    const player = FakeAPlayer.instances[0];
-    player.emit('play');
-    expect(window.gtag).toHaveBeenCalledTimes(1);
-    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', {
-      track_title: '曲1',
-      track_file: 'abc-DEF_123.mp3'
-    });
-    // Pausing and resuming the same track does not count again.
-    player.emit('play');
-    expect(window.gtag).toHaveBeenCalledTimes(1);
-    // Switching tracks reports the new one.
-    player.list.index = 1;
-    player.emit('play');
-    expect(window.gtag).toHaveBeenCalledTimes(2);
-    expect(window.gtag).toHaveBeenLastCalledWith('event', 'music_play', {
-      track_title: '曲2',
-      track_file: 'zzz.mp3'
-    });
-    delete window.gtag;
   });
 
   it('leaves articles without placeholders untouched', async () => {
     document.body.innerHTML = '<div id="root"><p>本文だけ</p></div>';
     await mountMusicPlayer(document.getElementById('root'));
-    expect(FakeAPlayer.instances).toHaveLength(0);
+    expect(document.querySelector('.music-player')).toBeNull();
+  });
+
+  it('plays a track when its list entry is tapped', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="tap-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="tap-b.mp3"></div>'
+    );
+    player.querySelectorAll('.mp-track')[1].click();
+    await flush();
+    const audio = player.querySelector('audio');
+    expect(audio.getAttribute('src')).toMatch(/^blob:fake-/);
+    expect(playSpy).toHaveBeenCalled();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲2');
+    expect(player.querySelectorAll('.mp-track')[1].classList.contains('is-active')).toBe(true);
+    destroyMusicPlayer();
+  });
+
+  it('cycles the repeat state なし → 全曲 → 1曲 → なし', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="cycle-a.mp3"></div>'
+    );
+    const button = player.querySelector('.mp-repeat');
+    const badge = button.querySelector('.mp-badge');
+    button.click();
+    expect(button.getAttribute('aria-label')).toBe('リピート：全曲');
+    expect(button.classList.contains('is-on')).toBe(true);
+    expect(badge.hidden).toBe(true);
+    button.click();
+    expect(button.getAttribute('aria-label')).toBe('リピート：1曲');
+    expect(badge.hidden).toBe(false);
+    button.click();
+    expect(button.getAttribute('aria-label')).toBe('リピート：なし');
+    expect(button.classList.contains('is-on')).toBe(false);
+    expect(badge.hidden).toBe(true);
+    destroyMusicPlayer();
+  });
+
+  it('toggles the random state and aria-pressed', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="rnd-a.mp3"></div>'
+    );
+    const button = player.querySelector('.mp-random');
+    button.click();
+    expect(button.getAttribute('aria-label')).toBe('ランダム：オン');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.classList.contains('is-on')).toBe(true);
+    button.click();
+    expect(button.getAttribute('aria-label')).toBe('ランダム：オフ');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.classList.contains('is-on')).toBe(false);
+    destroyMusicPlayer();
+  });
+
+  it('advances to the next track when a track ends in list order', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="adv-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="adv-b.mp3"></div>'
+    );
+    player.querySelectorAll('.mp-track')[0].click();
+    await flush();
+    expect(playSpy).toHaveBeenCalledTimes(1);
+    player.querySelector('audio').dispatchEvent(new Event('ended'));
+    await flush();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲2');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+    destroyMusicPlayer();
+  });
+
+  it('stops after the last track without repeat', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="stop-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="stop-b.mp3"></div>'
+    );
+    player.querySelectorAll('.mp-track')[1].click();
+    await flush();
+    expect(playSpy).toHaveBeenCalledTimes(1);
+    player.querySelector('audio').dispatchEvent(new Event('ended'));
+    await flush();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲2');
+    expect(playSpy).toHaveBeenCalledTimes(1);
+    destroyMusicPlayer();
+  });
+
+  it('replays the same track on ended with repeat one', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="one-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="one-b.mp3"></div>'
+    );
+    player.querySelector('.mp-repeat').click();
+    player.querySelector('.mp-repeat').click();
+    player.querySelectorAll('.mp-track')[0].click();
+    await flush();
+    expect(playSpy).toHaveBeenCalledTimes(1);
+    player.querySelector('audio').dispatchEvent(new Event('ended'));
+    await flush();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲1');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+    destroyMusicPlayer();
+  });
+
+  it('wraps to the first track on ended with repeat all', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="wrap-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="wrap-b.mp3"></div>'
+    );
+    player.querySelector('.mp-repeat').click();
+    player.querySelectorAll('.mp-track')[1].click();
+    await flush();
+    player.querySelector('audio').dispatchEvent(new Event('ended'));
+    await flush();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲1');
+    destroyMusicPlayer();
+  });
+
+  it('plays every track once in random mode, then stops without repeat', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="rstop-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="rstop-b.mp3"></div>'
+    );
+    player.querySelector('.mp-random').click();
+    player.querySelectorAll('.mp-track')[0].click();
+    await flush();
+    const audio = player.querySelector('audio');
+    audio.dispatchEvent(new Event('ended'));
+    await flush();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲2');
+    const playsAfterAdvance = playSpy.mock.calls.length;
+    audio.dispatchEvent(new Event('ended'));
+    await flush();
+    expect(playSpy.mock.calls.length).toBe(playsAfterAdvance);
+    destroyMusicPlayer();
+  });
+
+  it('warms the first track at mount so the first press is fast', async () => {
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="warm-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="warm-b.mp3"></div>'
+    );
+    await flush();
+    const requested = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(requested.some((url) => url.includes('track=warm-a.mp3'))).toBe(true);
+    destroyMusicPlayer();
+  });
+
+  it('counts play presses as music_play events', async () => {
+    window.gtag = vi.fn();
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="kpi-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="kpi-b.mp3"></div>'
+    );
+    player.querySelectorAll('.mp-track')[1].click();
+    await flush();
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', { method: 'list' });
+    player.querySelector('.mp-play').click();
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', { method: 'button' });
+    delete window.gtag;
+    destroyMusicPlayer();
+  });
+
+  it('destroy tears the player down', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="bye-a.mp3"></div>'
+    );
+    player.querySelectorAll('.mp-track')[0].click();
+    await flush();
+    destroyMusicPlayer();
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(player.innerHTML).toBe('');
+    expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 });
