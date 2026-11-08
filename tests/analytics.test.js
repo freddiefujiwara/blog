@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, trackNavClick, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
+import { trackPageView, trackNavClick, trackMusicPlay, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -70,6 +70,27 @@ describe('analytics (GA4 page-view tracking)', () => {
     vi.mocked(isStagingBuild).mockReturnValue(true);
     window.gtag = vi.fn();
     trackNavClick('blog');
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  it('sends a music_play event with the track title and file', () => {
+    window.gtag = vi.fn();
+    trackMusicPlay('鳩ヶ谷から浦和まで', 'hatogaya-urawa.mp3');
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', {
+      track_title: '鳩ヶ谷から浦和まで',
+      track_file: 'hatogaya-urawa.mp3',
+    });
+  });
+
+  it('music_play does nothing when gtag is not loaded', () => {
+    expect(() => trackMusicPlay('曲', 'x.mp3')).not.toThrow();
+  });
+
+  it('sends no music_play on a staging build', () => {
+    vi.mocked(isStagingBuild).mockReturnValue(true);
+    window.gtag = vi.fn();
+    trackMusicPlay('曲', 'x.mp3');
     expect(window.gtag).not.toHaveBeenCalled();
   });
 });

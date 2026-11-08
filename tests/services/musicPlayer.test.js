@@ -209,7 +209,17 @@ describe('mountMusicPlayer', () => {
 
     constructor(options) {
       this.options = options;
+      this.handlers = {};
+      this.list = { index: 0, audios: options.audio };
       FakeAPlayer.instances.push(this);
+    }
+
+    on(event, handler) {
+      this.handlers[event] = handler;
+    }
+
+    emit(event) {
+      if (this.handlers[event]) this.handlers[event]();
     }
 
     destroy() {
@@ -239,6 +249,33 @@ describe('mountMusicPlayer', () => {
     expect(document.querySelector('.music-player')).toBe(options.container);
     destroyMusicPlayer();
     expect(FakeAPlayer.instances[0].destroyed).toBe(true);
+  });
+
+  it('reports music_play once per track as playback starts', async () => {
+    window.gtag = vi.fn();
+    document.body.innerHTML = '<div id="root">'
+      + '<div class="music-track" data-title="曲1" data-file="abc-DEF_123.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="zzz.mp3"></div></div>';
+    await mountMusicPlayer(document.getElementById('root'));
+    const player = FakeAPlayer.instances[0];
+    player.emit('play');
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', {
+      track_title: '曲1',
+      track_file: 'abc-DEF_123.mp3'
+    });
+    // Pausing and resuming the same track does not count again.
+    player.emit('play');
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    // Switching tracks reports the new one.
+    player.list.index = 1;
+    player.emit('play');
+    expect(window.gtag).toHaveBeenCalledTimes(2);
+    expect(window.gtag).toHaveBeenLastCalledWith('event', 'music_play', {
+      track_title: '曲2',
+      track_file: 'zzz.mp3'
+    });
+    delete window.gtag;
   });
 
   it('leaves articles without placeholders untouched', async () => {
