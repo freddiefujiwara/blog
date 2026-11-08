@@ -144,6 +144,19 @@ export const endedPlan = ({ index, count, repeat, random, played }) => {
   return { type: 'stop' };
 };
 
+// Transport icons are drawn as inline SVG (fill: currentColor),
+// never unicode glyphs: iOS renders ⏮/⏸/⏭ as blue emoji tiles,
+// which clash with the site's palette and sizing.
+const ICON_PATHS = {
+  play: 'M8 5v14l11-7z',
+  pause: 'M6 5h4v14H6zM14 5h4v14h-4z',
+  prev: 'M6 5h2v14H6zM20 5v14L9 12z',
+  next: 'M16 5h2v14h-2zM4 5v14l11-7z'
+};
+const iconSvg = (name) => (
+  `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${ICON_PATHS[name]}"/></svg>`
+);
+
 const REPEAT_LABELS = { none: 'リピート：なし', all: 'リピート：全曲', one: 'リピート：1曲' };
 const REPEAT_CYCLE = { none: 'all', all: 'one', one: 'none' };
 
@@ -200,9 +213,12 @@ const createPlayer = (container, tracks) => {
   };
 
   const nowEl = el('p', 'mp-now', tracks[0].title);
-  const prevButton = el('button', 'mp-button mp-prev', '⏮');
-  const playButton = el('button', 'mp-button mp-play', '▶');
-  const nextButton = el('button', 'mp-button mp-next', '⏭');
+  const prevButton = el('button', 'mp-button mp-prev');
+  prevButton.innerHTML = iconSvg('prev');
+  const playButton = el('button', 'mp-button mp-play');
+  playButton.innerHTML = iconSvg('play');
+  const nextButton = el('button', 'mp-button mp-next');
+  nextButton.innerHTML = iconSvg('next');
   [prevButton, playButton, nextButton].forEach((b) => { b.type = 'button'; });
   prevButton.setAttribute('aria-label', '前へ');
   prevButton.title = '前へ';
@@ -265,8 +281,7 @@ const createPlayer = (container, tracks) => {
     });
   };
   const syncPlayButton = () => {
-    const label = state.loading ? '読み込み中…' : (audio.paused ? '▶' : '⏸');
-    playButton.textContent = label;
+    playButton.innerHTML = state.loading ? '…' : iconSvg(audio.paused ? 'play' : 'pause');
     const name = state.loading ? '読み込み中' : (audio.paused ? '再生' : '一時停止');
     playButton.setAttribute('aria-label', name);
     playButton.title = name;
@@ -275,6 +290,8 @@ const createPlayer = (container, tracks) => {
     const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
     seekEl.max = String(duration);
     if (document.activeElement !== seekEl) seekEl.value = String(audio.currentTime || 0);
+    const percent = duration > 0 ? Math.min(100, ((audio.currentTime || 0) / duration) * 100) : 0;
+    seekEl.style.background = `linear-gradient(to right, var(--primary) ${percent}%, var(--border) ${percent}%)`;
     currentTimeEl.textContent = formatTime(audio.currentTime);
     totalTimeEl.textContent = formatTime(duration);
   };

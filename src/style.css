@@ -916,24 +916,47 @@ article .music-player .mp-button:hover {
   background: var(--surface-elevated);
 }
 
+/* The transport buttons are circles carrying drawn SVG glyphs.
+   The play button is the player's reason to exist (its press
+   count is the top KPI), so it stands a size above the rest and
+   wears the primary color. */
 article .music-player .mp-prev,
-article .music-player .mp-next {
-  font-size: 16px;
-  line-height: 1;
-  padding: 9px 18px;
+article .music-player .mp-next,
+article .music-player .mp-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 0;
 }
 
-/* The play button is the player's reason to exist (its press
-   count is the top KPI), so it stands a size above the rest. */
+article .music-player .mp-prev,
+article .music-player .mp-next {
+  width: 44px;
+  height: 44px;
+  color: var(--text);
+}
+
+article .music-player .mp-prev svg,
+article .music-player .mp-next svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
 article .music-player .mp-play {
+  width: 58px;
+  height: 58px;
   font-size: 20px;
-  line-height: 1;
-  padding: 13px 30px;
   color: var(--surface);
   background: var(--primary);
   border-color: var(--primary);
-  font-weight: 700;
-  min-width: 96px;
+}
+
+article .music-player .mp-play svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
 }
 
 article .music-player .mp-play:hover {
@@ -966,7 +989,37 @@ article .music-player .mp-time.mp-total {
 
 article .music-player .mp-seek {
   flex: 1;
-  accent-color: var(--primary);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+article .music-player .mp-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: none;
+}
+
+article .music-player .mp-seek::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: none;
+}
+
+article .music-player .mp-seek::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
 }
 
 article .music-player .mp-list {

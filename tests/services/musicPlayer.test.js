@@ -191,11 +191,11 @@ describe('mountMusicPlayer', () => {
     );
     expect(document.querySelectorAll('.music-track')).toHaveLength(0);
     expect(player.querySelector('.mp-now').textContent).toBe('曲1');
-    expect(player.querySelector('.mp-play').textContent).toBe('▶');
+    expect(player.querySelector('.mp-play svg path').getAttribute('d')).toBe('M8 5v14l11-7z');
     expect(player.querySelector('.mp-play').getAttribute('aria-label')).toBe('再生');
-    expect(player.querySelector('.mp-prev').textContent).toBe('⏮');
+    expect(player.querySelector('.mp-prev svg')).not.toBeNull();
     expect(player.querySelector('.mp-prev').getAttribute('aria-label')).toBe('前へ');
-    expect(player.querySelector('.mp-next').textContent).toBe('⏭');
+    expect(player.querySelector('.mp-next svg')).not.toBeNull();
     expect(player.querySelector('.mp-next').getAttribute('aria-label')).toBe('次へ');
     expect(player.querySelector('.mp-repeat').textContent).toBe('リピート：なし');
     expect(player.querySelector('.mp-random').textContent).toBe('ランダム：オフ');
