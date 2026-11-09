@@ -440,6 +440,37 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
   });
 
+  it('reports music_ready once the first track is warmed', async () => {
+    window.gtag = vi.fn();
+    await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="rdy-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="rdy-b.mp3"></div>'
+    );
+    await flush();
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_ready', { ready_ms: expect.any(Number) });
+    delete window.gtag;
+    destroyMusicPlayer();
+  });
+
+  it('reports music_latency from a list tap until playback starts', async () => {
+    window.gtag = vi.fn();
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="lat-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="lat-b.mp3"></div>'
+    );
+    await flush();
+    player.querySelectorAll('.mp-track')[1].click();
+    await flush();
+    const audio = player.querySelector('audio');
+    audio.dispatchEvent(new Event('playing'));
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_latency', {
+      latency_ms: expect.any(Number),
+      method: 'list'
+    });
+    delete window.gtag;
+    destroyMusicPlayer();
+  });
+
   it('destroy tears the player down', async () => {
     const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="bye-a.mp3"></div>'

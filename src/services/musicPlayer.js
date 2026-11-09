@@ -22,7 +22,7 @@
 // track list complete the player.)
 
 import { MUSIC_ENDPOINT } from '../constants.js';
-import { trackMusicPlay } from '../analytics.js';
+import { trackMusicPlay, trackMusicReady, trackMusicLatency } from '../analytics.js';
 
 const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
 const TRACK_PLACEHOLDER_PATTERN =
@@ -192,6 +192,8 @@ const createPlayer = (container, tracks) => {
     played: new Set(),
     history: [],
     wantPlay: false,
+    pressStartedAt: null,
+    pressMethod: '',
     loadedFile: '',
     loading: false,
     loadSeq: 0,
@@ -268,6 +270,7 @@ const createPlayer = (container, tracks) => {
     button.addEventListener('click', () => {
       state.wantPlay = true;
       trackMusicPlay('list');
+      notePlayIntent('list');
       startTrack(i);
     });
     item.appendChild(button);
@@ -373,9 +376,18 @@ const createPlayer = (container, tracks) => {
       .catch(() => {
         if (state.destroyed || seq !== state.loadSeq) return;
         state.loading = false;
+        state.pressStartedAt = null;
         setStatus('音源を読み込めませんでした');
         syncPlayButton();
       });
+  };
+
+  // A start intent (play button, list tap, next/prev, automatic
+  // advance) stamps the clock; when the element then reports
+  // 'playing', the gap is the wait the reader actually felt.
+  const notePlayIntent = (method) => {
+    state.pressStartedAt = performance.now();
+    state.pressMethod = method;
   };
 
   // --- Controls -----------------------------------------------------------
@@ -387,6 +399,7 @@ const createPlayer = (container, tracks) => {
     }
     state.wantPlay = true;
     trackMusicPlay('button');
+    notePlayIntent('button');
     if (state.loadedFile === tracks[state.index].file && audio.src) {
       tryPlay(audio);
     } else {
@@ -395,6 +408,7 @@ const createPlayer = (container, tracks) => {
   });
 
   nextButton.addEventListener('click', () => {
+    notePlayIntent('button');
     if (state.random && tracks.length > 1) {
       const others = tracks.map((_, i) => i).filter((i) => i !== state.index);
       startTrack(pickRandom(others));
@@ -404,6 +418,7 @@ const createPlayer = (container, tracks) => {
   });
 
   prevButton.addEventListener('click', () => {
+    notePlayIntent('button');
     if (state.random) {
       // Back means "the track I heard before this one": walk the
       // history back to the most recent different track.
@@ -463,6 +478,11 @@ const createPlayer = (container, tracks) => {
     syncPlayButton();
     startBackgroundPrefetch();
   });
+  audio.addEventListener('playing', () => {
+    if (state.pressStartedAt == null) return;
+    trackMusicLatency(performance.now() - state.pressStartedAt, state.pressMethod || 'button');
+    state.pressStartedAt = null;
+  });
   audio.addEventListener('pause', syncPlayButton);
   audio.addEventListener('timeupdate', syncProgress);
   audio.addEventListener('loadedmetadata', syncProgress);
@@ -479,11 +499,13 @@ const createPlayer = (container, tracks) => {
       played: state.played
     });
     if (plan.type === 'replay') {
+      notePlayIntent('auto');
       audio.currentTime = 0;
       tryPlay(audio);
       return;
     }
     if (plan.type === 'advance') {
+      notePlayIntent('auto');
       const next = state.random ? pickRandom(plan.candidates) : plan.candidates[0];
       if (plan.resetPlayed) state.played = new Set();
       state.wantPlay = true;
@@ -508,7 +530,13 @@ const createPlayer = (container, tracks) => {
   // as soon as the player appears, so the first press starts
   // playback almost immediately; the rest follows once playback
   // has started (see the 'play' handler above).
-  fetchTrackBlob(tracks[0].file).catch(() => {});
+  fetchTrackBlob(tracks[0].file)
+    .then(() => {
+      // performance.now() counts from page load, so this is the
+      // reader's full wait until the first press could play.
+      trackMusicReady(performance.now());
+    })
+    .catch(() => {});
 
   return {
     destroy() {
