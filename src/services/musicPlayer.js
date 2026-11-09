@@ -72,8 +72,13 @@ export const decodeBase64ToBlob = (base64, mime) => {
 };
 
 // Fetched track blobs are kept for the session: switching back to
-// a track that already played never asks music-gas again.
+// a track that already played never asks music-gas again. The
+// resolved blobs are remembered separately, because iOS Safari
+// only honours play() calls made synchronously inside the tap
+// handler — a cached track must be attachable without waiting
+// for a promise tick first.
 const blobCache = new Map();
+const blobValues = new Map();
 
 export const fetchTrackBlob = (file, endpoint = MUSIC_ENDPOINT) => {
   if (blobCache.has(file)) return blobCache.get(file);
@@ -85,12 +90,18 @@ export const fetchTrackBlob = (file, endpoint = MUSIC_ENDPOINT) => {
     if (!payload || !payload.ok) {
       throw new Error((payload && payload.error) || 'music-gas request failed');
     }
-    return decodeBase64ToBlob(payload.data, payload.mime);
+    const blob = decodeBase64ToBlob(payload.data, payload.mime);
+    blobValues.set(file, blob);
+    return blob;
   })();
   blobCache.set(file, promise);
   promise.catch(() => blobCache.delete(file));
   return promise;
 };
+
+// The already-fetched blob for a file, or undefined while its
+// fetch has not landed yet.
+export const cachedBlob = (file) => blobValues.get(file);
 
 // Seconds → "m:ss" for the progress readout. Anything unusable
 // (NaN before metadata arrives, Infinity for a stream) reads 0:00.
@@ -204,6 +215,16 @@ const createPlayer = (container, tracks) => {
   const objectUrlFor = async (file) => {
     if (objectUrls.has(file)) return objectUrls.get(file);
     const blob = await fetchTrackBlob(file);
+    const url = URL.createObjectURL(blob);
+    objectUrls.set(file, url);
+    return url;
+  };
+  // The same, synchronously, when the blob is already in: returns
+  // null while the track still needs the network.
+  const objectUrlForSync = (file) => {
+    if (objectUrls.has(file)) return objectUrls.get(file);
+    const blob = cachedBlob(file);
+    if (!blob) return null;
     const url = URL.createObjectURL(blob);
     objectUrls.set(file, url);
     return url;
@@ -352,6 +373,19 @@ const createPlayer = (container, tracks) => {
       audio.currentTime = 0;
       if (state.wantPlay) tryPlay(audio);
       syncPlayButton();
+      return;
+    }
+    // A cached track is attached and started synchronously, still
+    // inside the tap handler's call stack: iOS Safari refuses a
+    // play() that only happens after a promise resolves, which is
+    // why the first press used to fail there.
+    const syncUrl = objectUrlForSync(file);
+    if (syncUrl) {
+      state.loadedFile = file;
+      audio.src = syncUrl;
+      if (state.wantPlay) tryPlay(audio);
+      syncPlayButton();
+      syncProgress();
       return;
     }
     state.loading = true;
@@ -535,6 +569,17 @@ const createPlayer = (container, tracks) => {
       // performance.now() counts from page load, so this is the
       // reader's full wait until the first press could play.
       trackMusicReady(performance.now());
+      // Attach the warmed track right away, so the first press is
+      // a plain play() on a loaded element — the one form iOS
+      // Safari always honours. Skipped once the reader (or an
+      // earlier load) has moved on to another track.
+      if (state.destroyed || state.loadedFile !== '' || state.loadSeq !== 0) return;
+      const url = objectUrlForSync(tracks[0].file);
+      if (url) {
+        state.loadedFile = tracks[0].file;
+        audio.src = url;
+        syncProgress();
+      }
     })
     .catch(() => {});
 
