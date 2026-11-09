@@ -101,7 +101,7 @@ const scrollToFragment = () => {
   }
 };
 
-// Articles that carry [[music|...]] markers get their track
+// Articles that carry [[音楽|...]] markers get their track
 // placeholders replaced by one playlist player after each render;
 // leaving the article destroys the player so playback stops.
 const refreshAfterRender = () => {
