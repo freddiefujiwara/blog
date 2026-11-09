@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTocFromHtml, hashHeadingText, hashItemText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
+import { appendItemLinks, extractTocFromHtml, hashHeadingText, hashItemText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -71,6 +71,37 @@ describe('renderMarkdown item anchors', () => {
     const html = renderMarkdown(md);
     expect(html).toContain(`<p id="${hashItemText('同じ題')}">`);
     expect(html).toContain(`<p id="${hashItemText('同じ題')}-2">`);
+  });
+
+  it('adds a small link line under the item meta line', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**沖縄に長期滞在したい**\n\n目標：50歳台\n\nメモです。');
+    const id = hashItemText('沖縄に長期滞在したい');
+    const link = `<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`;
+    expect(html).toContain(link);
+    expect(html.indexOf('<p>目標：50歳台</p>')).toBeLessThan(html.indexOf(link));
+    expect(html.indexOf(link)).toBeLessThan(html.indexOf('<p>メモです。</p>'));
+  });
+
+  it('adds the link line directly under the title when the item has no meta line', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**タイトル**\n\nメモです。');
+    const id = hashItemText('タイトル');
+    const link = `<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`;
+    expect(html).toContain(link);
+    expect(html.indexOf(`<p id="${id}">`)).toBeLessThan(html.indexOf(link));
+    expect(html.indexOf(link)).toBeLessThan(html.indexOf('<p>メモです。</p>'));
+  });
+
+  it('adds no link line to articles without item titles', () => {
+    const html = renderMarkdown('## 見出し\n\nただの本文です。');
+    expect(html).not.toContain('item-link');
+  });
+});
+
+describe('appendItemLinks', () => {
+  it('leaves html without item anchors untouched', () => {
+    expect(appendItemLinks('<p>本文</p>\n')).toBe('<p>本文</p>\n');
+    expect(appendItemLinks('')).toBe('');
+    expect(appendItemLinks(null)).toBe('');
   });
 });
 

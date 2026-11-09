@@ -230,5 +230,18 @@ export const renderMarkdown = (markdown) => {
     prevWasImageOnly = imageOnly;
     return `<p>${text}</p>\n`;
   };
-  return marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer });
+  const html = marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer });
+  return appendItemLinks(html);
 };
+
+// Every item title gains a small link line under it — under the
+// 「目標：…」 meta line when the item has one, otherwise directly
+// under the title — so a reader can pick up the entry's own fragment
+// URL from the page itself: tapping the link puts the fragment in
+// the address bar, ready to copy and share.
+const ITEM_LINK_PATTERN = /(<p id="(item-[0-9a-f]{8}(?:-\d+)?)">[\s\S]*?<\/p>\n(?:<p>目標：[\s\S]*?<\/p>\n)?)/g;
+
+export const appendItemLinks = (html) => String(html ?? '').replace(
+  ITEM_LINK_PATTERN,
+  (whole, block, id) => `${block}<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>\n`
+);
