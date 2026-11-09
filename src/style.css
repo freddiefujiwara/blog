@@ -383,7 +383,7 @@ article .music-player {
   padding: 16px 18px;
 }
 
-/* Lyrics sheet: renderMarkdown rewrites a "**歌詞**" label and the
+/* Lyrics sheet: renderMarkdown rewrites a "[[歌詞]]" marker and the
    lyric lines after it into this box (see services/markdown.js).
    Same surface treatment as the music player above it, so a song's
    player and its lyrics read as one unit. */

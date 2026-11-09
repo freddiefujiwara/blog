@@ -117,7 +117,7 @@ export const splitHtmlAtTocMarkers = (html) => {
 };
 
 // Lyrics blocks: an article can present a song's lyrics as a boxed
-// sheet by putting a paragraph that is only "**歌詞**" followed by
+// sheet by putting a paragraph that is only "[[歌詞]]" followed by
 // one paragraph per lyric line. The block is rewritten here — before
 // parsing — into a raw HTML box, because Markdown itself has no
 // grouping for it. The lines are consumed until the block can no
@@ -127,11 +127,12 @@ export const splitHtmlAtTocMarkers = (html) => {
 // (a section's introduction, an article's closing line) end lyrics
 // instead of being boxed in. Bracketed part labels ("[Chorus]")
 // become muted part headings inside the box.
+// Shown in place of a [[歌詞]] marker that has no lyric lines under
+// it, so the marker never leaks into the article as literal text.
+// (The bold paragraph itself is NOT a label: the markers were
+// unified in 2026-11 and the articles migrated to [[歌詞]].)
 const LYRICS_LABEL = '**歌詞**';
-// The bracket marker is the canonical lyrics label now that the
-// markers are unified in Japanese; the bold label stays accepted
-// while existing articles are migrated.
-const LYRICS_LABELS = new Set([LYRICS_LABEL, '[[歌詞]]', '［［歌詞］］']);
+const LYRICS_LABELS = new Set(['[[歌詞]]', '［［歌詞］］']);
 const LYRICS_PART_PATTERN = /^\[[^\]]*\]$/;
 
 const escapeHtmlText = (text) => String(text)
@@ -166,9 +167,9 @@ export const wrapLyricsBlocks = (markdown) => {
       j += 1;
     }
     if (!lines.length) {
-      // A bracket marker with no lyric lines under it must not leak
-      // into the article as literal text: show the bold label.
-      out.push(blocks[i].trim() === LYRICS_LABEL ? blocks[i] : LYRICS_LABEL);
+      // A marker with no lyric lines under it must not leak into
+      // the article as literal text: show the bold label instead.
+      out.push(LYRICS_LABEL);
       i += 1;
       continue;
     }

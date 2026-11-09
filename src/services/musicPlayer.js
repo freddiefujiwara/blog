@@ -1,5 +1,5 @@
 // Embedded music player. blog-gas turns a document paragraph of the
-// form [[music|タイトル|音源ファイル名.mp3]] into a placeholder
+// form [[音楽|タイトル|音源ファイル名.mp3]] into a placeholder
 //   <div class="music-track" data-title="..." data-file="..."></div>
 // in the article HTML. This module collects the placeholders of an
 // article (in document order) into a single playlist player.
