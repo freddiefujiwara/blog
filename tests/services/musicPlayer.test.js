@@ -343,7 +343,7 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
   });
 
-  it('warms the first track at mount so the first press is fast', async () => {
+  it('warms only the first track at mount so the first press is fast', async () => {
     const fetchMock = vi.fn(async () => ({
       json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
     }));
@@ -351,10 +351,77 @@ describe('mountMusicPlayer', () => {
     await mountWith(
       '<div class="music-track" data-title="曲1" data-file="warm-a.mp3"></div>'
       + '<div class="music-track" data-title="曲2" data-file="warm-b.mp3"></div>'
+      + '<div class="music-track" data-title="曲3" data-file="warm-c.mp3"></div>'
     );
     await flush();
     const requested = fetchMock.mock.calls.map((call) => String(call[0]));
     expect(requested.some((url) => url.includes('track=warm-a.mp3'))).toBe(true);
+    expect(requested.some((url) => url.includes('track=warm-b.mp3'))).toBe(false);
+    expect(requested.some((url) => url.includes('track=warm-c.mp3'))).toBe(false);
+    destroyMusicPlayer();
+  });
+
+  it('fetches the remaining tracks in the background once playback starts', async () => {
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="bg-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="bg-b.mp3"></div>'
+      + '<div class="music-track" data-title="曲3" data-file="bg-c.mp3"></div>'
+    );
+    await flush();
+    const requested = () => fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(requested().some((url) => url.includes('track=bg-b.mp3'))).toBe(false);
+    player.querySelector('audio').dispatchEvent(new Event('play'));
+    await flush();
+    expect(requested().some((url) => url.includes('track=bg-b.mp3'))).toBe(true);
+    expect(requested().some((url) => url.includes('track=bg-c.mp3'))).toBe(true);
+    destroyMusicPlayer();
+  });
+
+  it('serves a tapped track before the background prefetch finishes', async () => {
+    const pending = new Map();
+    const fetchMock = vi.fn((url) => {
+      const file = /track=([^&]+)/.exec(String(url))[1];
+      if (file === 'jump-a.mp3') {
+        return Promise.resolve({
+          json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+        });
+      }
+      return new Promise((resolve) => { pending.set(file, resolve); });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="jump-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="jump-b.mp3"></div>'
+      + '<div class="music-track" data-title="曲3" data-file="jump-c.mp3"></div>'
+    );
+    await flush();
+    // Playback starts: the background chain begins with track 2 and
+    // is still waiting on it.
+    player.querySelector('audio').dispatchEvent(new Event('play'));
+    await flush();
+    expect(pending.has('jump-b.mp3')).toBe(true);
+    expect(pending.has('jump-c.mp3')).toBe(false);
+    // The reader taps track 3: its fetch starts right away, ahead
+    // of the still-pending background fetch.
+    player.querySelectorAll('.mp-track')[2].click();
+    await flush();
+    expect(pending.has('jump-c.mp3')).toBe(true);
+    pending.get('jump-c.mp3')({
+      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+    });
+    await flush();
+    const audio = player.querySelector('audio');
+    expect(audio.getAttribute('src')).toMatch(/^blob:fake-/);
+    expect(player.querySelector('.mp-now').textContent).toBe('曲3');
+    expect(playSpy).toHaveBeenCalled();
+    pending.get('jump-b.mp3')({
+      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
+    });
+    await flush();
     destroyMusicPlayer();
   });
 
