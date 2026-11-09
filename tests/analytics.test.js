@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, trackNavClick, trackMusicPlay, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
+import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -78,6 +78,35 @@ describe('analytics (GA4 page-view tracking)', () => {
     trackMusicPlay('button');
     expect(window.gtag).toHaveBeenCalledTimes(1);
     expect(window.gtag).toHaveBeenCalledWith('event', 'music_play', { method: 'button' });
+  });
+
+  it('sends a music_ready event with the rounded milliseconds', () => {
+    window.gtag = vi.fn();
+    trackMusicReady(1234.56);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_ready', { ready_ms: 1235 });
+  });
+
+  it('sends a music_latency event with milliseconds and method', () => {
+    window.gtag = vi.fn();
+    trackMusicLatency(250.4, 'list');
+    expect(window.gtag).toHaveBeenCalledWith('event', 'music_latency', { latency_ms: 250, method: 'list' });
+  });
+
+  it('timing events ignore unusable values and a missing gtag', () => {
+    expect(() => trackMusicReady(Number.NaN)).not.toThrow();
+    expect(() => trackMusicLatency(-5, 'button')).not.toThrow();
+    window.gtag = vi.fn();
+    trackMusicReady(Number.NaN);
+    trackMusicLatency(-5, 'button');
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  it('sends no timing events on a staging build', () => {
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    window.gtag = vi.fn();
+    trackMusicReady(100);
+    trackMusicLatency(100, 'button');
+    expect(window.gtag).not.toHaveBeenCalled();
   });
 
   it('music_play does nothing when gtag is not loaded', () => {

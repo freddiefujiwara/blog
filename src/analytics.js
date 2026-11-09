@@ -32,7 +32,7 @@ export function canonicalPagePath(pagePath, baseUrl = import.meta.env.BASE_URL) 
 }
 
 // Header nav clicks are measured as nav_click events with the item
-// key (top / about / activity / contact / blog / list / music), so the nav
+// key (top / about / activity / contact / blog / list), so the nav
 // can be trimmed later based on which items are actually used.
 // Same suppression rules as page views: nothing is sent on staging
 // builds or when gtag is not loaded.
@@ -60,6 +60,37 @@ export function trackMusicPlay(method) {
     return;
   }
   window.gtag('event', 'music_play', { method });
+}
+
+// How long the reader waits, in milliseconds, so the values can
+// be registered as custom metrics in GA4 and read as averages.
+// music_ready fires once per player, when the first track has been
+// fetched and cached; ready_ms is measured from page load, so it
+// is the time until a press would start playback almost at once.
+// music_latency fires when playback actually starts after a start
+// intent (button / list / auto advance); latency_ms runs from the
+// intent to the audio element's 'playing' event. Same suppression
+// rules as the other events.
+const sendTiming = (eventName, paramName, ms, extra = {}) => {
+  if (isStagingBuild()) {
+    return;
+  }
+  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+    return;
+  }
+  const value = Math.round(Number(ms));
+  if (!Number.isFinite(value) || value < 0) {
+    return;
+  }
+  window.gtag('event', eventName, { [paramName]: value, ...extra });
+};
+
+export function trackMusicReady(ms) {
+  sendTiming('music_ready', 'ready_ms', ms);
+}
+
+export function trackMusicLatency(ms, method) {
+  sendTiming('music_latency', 'latency_ms', ms, { method });
 }
 
 export function trackPageView(pagePath) {
