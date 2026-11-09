@@ -471,6 +471,39 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
   });
 
+  it('attaches the warmed first track so the first press only presses play', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="fix-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="fix-b.mp3"></div>'
+    );
+    await flush();
+    const audio = player.querySelector('audio');
+    // No click yet, but the element already holds the first track.
+    expect(audio.getAttribute('src')).toMatch(/^blob:fake-/);
+    // The press must reach play() synchronously (iOS gesture rule):
+    // assert before any promise gets a chance to run.
+    player.querySelector('.mp-play').click();
+    expect(playSpy).toHaveBeenCalled();
+    destroyMusicPlayer();
+  });
+
+  it('starts a cached list track synchronously on tap', async () => {
+    const player = await mountWith(
+      '<div class="music-track" data-title="曲1" data-file="sync-a.mp3"></div>'
+      + '<div class="music-track" data-title="曲2" data-file="sync-b.mp3"></div>'
+    );
+    await flush();
+    // Playback started once: the background prefetch warms track 2.
+    player.querySelector('audio').dispatchEvent(new Event('play'));
+    await flush();
+    playSpy.mockClear();
+    // One tap on the cached track: play() fires within the tap.
+    player.querySelectorAll('.mp-track')[1].click();
+    expect(playSpy).toHaveBeenCalled();
+    expect(player.querySelector('.mp-now').textContent).toBe('曲2');
+    destroyMusicPlayer();
+  });
+
   it('destroy tears the player down', async () => {
     const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="bye-a.mp3"></div>'
