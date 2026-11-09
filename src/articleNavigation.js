@@ -12,28 +12,45 @@ const normalizeHash = (hash) => {
   return hash.startsWith('#') ? hash.slice(1) : hash;
 };
 
-export const extractRequestedId = ({ path, search, hash }) => {
-  const normalizedHash = normalizeHash(hash);
-  if (normalizedHash) {
-    return normalizedHash;
-  }
+// Candidate article ids in priority order: path, hash, search query.
+// Article URLs name their article in the path (/blog/<id>), while the
+// hash may carry an in-article fragment instead (a heading's #h-…
+// or an item title's #item-… anchor). The legacy form /blog#<id>
+// names the article in the hash alone, so the hash stays a candidate
+// — it just no longer outranks a path id that names a real article.
+export const extractRequestedIds = ({ path, search, hash }) => {
+  const candidates = [];
+  const push = (value) => {
+    if (value && !candidates.includes(value)) {
+      candidates.push(value);
+    }
+  };
 
   const normalizedPath = normalizePath(path);
   const pathMatch = normalizedPath.match(/\/blog\/(.+)$/);
   if (pathMatch) {
-    return pathMatch[1];
+    push(pathMatch[1]);
   }
 
+  push(normalizeHash(hash));
+
   const params = new URLSearchParams(search);
-  return params.get('id') || '';
+  push(params.get('id') || '');
+
+  return candidates;
 };
 
-export const resolveArticleId = (ids, { path, search, hash }) => {
+export const extractRequestedId = (location) =>
+  extractRequestedIds(location)[0] || '';
+
+export const resolveArticleId = (ids, location) => {
   if (!Array.isArray(ids) || ids.length === 0) {
     return '';
   }
-  const requestedId = extractRequestedId({ path, search, hash });
-  if (requestedId && ids.includes(requestedId)) {
+  const requestedId = extractRequestedIds(location).find((id) =>
+    ids.includes(id)
+  );
+  if (requestedId) {
     return requestedId;
   }
   return ids[0];

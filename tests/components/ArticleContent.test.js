@@ -1,5 +1,5 @@
 import { mount, RouterLinkStub } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import ArticleContent from '../../src/components/ArticleContent.vue';
 
 describe('ArticleContent', () => {
@@ -196,5 +196,57 @@ describe('ArticleContent', () => {
       global: { stubs: { RouterLink: true } }
     });
     expect(wrapper.find('.tag-chips').exists()).toBe(false);
+  });
+
+  describe('fragment scrolling', () => {
+    afterEach(() => {
+      window.location.hash = '';
+      delete Element.prototype.scrollIntoView;
+      document.body.innerHTML = '';
+    });
+
+    it('scrolls to the fragment target after rendering', () => {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      window.location.hash = 'item-12345678';
+      const wrapper = mount(ArticleContent, {
+        attachTo: document.body,
+        props: {
+          article: { title: 'T' },
+          articleHtml: '<p id="item-12345678"><strong>題</strong></p>'
+        }
+      });
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      wrapper.unmount();
+    });
+
+    it('does not scroll when the fragment names no element in the article', () => {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      window.location.hash = 'item-99999999';
+      const wrapper = mount(ArticleContent, {
+        attachTo: document.body,
+        props: {
+          article: { title: 'T' },
+          articleHtml: '<p id="item-12345678"><strong>題</strong></p>'
+        }
+      });
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      wrapper.unmount();
+    });
+
+    it('does not scroll when the URL carries no fragment', () => {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      const wrapper = mount(ArticleContent, {
+        attachTo: document.body,
+        props: {
+          article: { title: 'T' },
+          articleHtml: '<p id="item-12345678"><strong>題</strong></p>'
+        }
+      });
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      wrapper.unmount();
+    });
   });
 });
