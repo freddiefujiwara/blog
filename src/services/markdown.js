@@ -1,19 +1,26 @@
 import { marked } from 'marked';
 
-// Hashes a heading's text into a short ASCII id (FNV-1a, 32-bit).
-// Heading text itself is not used as the id: non-ASCII fragments do
-// not scroll reliably in every browser (notably Safari/WebKit), so
-// the id stays plain ASCII and the fragment URL is safe anywhere.
-// The mapping is deterministic — the fragment for a heading is
-// always "#" + hashHeadingText(heading text).
-export const hashHeadingText = (text) => {
+// Hashes a text into a short ASCII id (FNV-1a, 32-bit). The text
+// itself is not used as the id: non-ASCII fragments do not scroll
+// reliably in every browser (notably Safari/WebKit), so the id stays
+// plain ASCII and the fragment URL is safe anywhere. The mapping is
+// deterministic — the fragment for a text is always the same.
+const fnv1aHex = (text) => {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
-  return `h-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return (hash >>> 0).toString(16).padStart(8, '0');
 };
+
+export const hashHeadingText = (text) => `h-${fnv1aHex(text)}`;
+
+// Item titles — a bold-only paragraph right after an image paragraph,
+// the shape list-style articles use for each entry — receive an anchor
+// id hashed from the title text, so one entry can be shared with a
+// fragment URL: /blog/<articleId>#item-xxxxxxxx
+export const hashItemText = (text) => `item-${fnv1aHex(text)}`;
 
 // Renders an article's markdown to HTML. Headings receive the
 // hashed id of their text, so another part of the same article (for
@@ -171,6 +178,8 @@ export const wrapLyricsBlocks = (markdown) => {
 
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
+  const seenItems = new Map();
+  let prevWasImageOnly = false;
   const renderer = new marked.Renderer();
   renderer.link = (href, title, text) => {
     const titleAttr = title ? ` title="${title}"` : '';
@@ -178,6 +187,7 @@ export const renderMarkdown = (markdown) => {
     return `<a href="${href}"${titleAttr}${target}>${text}</a>`;
   };
   renderer.heading = (text, level) => {
+    prevWasImageOnly = false;
     const plain = text
       .replace(/<[^>]*>/g, '')
       .replace(/&amp;/g, '&')
@@ -191,6 +201,34 @@ export const renderMarkdown = (markdown) => {
     const base = hashHeadingText(plain);
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${level} id="${id}">${text}</h${level}>\n`;
+  };
+  // A bold-only paragraph right after an image-only paragraph is an
+  // item title (see hashItemText): give its <p> the hashed anchor id
+  // so the entry can be linked directly. Any other paragraph keeps
+  // the default rendering and breaks the image -> title sequence.
+  renderer.paragraph = (text) => {
+    const trimmed = text.trim();
+    const imageOnly = /^<img\b[^>]*>$/.test(trimmed);
+    if (prevWasImageOnly && !imageOnly) {
+      const match = trimmed.match(/^<strong>([^<]+)<\/strong>$/);
+      if (match) {
+        const plain = match[1]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim();
+        const count = (seenItems.get(plain) ?? 0) + 1;
+        seenItems.set(plain, count);
+        const base = hashItemText(plain);
+        const id = count === 1 ? base : `${base}-${count}`;
+        prevWasImageOnly = false;
+        return `<p id="${id}">${text}</p>\n`;
+      }
+    }
+    prevWasImageOnly = imageOnly;
+    return `<p>${text}</p>\n`;
   };
   return marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer });
 };

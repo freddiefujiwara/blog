@@ -22,14 +22,41 @@ describe('articleNavigation helpers', () => {
     ).toBe('b');
   });
 
-  it('prefers hash over path and search', () => {
+  it('prefers the path id over hash and search when it names an article', () => {
     expect(
       resolveArticleId(['a', 'b', 'c'], {
         path: '/blog/b',
         search: '?id=a',
         hash: '#c'
       })
-    ).toBe('c');
+    ).toBe('b');
+  });
+
+  it('ignores an in-article fragment in the hash when the path names an article', () => {
+    expect(
+      resolveArticleId(['a', 'b'], {
+        path: '/blog/b',
+        search: '',
+        hash: '#item-12345678'
+      })
+    ).toBe('b');
+    expect(
+      resolveArticleId(['a', 'b'], {
+        path: '/blog/b',
+        search: '',
+        hash: '#h-12345678'
+      })
+    ).toBe('b');
+  });
+
+  it('falls back to the hash id when the path names no article', () => {
+    expect(
+      resolveArticleId(['a', 'b'], {
+        path: '/blog/tag/x',
+        search: '',
+        hash: '#b'
+      })
+    ).toBe('b');
   });
 
   it('returns requested id when it exists in the hash', () => {
@@ -114,13 +141,13 @@ describe('articleNavigation helpers', () => {
     );
   });
 
-  it('prefers hash over path and search when extracting', () => {
+  it('prefers the path over hash and search when extracting', () => {
     expect(
       extractRequestedId({
         path: '/blog/from-path',
         search: '?id=from-search',
         hash: '#from-hash'
       })
-    ).toBe('from-hash');
+    ).toBe('from-path');
   });
 });

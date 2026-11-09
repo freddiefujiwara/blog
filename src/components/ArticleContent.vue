@@ -80,12 +80,34 @@ const sweepBrokenCardImages = () => {
     });
 };
 
+// Shared links can carry a fragment for a heading (h-…) or an item
+// title (item-…). The article renders asynchronously, so the
+// browser's own fragment jump fires before the target exists;
+// scroll to it after render instead, once per article and fragment,
+// so later re-renders do not yank the reader back to the target.
+const lastFragmentKey = ref('');
+
+const scrollToFragment = () => {
+  if (!rootEl.value) return;
+  const fragment = window.location.hash.replace(/^#/, '');
+  if (!fragment) return;
+  const key = `${props.article?.title ?? ''}|${fragment}`;
+  if (lastFragmentKey.value === key) return;
+  const target = document.getElementById(fragment);
+  if (!target || !rootEl.value.contains(target)) return;
+  lastFragmentKey.value = key;
+  if (typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView();
+  }
+};
+
 // Articles that carry [[music|...]] markers get their track
 // placeholders replaced by one playlist player after each render;
 // leaving the article destroys the player so playback stops.
 const refreshAfterRender = () => {
   sweepBrokenCardImages();
   mountMusicPlayer(rootEl.value);
+  scrollToFragment();
 };
 
 onMounted(refreshAfterRender);

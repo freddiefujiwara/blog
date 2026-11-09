@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
+import { extractTocFromHtml, hashHeadingText, hashItemText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -36,6 +36,41 @@ describe('renderMarkdown', () => {
   it('leaves non-heading content as before', () => {
     const html = renderMarkdown('ただの本文です');
     expect(html).toContain('<p>ただの本文です</p>');
+  });
+});
+
+describe('renderMarkdown item anchors', () => {
+  it('anchors a bold-only paragraph right after an image paragraph', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**沖縄に長期滞在したい**\n\n目標：50歳台');
+    expect(html).toContain(`<p id="${hashItemText('沖縄に長期滞在したい')}"><strong>沖縄に長期滞在したい</strong></p>`);
+  });
+
+  it('does not anchor a bold-only paragraph without a preceding image', () => {
+    const html = renderMarkdown('導入文です。\n\n**太字の段落**');
+    expect(html).not.toContain('id="item-');
+    expect(html).toContain('<p><strong>太字の段落</strong></p>');
+  });
+
+  it('does not anchor when a paragraph sits between image and title', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n途中の段落です。\n\n**タイトル**');
+    expect(html).not.toContain('id="item-');
+  });
+
+  it('does not anchor when a heading sits between image and title', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n## 見出し\n\n**タイトル**');
+    expect(html).not.toContain('id="item-');
+  });
+
+  it('does not anchor a bold paragraph with trailing text', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**タイトル**の説明です');
+    expect(html).not.toContain('id="item-');
+  });
+
+  it('suffixes repeated item titles like repeated headings', () => {
+    const md = '![a](https://example.com/1.jpg)\n\n**同じ題**\n\n![b](https://example.com/2.jpg)\n\n**同じ題**';
+    const html = renderMarkdown(md);
+    expect(html).toContain(`<p id="${hashItemText('同じ題')}">`);
+    expect(html).toContain(`<p id="${hashItemText('同じ題')}-2">`);
   });
 });
 
