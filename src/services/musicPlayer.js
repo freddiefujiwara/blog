@@ -306,19 +306,29 @@ const createPlayer = (container, tracks) => {
   const setStatus = (text) => { statusEl.textContent = text; };
 
   // --- Track loading ------------------------------------------------------
-  // Once one track is in, quietly fetch the rest of the playlist in
-  // the background, one at a time. Most switches then find their
-  // bytes already in the session cache, which also keeps iOS from
-  // treating a long-delayed programmatic play() as unsolicited
-  // autoplay.
-  let prefetchStarted = false;
-  const prefetchRemaining = () => {
-    if (prefetchStarted) return;
-    prefetchStarted = true;
-    tracks.reduce(
-      (chain, track) => chain.then(() => fetchTrackBlob(track.file)).catch(() => {}),
-      Promise.resolve()
-    );
+  // Loading stays light on purpose. At mount only the first track
+  // is warmed, so opening an article never pulls the whole playlist
+  // (about 11 MB of audio, more again as base64 text) over the
+  // wire, while the first press can still start almost at once.
+  // The remaining tracks are fetched in the background, one at a
+  // time, once playback has actually started. A track the reader
+  // taps is always served first: its request starts immediately
+  // and the background chain waits for it before moving on.
+  let backgroundStarted = false;
+  let priorityPromise = null;
+  const startBackgroundPrefetch = () => {
+    if (backgroundStarted) return;
+    backgroundStarted = true;
+    (async () => {
+      for (const track of tracks) {
+        if (state.destroyed) return;
+        if (priorityPromise) {
+          try { await priorityPromise; } catch (err) { /* the tap retries on its own */ }
+        }
+        if (state.destroyed) return;
+        try { await fetchTrackBlob(track.file); } catch (err) { /* a later tap can retry */ }
+      }
+    })();
   };
 
   // Starts the track at index i. Records it in the round's played
@@ -344,13 +354,18 @@ const createPlayer = (container, tracks) => {
     state.loading = true;
     syncPlayButton();
     setStatus('');
+    const request = fetchTrackBlob(file);
+    priorityPromise = request;
+    const clearPriority = () => {
+      if (priorityPromise === request) priorityPromise = null;
+    };
+    request.then(clearPriority, clearPriority);
     objectUrlFor(file)
       .then((url) => {
         if (state.destroyed || seq !== state.loadSeq) return;
         state.loading = false;
         state.loadedFile = file;
         audio.src = url;
-        prefetchRemaining();
         if (state.wantPlay) tryPlay(audio);
         syncPlayButton();
         syncProgress();
@@ -444,7 +459,10 @@ const createPlayer = (container, tracks) => {
   });
 
   // --- Audio events ---------------------------------------------------------
-  audio.addEventListener('play', syncPlayButton);
+  audio.addEventListener('play', () => {
+    syncPlayButton();
+    startBackgroundPrefetch();
+  });
   audio.addEventListener('pause', syncPlayButton);
   audio.addEventListener('timeupdate', syncProgress);
   audio.addEventListener('loadedmetadata', syncProgress);
@@ -486,12 +504,11 @@ const createPlayer = (container, tracks) => {
 
   // The player's top KPI is how often the play button gets
   // pressed, and a press that waits seconds for the first fetch
-  // is a press that may never come back. Warm the first track (and
-  // then the rest) as soon as the player appears, so the first
-  // press starts playback almost immediately.
-  fetchTrackBlob(tracks[0].file)
-    .then(() => prefetchRemaining())
-    .catch(() => {});
+  // is a press that may never come back. Warm only the first track
+  // as soon as the player appears, so the first press starts
+  // playback almost immediately; the rest follows once playback
+  // has started (see the 'play' handler above).
+  fetchTrackBlob(tracks[0].file).catch(() => {});
 
   return {
     destroy() {
