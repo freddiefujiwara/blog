@@ -237,6 +237,25 @@ describe('splitHtmlAtTocMarkers', () => {
 });
 
 describe('wrapLyricsBlocks', () => {
+  it('boxes lyrics under the [[歌詞]] marker label', () => {
+    const md = '## 曲の見出し\n\n[[歌詞]]\n\n朝の風だね\n\nペダルを踏んで';
+    const out = wrapLyricsBlocks(md);
+    expect(out).toContain('<div class="lyrics"><p class="lyrics-label">歌詞</p>');
+    expect(out).toContain('<p class="lyrics-line">朝の風だね</p>');
+    expect(out).not.toContain('[[歌詞]]');
+  });
+
+  it('accepts the full-width ［［歌詞］］ label too', () => {
+    const out = wrapLyricsBlocks('［［歌詞］］\n\n一行目');
+    expect(out).toContain('<p class="lyrics-line">一行目</p></div>');
+  });
+
+  it('renders a bare [[歌詞]] marker as the bold label instead of literal text', () => {
+    const html = renderMarkdown('[[歌詞]]\n\nこれは紹介文です。');
+    expect(html).toContain('<strong>歌詞</strong>');
+    expect(html).not.toContain('[[歌詞]]');
+  });
+
   it('boxes the label and the lyric lines that follow it', () => {
     const md = '## 曲の見出し\n\n**歌詞**\n\n[Intro]\n\n朝の風だね\n\nペダルを踏んで';
     const out = wrapLyricsBlocks(md);
