@@ -16,9 +16,8 @@ const fnv1aHex = (text) => {
 
 export const hashHeadingText = (text) => `h-${fnv1aHex(text)}`;
 
-// Item titles — a bold-only paragraph right after an image paragraph,
-// the shape list-style articles use for each entry — receive an anchor
-// id hashed from the title text, so one entry can be shared with a
+// Anchored entries (see expandAnchorMarkers) receive an anchor id
+// hashed from their title text, so one entry can be shared with a
 // fragment URL: /blog/<articleId>#item-xxxxxxxx
 export const hashItemText = (text) => `item-${fnv1aHex(text)}`;
 
@@ -176,10 +175,63 @@ export const wrapLyricsBlocks = (markdown) => {
   return out.join('\n\n');
 };
 
+// An author can make an entry shareable by putting a paragraph that
+// contains only "[[アンカーリンク]]" after the entry (the full-width
+// bracket variant is accepted too, like the [[目次]] marker). The
+// marker binds to the most recent bold-only paragraph above it —
+// the entry's title: the title is rewritten with an anchor id
+// (hashed from its text, see hashItemText) and the marker itself is
+// replaced by a small "この項目へのリンク" line pointing at it, so
+// a reader can pick up the entry's fragment URL from the page. A
+// heading or a successful binding clears the candidate title, and a
+// marker with no title above it is dropped silently. Ids are unique
+// within one article: repeated titles gain "-2", "-3", ... suffixes.
+const ANCHOR_MARKER_PATTERN = /^(?:\[\[アンカーリンク\]\]|［［アンカーリンク］］)$/;
+const BOLD_ONLY_PATTERN = /^\*\*([^*]+)\*\*$/;
+
+export const expandAnchorMarkers = (markdown) => {
+  const blocks = String(markdown ?? '').split(/\n{2,}/);
+  const seen = new Map();
+  const out = [];
+  let candidateIndex = -1;
+  let candidateTitle = '';
+  blocks.forEach((block) => {
+    const trimmed = block.trim();
+    if (trimmed.startsWith('#')) {
+      candidateIndex = -1;
+      candidateTitle = '';
+      out.push(block);
+      return;
+    }
+    const bold = trimmed.match(BOLD_ONLY_PATTERN);
+    if (bold) {
+      candidateIndex = out.length;
+      candidateTitle = bold[1].trim();
+      out.push(block);
+      return;
+    }
+    if (ANCHOR_MARKER_PATTERN.test(trimmed)) {
+      if (candidateIndex < 0) {
+        out.push('');
+        return;
+      }
+      const count = (seen.get(candidateTitle) ?? 0) + 1;
+      seen.set(candidateTitle, count);
+      const base = hashItemText(candidateTitle);
+      const id = count === 1 ? base : `${base}-${count}`;
+      out[candidateIndex] = `<p id="${id}"><strong>${escapeHtmlText(candidateTitle)}</strong></p>`;
+      candidateIndex = -1;
+      candidateTitle = '';
+      out.push(`<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`);
+      return;
+    }
+    out.push(block);
+  });
+  return out.join('\n\n');
+};
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
-  const seenItems = new Map();
-  let prevWasImageOnly = false;
   const renderer = new marked.Renderer();
   renderer.link = (href, title, text) => {
     const titleAttr = title ? ` title="${title}"` : '';
@@ -187,7 +239,6 @@ export const renderMarkdown = (markdown) => {
     return `<a href="${href}"${titleAttr}${target}>${text}</a>`;
   };
   renderer.heading = (text, level) => {
-    prevWasImageOnly = false;
     const plain = text
       .replace(/<[^>]*>/g, '')
       .replace(/&amp;/g, '&')
@@ -202,33 +253,5 @@ export const renderMarkdown = (markdown) => {
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${level} id="${id}">${text}</h${level}>\n`;
   };
-  // A bold-only paragraph right after an image-only paragraph is an
-  // item title (see hashItemText): give its <p> the hashed anchor id
-  // so the entry can be linked directly. Any other paragraph keeps
-  // the default rendering and breaks the image -> title sequence.
-  renderer.paragraph = (text) => {
-    const trimmed = text.trim();
-    const imageOnly = /^<img\b[^>]*>$/.test(trimmed);
-    if (prevWasImageOnly && !imageOnly) {
-      const match = trimmed.match(/^<strong>([^<]+)<\/strong>$/);
-      if (match) {
-        const plain = match[1]
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .trim();
-        const count = (seenItems.get(plain) ?? 0) + 1;
-        seenItems.set(plain, count);
-        const base = hashItemText(plain);
-        const id = count === 1 ? base : `${base}-${count}`;
-        prevWasImageOnly = false;
-        return `<p id="${id}">${text}</p>\n`;
-      }
-    }
-    prevWasImageOnly = imageOnly;
-    return `<p>${text}</p>\n`;
-  };
-  return marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer });
+  return marked.parse(expandAnchorMarkers(wrapLyricsBlocks(delimitBareUrls(markdown ?? ''))), { renderer });
 };

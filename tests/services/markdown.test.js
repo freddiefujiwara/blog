@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTocFromHtml, hashHeadingText, hashItemText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
+import { expandAnchorMarkers, extractTocFromHtml, hashHeadingText, hashItemText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -39,38 +39,65 @@ describe('renderMarkdown', () => {
   });
 });
 
-describe('renderMarkdown item anchors', () => {
-  it('anchors a bold-only paragraph right after an image paragraph', () => {
-    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**沖縄に長期滞在したい**\n\n目標：50歳台');
-    expect(html).toContain(`<p id="${hashItemText('沖縄に長期滞在したい')}"><strong>沖縄に長期滞在したい</strong></p>`);
+describe('renderMarkdown anchor markers', () => {
+  it('anchors the title above an [[アンカーリンク]] marker and replaces the marker with a link line', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**沖縄に長期滞在したい**\n\n目標：50歳台\n\n[[アンカーリンク]]\n\nメモです。');
+    const id = hashItemText('沖縄に長期滞在したい');
+    expect(html).toContain(`<p id="${id}"><strong>沖縄に長期滞在したい</strong></p>`);
+    const link = `<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`;
+    expect(html).toContain(link);
+    expect(html.indexOf('<p>目標：50歳台</p>')).toBeLessThan(html.indexOf(link));
+    expect(html.indexOf(link)).toBeLessThan(html.indexOf('<p>メモです。</p>'));
+    expect(html).not.toContain('アンカーリンク');
   });
 
-  it('does not anchor a bold-only paragraph without a preceding image', () => {
-    const html = renderMarkdown('導入文です。\n\n**太字の段落**');
+  it('accepts the full-width marker variant', () => {
+    const html = renderMarkdown('**タイトル**\n\n［［アンカーリンク］］');
+    expect(html).toContain(`<p id="${hashItemText('タイトル')}">`);
+    expect(html).toContain('この項目へのリンク');
+  });
+
+  it('adds no anchor when the article has no marker, even for image + bold items', () => {
+    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**タイトル**\n\n目標：50歳台');
     expect(html).not.toContain('id="item-');
-    expect(html).toContain('<p><strong>太字の段落</strong></p>');
+    expect(html).not.toContain('item-link');
+    expect(html).toContain('<p><strong>タイトル</strong></p>');
   });
 
-  it('does not anchor when a paragraph sits between image and title', () => {
-    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n途中の段落です。\n\n**タイトル**');
+  it('drops a marker with no bold title above it', () => {
+    const html = renderMarkdown('導入文です。\n\n[[アンカーリンク]]\n\n本文です。');
+    expect(html).not.toContain('item-link');
+    expect(html).not.toContain('アンカーリンク');
+    expect(html).toContain('<p>本文です。</p>');
+  });
+
+  it('does not bind a marker across a heading', () => {
+    const html = renderMarkdown('**タイトル**\n\n## 見出し\n\n[[アンカーリンク]]');
     expect(html).not.toContain('id="item-');
+    expect(html).not.toContain('item-link');
   });
 
-  it('does not anchor when a heading sits between image and title', () => {
-    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n## 見出し\n\n**タイトル**');
-    expect(html).not.toContain('id="item-');
+  it('binds the marker to the most recent title only', () => {
+    const html = renderMarkdown('**一つ目**\n\n**二つ目**\n\n[[アンカーリンク]]');
+    expect(html).toContain('<p><strong>一つ目</strong></p>');
+    expect(html).toContain(`<p id="${hashItemText('二つ目')}">`);
   });
 
-  it('does not anchor a bold paragraph with trailing text', () => {
-    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**タイトル**の説明です');
-    expect(html).not.toContain('id="item-');
-  });
-
-  it('suffixes repeated item titles like repeated headings', () => {
-    const md = '![a](https://example.com/1.jpg)\n\n**同じ題**\n\n![b](https://example.com/2.jpg)\n\n**同じ題**';
+  it('suffixes repeated anchored titles like repeated headings', () => {
+    const md = '**同じ題**\n\n[[アンカーリンク]]\n\n**同じ題**\n\n[[アンカーリンク]]';
     const html = renderMarkdown(md);
     expect(html).toContain(`<p id="${hashItemText('同じ題')}">`);
     expect(html).toContain(`<p id="${hashItemText('同じ題')}-2">`);
+    expect(html).toContain(`<a href="#${hashItemText('同じ題')}-2">`);
+  });
+});
+
+describe('expandAnchorMarkers', () => {
+  it('leaves markdown without markers untouched', () => {
+    const md = '## 見出し\n\n**太字**\n\n本文です。';
+    expect(expandAnchorMarkers(md)).toBe(md);
+    expect(expandAnchorMarkers('')).toBe('');
+    expect(expandAnchorMarkers(null)).toBe('');
   });
 });
 

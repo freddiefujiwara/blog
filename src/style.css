@@ -893,6 +893,21 @@ article th {
   scroll-margin-top: 72px;
 }
 
+/* Item titles (services/markdown.js) carry an anchor id too, and
+   each is followed by a small muted link line so the entry's
+   fragment URL can be picked up from the page itself. */
+.article-content p[id^="item-"] {
+  scroll-margin-top: 72px;
+}
+
+.article-content .item-link {
+  font-size: 0.8rem;
+}
+
+.article-content .item-link a {
+  color: var(--muted);
+}
+
 /* The music player is hand-rolled (services/musicPlayer.js): a
    single <audio> element with labelled Japanese buttons, styled
    on the site's design tokens so it follows light/dark mode like
