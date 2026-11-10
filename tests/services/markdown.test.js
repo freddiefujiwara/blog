@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandAnchorMarkers, extractTocFromHtml, hashHeadingText, hashItemText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
+import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -36,68 +36,6 @@ describe('renderMarkdown', () => {
   it('leaves non-heading content as before', () => {
     const html = renderMarkdown('ただの本文です');
     expect(html).toContain('<p>ただの本文です</p>');
-  });
-});
-
-describe('renderMarkdown anchor markers', () => {
-  it('anchors the title above an [[アンカーリンク]] marker and replaces the marker with a link line', () => {
-    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**沖縄に長期滞在したい**\n\n目標：50歳台\n\n[[アンカーリンク]]\n\nメモです。');
-    const id = hashItemText('沖縄に長期滞在したい');
-    expect(html).toContain(`<p id="${id}"><strong>沖縄に長期滞在したい</strong></p>`);
-    const link = `<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`;
-    expect(html).toContain(link);
-    expect(html.indexOf('<p>目標：50歳台</p>')).toBeLessThan(html.indexOf(link));
-    expect(html.indexOf(link)).toBeLessThan(html.indexOf('<p>メモです。</p>'));
-    expect(html).not.toContain('アンカーリンク');
-  });
-
-  it('accepts the full-width marker variant', () => {
-    const html = renderMarkdown('**タイトル**\n\n［［アンカーリンク］］');
-    expect(html).toContain(`<p id="${hashItemText('タイトル')}">`);
-    expect(html).toContain('この項目へのリンク');
-  });
-
-  it('adds no anchor when the article has no marker, even for image + bold items', () => {
-    const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**タイトル**\n\n目標：50歳台');
-    expect(html).not.toContain('id="item-');
-    expect(html).not.toContain('item-link');
-    expect(html).toContain('<p><strong>タイトル</strong></p>');
-  });
-
-  it('drops a marker with no bold title above it', () => {
-    const html = renderMarkdown('導入文です。\n\n[[アンカーリンク]]\n\n本文です。');
-    expect(html).not.toContain('item-link');
-    expect(html).not.toContain('アンカーリンク');
-    expect(html).toContain('<p>本文です。</p>');
-  });
-
-  it('does not bind a marker across a heading', () => {
-    const html = renderMarkdown('**タイトル**\n\n## 見出し\n\n[[アンカーリンク]]');
-    expect(html).not.toContain('id="item-');
-    expect(html).not.toContain('item-link');
-  });
-
-  it('binds the marker to the most recent title only', () => {
-    const html = renderMarkdown('**一つ目**\n\n**二つ目**\n\n[[アンカーリンク]]');
-    expect(html).toContain('<p><strong>一つ目</strong></p>');
-    expect(html).toContain(`<p id="${hashItemText('二つ目')}">`);
-  });
-
-  it('suffixes repeated anchored titles like repeated headings', () => {
-    const md = '**同じ題**\n\n[[アンカーリンク]]\n\n**同じ題**\n\n[[アンカーリンク]]';
-    const html = renderMarkdown(md);
-    expect(html).toContain(`<p id="${hashItemText('同じ題')}">`);
-    expect(html).toContain(`<p id="${hashItemText('同じ題')}-2">`);
-    expect(html).toContain(`<a href="#${hashItemText('同じ題')}-2">`);
-  });
-});
-
-describe('expandAnchorMarkers', () => {
-  it('leaves markdown without markers untouched', () => {
-    const md = '## 見出し\n\n**太字**\n\n本文です。';
-    expect(expandAnchorMarkers(md)).toBe(md);
-    expect(expandAnchorMarkers('')).toBe('');
-    expect(expandAnchorMarkers(null)).toBe('');
   });
 });
 
@@ -161,6 +99,18 @@ describe('renderMarkdown bare URLs in Japanese text', () => {
     const html = renderMarkdown('`https://example.com` を参照');
     expect(html).toContain('<code>https://example.com</code>');
     expect(html).not.toContain('&lt;https');
+  });
+
+  it('leaves URLs inside a link card description untouched', () => {
+    const card = '<a class="link-card" href="https://example.com/archives/146730" target="_blank" rel="noopener noreferrer">'
+      + '<span class="link-card-body"><span class="link-card-title">お店の記事</span>'
+      + '<span class="link-card-description">紹介文です(^O^) https://example.com/arc</span>'
+      + '<span class="link-card-domain">example.com</span></span></a>';
+    const html = renderMarkdown(card);
+    // The card stays one anchor: no nested link splits it apart.
+    expect((html.match(/<a /g) || [])).toHaveLength(1);
+    expect(html).toContain('紹介文です(^O^) https://example.com/arc');
+    expect(html).not.toContain('&lt;https://example.com/arc&gt;');
   });
 
   it('leaves URLs inside HTML attributes untouched', () => {
@@ -237,27 +187,8 @@ describe('splitHtmlAtTocMarkers', () => {
 });
 
 describe('wrapLyricsBlocks', () => {
-  it('boxes lyrics under the [[歌詞]] marker label', () => {
-    const md = '## 曲の見出し\n\n[[歌詞]]\n\n朝の風だね\n\nペダルを踏んで';
-    const out = wrapLyricsBlocks(md);
-    expect(out).toContain('<div class="lyrics"><p class="lyrics-label">歌詞</p>');
-    expect(out).toContain('<p class="lyrics-line">朝の風だね</p>');
-    expect(out).not.toContain('[[歌詞]]');
-  });
-
-  it('accepts the full-width ［［歌詞］］ label too', () => {
-    const out = wrapLyricsBlocks('［［歌詞］］\n\n一行目');
-    expect(out).toContain('<p class="lyrics-line">一行目</p></div>');
-  });
-
-  it('renders a bare [[歌詞]] marker as the bold label instead of literal text', () => {
-    const html = renderMarkdown('[[歌詞]]\n\nこれは紹介文です。');
-    expect(html).toContain('<strong>歌詞</strong>');
-    expect(html).not.toContain('[[歌詞]]');
-  });
-
   it('boxes the label and the lyric lines that follow it', () => {
-    const md = '## 曲の見出し\n\n[[歌詞]]\n\n[Intro]\n\n朝の風だね\n\nペダルを踏んで';
+    const md = '## 曲の見出し\n\n**歌詞**\n\n[Intro]\n\n朝の風だね\n\nペダルを踏んで';
     const out = wrapLyricsBlocks(md);
     expect(out).toContain('<div class="lyrics"><p class="lyrics-label">歌詞</p>');
     expect(out).toContain('<p class="lyrics-part">[Intro]</p>');
@@ -267,28 +198,22 @@ describe('wrapLyricsBlocks', () => {
   });
 
   it('stops at the next heading', () => {
-    const md = '[[歌詞]]\n\n一行目\n\n## 次の見出し\n\n本文です。';
+    const md = '**歌詞**\n\n一行目\n\n## 次の見出し\n\n本文です。';
     const out = wrapLyricsBlocks(md);
     expect(out).toContain('<p class="lyrics-line">一行目</p></div>');
     expect(out).toContain('## 次の見出し');
   });
 
   it('keeps a closing sentence outside the box', () => {
-    const md = '[[歌詞]]\n\n最後の歌詞行\n\n曲になりそうな道があれば、ぜひ教えてください。';
+    const md = '**歌詞**\n\n最後の歌詞行\n\n曲になりそうな道があれば、ぜひ教えてください。';
     const out = wrapLyricsBlocks(md);
     expect(out).toContain('<p class="lyrics-line">最後の歌詞行</p></div>');
     expect(out).toContain('\n\n曲になりそうな道があれば、ぜひ教えてください。');
   });
 
-  it('leaves a lone marker untouched at this stage when no lyric line follows', () => {
-    const md = '[[歌詞]]\n\nこれは歌詞ではなく、文章です。';
-    expect(wrapLyricsBlocks(md)).toBe('**歌詞**\n\nこれは歌詞ではなく、文章です。');
-  });
-
-  it('no longer treats a bold 歌詞 paragraph as a lyrics label', () => {
-    const html = renderMarkdown('**歌詞**\n\n朝の風だね');
-    expect(html).toContain('<strong>歌詞</strong>');
-    expect(html).not.toContain('class="lyrics"');
+  it('leaves a lone label untouched when no lyric line follows', () => {
+    const md = '**歌詞**\n\nこれは歌詞ではなく、文章です。';
+    expect(wrapLyricsBlocks(md)).toBe(md);
   });
 
   it('leaves markdown without the label untouched', () => {
@@ -297,12 +222,12 @@ describe('wrapLyricsBlocks', () => {
   });
 
   it('escapes HTML inside lyric lines', () => {
-    const md = '[[歌詞]]\n\nA & B <tag>';
+    const md = '**歌詞**\n\nA & B <tag>';
     expect(wrapLyricsBlocks(md)).toContain('<p class="lyrics-line">A &amp; B &lt;tag&gt;</p>');
   });
 
   it('renders as a lyrics box through renderMarkdown', () => {
-    const html = renderMarkdown('[[歌詞]]\n\n朝の風だね');
+    const html = renderMarkdown('**歌詞**\n\n朝の風だね');
     expect(html).toContain('<div class="lyrics">');
     expect(html).toContain('<p class="lyrics-line">朝の風だね</p>');
   });
