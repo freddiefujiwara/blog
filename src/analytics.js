@@ -93,6 +93,17 @@ export function trackMusicLatency(ms, method) {
   sendTiming('music_latency', 'latency_ms', ms, { method });
 }
 
+// article_render: how long the reader waited for an article to
+// appear — from the navigation (the page load for the first
+// article, the route change afterwards) until the article body
+// has been painted. render_ms is registered as the custom metric
+// 「記事表示時間」 in GA4, so per-article average display times
+// can be read from the Data API (articles nobody read simply
+// have no data). Same suppression rules as the other events.
+export function trackArticleRender(ms) {
+  sendTiming('article_render', 'render_ms', ms);
+}
+
 export function trackPageView(pagePath) {
   // Staging traffic (previews, ledger articles, checks) must not
   // pollute the production measurement, so send nothing there.

@@ -1,6 +1,7 @@
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { fetchArticle, fetchArticleList, fetchArticleTitles } from '../services/api';
+import { trackArticleRender } from '../analytics';
 import { loadCachedList, saveCachedList } from '../services/listCache';
 import { renderMarkdown } from '../services/markdown';
 import {
@@ -211,8 +212,35 @@ export function useBlog() {
     });
   };
 
-  const loadArticleFromLocation = async () => {
+  // Article ids whose display time has already been reported in
+  // this session: one sample per article keeps the GA averages
+  // focused on first displays instead of instant cache revisits.
+  const reportedRenderIds = new Set();
+
+  // Reports the article's display time once Vue has rendered the
+  // body and the browser has had a frame to paint it. `startedAt`
+  // is a performance.now() timestamp taken when the navigation
+  // began; for the first article it is 0, because performance.now()
+  // already counts from the start of the page load.
+  const reportArticleRender = (id, startedAt) => {
+    if (!id || reportedRenderIds.has(id)) return;
+    reportedRenderIds.add(id);
+    nextTick(() => {
+      const raf =
+        typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+          ? window.requestAnimationFrame.bind(window)
+          : null;
+      if (raf) {
+        raf(() => trackArticleRender(performance.now() - startedAt));
+      } else {
+        trackArticleRender(performance.now() - startedAt);
+      }
+    });
+  };
+
+  const loadArticleFromLocation = async (initial = false) => {
     if (loading.value) return;
+    const startedAt = initial ? 0 : performance.now();
     loading.value = true;
     try {
       const usedCachedList = primeListFromCache();
@@ -255,6 +283,7 @@ export function useBlog() {
       article.value = null;
       errorMessage.value = '';
       await getArticle(articleId);
+      reportArticleRender(articleId, startedAt);
       prefetch();
     } finally {
       loading.value = false;
@@ -263,7 +292,7 @@ export function useBlog() {
 
   onMounted(async () => {
     try {
-      await loadArticleFromLocation();
+      await loadArticleFromLocation(true);
     } catch (error) {
       errorMessage.value = error?.message ?? '読み込みに失敗しました。';
     }

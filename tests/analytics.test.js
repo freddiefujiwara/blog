@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
+import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, trackArticleRender, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -106,6 +106,26 @@ describe('analytics (GA4 page-view tracking)', () => {
     window.gtag = vi.fn();
     trackMusicReady(100);
     trackMusicLatency(100, 'button');
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  it('sends an article_render event with the rounded milliseconds', () => {
+    window.gtag = vi.fn();
+    trackArticleRender(987.6);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render', { render_ms: 988 });
+  });
+
+  it('article_render ignores unusable values', () => {
+    window.gtag = vi.fn();
+    trackArticleRender(Number.NaN);
+    trackArticleRender(-1);
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  it('sends no article_render on a staging build', () => {
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    window.gtag = vi.fn();
+    trackArticleRender(100);
     expect(window.gtag).not.toHaveBeenCalled();
   });
 
