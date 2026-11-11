@@ -76,7 +76,7 @@ describe('App', () => {
     expect(wrapper.find('.footer-link a').attributes('href')).toBe('/blog/latest-id');
   });
 
-  it('groups the 15 footer links under 4 headings', async () => {
+  it('groups the 16 footer links under 5 headings', async () => {
     const wrapper = mount(App, {
       global: {
         plugins: [router]
@@ -87,12 +87,13 @@ describe('App', () => {
     const groups = wrapper.findAll('.site-footer .foot-group');
     expect(groups.map((g) => g.find('.foot-group-title').text())).toEqual([
       'このサイト',
+      '自作ツール',
       'SNS',
       '口コミ',
       'プロフィール・その他'
     ]);
-    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 3, 4, 4]);
-    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(15);
+    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 1, 3, 4, 4]);
+    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(16);
   });
 
   it('renders RSS link in the footer', async () => {
