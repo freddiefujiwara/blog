@@ -34,9 +34,36 @@ export const isBlogInternalUrl = (href) => {
   return /^https?:\/\/freddiefujiwara\.com\/blog(\/|$)/.test(href);
 };
 
+// The site's own short URLs whose destinations live inside the site
+// (docs/site-chrome.md section 8 on the top repository). Article links
+// to them stay in the same tab, like /blog links: the stub page
+// forwards internal arrivals immediately, so no guide page appears
+// in between. Short URLs that point outside the site (instagram,
+// room, ...) stay new-tab links.
+const SITE_SHORT_URL_PATHS = [
+  '/map',
+  '/bucket-list',
+  '/list-of-stuff',
+  '/music',
+  '/chinese',
+];
+
+export const isSiteShortUrl = (href) => {
+  if (!href) return false;
+  let path = null;
+  if (href.startsWith('/') && !href.startsWith('//')) {
+    path = href;
+  } else {
+    const match = href.match(/^https?:\/\/freddiefujiwara\.com(\/[^?#]*)/i);
+    if (match) path = match[1];
+  }
+  if (path === null) return false;
+  return SITE_SHORT_URL_PATHS.includes(path.replace(/\/$/, '') || '/');
+};
+
 export const opensInNewTab = (href) => {
   if (!href || href.startsWith('#')) return false;
-  if (isBlogInternalUrl(href)) return false;
+  if (isBlogInternalUrl(href) || isSiteShortUrl(href)) return false;
   return /^https?:\/\//i.test(href) || href.startsWith('/');
 };
 

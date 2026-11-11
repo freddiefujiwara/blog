@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks, wrapTables } from '../../src/services/markdown';
+import { extractTocFromHtml, hashHeadingText, opensInNewTab, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks, wrapTables } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -76,10 +76,19 @@ describe('renderMarkdown link targets', () => {
   });
 
   it('opens other apps on the same site in a new tab', () => {
-    const html = renderMarkdown('[持ち物](https://freddiefujiwara.com/list-of-stuff/)');
+    const html = renderMarkdown('[健康](https://freddiefujiwara.com/health/)');
     expect(html).toContain('target="_blank"');
-    const pathHtml = renderMarkdown('[持ち物](/list-of-stuff/)');
+    const pathHtml = renderMarkdown('[健康](/health/)');
     expect(pathHtml).toContain('target="_blank"');
+  });
+
+  it('keeps the site short URLs with internal destinations in the same tab', () => {
+    const html = renderMarkdown('[持ち物](https://freddiefujiwara.com/list-of-stuff/)');
+    expect(html).toContain('<a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a>');
+    expect(html).not.toContain('target=');
+    const pathHtml = renderMarkdown('[川口の歌](/music)');
+    expect(pathHtml).toContain('<a href="/music">川口の歌</a>');
+    expect(pathHtml).not.toContain('target=');
   });
 
   it('keeps links under /blog in the same tab', () => {
@@ -260,5 +269,29 @@ describe('wrapLyricsBlocks', () => {
     const html = renderMarkdown('**歌詞**\n\n朝の風だね');
     expect(html).toContain('<div class="lyrics">');
     expect(html).toContain('<p class="lyrics-line">朝の風だね</p>');
+  });
+});
+
+describe('opensInNewTab', () => {
+  it('keeps /blog links in the same tab', () => {
+    expect(opensInNewTab('/blog/some-id')).toBe(false);
+    expect(opensInNewTab('https://freddiefujiwara.com/blog/some-id')).toBe(false);
+  });
+
+  it('keeps the site short URLs with internal destinations in the same tab', () => {
+    expect(opensInNewTab('https://freddiefujiwara.com/music')).toBe(false);
+    expect(opensInNewTab('/music')).toBe(false);
+    expect(opensInNewTab('/map/')).toBe(false);
+    expect(opensInNewTab('https://freddiefujiwara.com/chinese')).toBe(false);
+  });
+
+  it('opens short URLs that leave the site in a new tab', () => {
+    expect(opensInNewTab('https://freddiefujiwara.com/instagram')).toBe(true);
+    expect(opensInNewTab('/room')).toBe(true);
+  });
+
+  it('opens external links in a new tab and anchors in the same tab', () => {
+    expect(opensInNewTab('https://example.com/')).toBe(true);
+    expect(opensInNewTab('#toc')).toBe(false);
   });
 });
