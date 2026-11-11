@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks } from '../../src/services/markdown';
+import { extractTocFromHtml, hashHeadingText, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks, wrapTables } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -36,6 +36,36 @@ describe('renderMarkdown', () => {
   it('leaves non-heading content as before', () => {
     const html = renderMarkdown('ただの本文です');
     expect(html).toContain('<p>ただの本文です</p>');
+  });
+});
+
+describe('renderMarkdown tables', () => {
+  it('wraps a table in a horizontally scrollable box', () => {
+    const html = renderMarkdown('| 名前 | 値 |\n| --- | --- |\n| freddiefujiwara.github.io | 8.8 MB |');
+    expect(html).toContain('<div class="table-wrap"><table>');
+    expect(html).toContain('</table></div>');
+  });
+
+  it('wraps every table when an article has several', () => {
+    const md = '| A |\n| --- |\n| 1 |\n\n| B |\n| --- |\n| 2 |';
+    const html = renderMarkdown(md);
+    expect(html.split('<div class="table-wrap">')).toHaveLength(3);
+  });
+
+  it('does not wrap an escaped table inside a code block', () => {
+    const html = renderMarkdown('```\n<table>\n```');
+    expect(html).not.toContain('table-wrap');
+  });
+});
+
+describe('wrapTables', () => {
+  it('leaves table-less HTML unchanged', () => {
+    expect(wrapTables('<p>本文です</p>')).toBe('<p>本文です</p>');
+  });
+
+  it('keeps attributes on the table tag', () => {
+    expect(wrapTables('<table class="x"><tr><td>1</td></tr></table>'))
+      .toBe('<div class="table-wrap"><table class="x"><tr><td>1</td></tr></table></div>');
   });
 });
 
