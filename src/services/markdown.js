@@ -176,6 +176,17 @@ export const wrapLyricsBlocks = (markdown) => {
   return out.join('\n\n');
 };
 
+// Wraps every table in a horizontally scrollable box. A table whose
+// columns cannot shrink below the article width (long unbreakable
+// cell text across several columns) otherwise widens the whole page
+// on phones; inside the box the table scrolls sideways on its own,
+// the same arrangement pre blocks already use. Runs on the rendered
+// HTML, where a literal <table> only ever comes from a real table
+// (inside code blocks it is escaped).
+export const wrapTables = (html) => String(html ?? '')
+  .replace(/<table(\s[^>]*)?>/g, '<div class="table-wrap"><table$1>')
+  .replace(/<\/table>/g, '</table></div>');
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
@@ -199,5 +210,5 @@ export const renderMarkdown = (markdown) => {
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${level} id="${id}">${text}</h${level}>\n`;
   };
-  return marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer });
+  return wrapTables(marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer }));
 };
