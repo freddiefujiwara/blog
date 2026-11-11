@@ -42,6 +42,13 @@ describe('OGP link cards', () => {
     expect(block).not.toBe('');
     expect(block).toMatch(/-webkit-line-clamp:\s*2/);
   });
+
+  it('grays out images flagged .is-grayout', () => {
+    const block = blockFor('article img.is-grayout');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/opacity:\s*\.55/);
+    expect(block).toMatch(/filter:\s*grayscale\(1\)/);
+  });
 });
 
 describe('compact one-line navigation', () => {
