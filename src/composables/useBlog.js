@@ -1,6 +1,8 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { fetchArticle, fetchArticleList, fetchArticleTitles } from '../services/api';
+import { staticPagePathFor } from '../services/staticPages';
+import { isStagingBuild } from '../staging-banner.js';
 import { trackArticleRender } from '../analytics';
 import { loadCachedList, saveCachedList } from '../services/listCache';
 import { renderMarkdown } from '../services/markdown';
@@ -94,6 +96,22 @@ export function useBlog() {
     } catch (error) {
       throw error;
     }
+  };
+
+  // Some special articles also exist as static pages on the top
+  // site. Send the reader there directly instead of fetching the
+  // article body from the API. Staging builds stay self-contained,
+  // so the staging article pages can still be checked as articles.
+  const redirectToStaticPage = (id) => {
+    if (isStagingBuild()) {
+      return false;
+    }
+    const path = staticPagePathFor(id);
+    if (!path) {
+      return false;
+    }
+    window.location.replace(path);
+    return true;
   };
 
   const getLocationContext = () => {
@@ -249,6 +267,9 @@ export function useBlog() {
       const requestedId = route
         ? route.params?.id || ''
         : extractRequestedId(getLocationContext());
+      if (redirectToStaticPage(requestedId)) {
+        return;
+      }
       if (requestedId) {
         startArticleFetch(requestedId);
       }
@@ -269,6 +290,10 @@ export function useBlog() {
       const articleId = resolveArticleId(ids, getLocationContext());
       if (!articleId) {
         throw new Error('最新記事が見つかりませんでした。');
+      }
+
+      if (redirectToStaticPage(articleId)) {
+        return;
       }
 
       if (route && (route.path === '/' || (route.params.id && route.params.id !== articleId))) {
