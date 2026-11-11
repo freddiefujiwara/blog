@@ -92,8 +92,8 @@ describe('App', () => {
       '口コミ',
       'プロフィール・その他'
     ]);
-    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 1, 3, 4, 4]);
-    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(16);
+    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 8, 3, 4, 4]);
+    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(23);
   });
 
   it('renders RSS link in the footer', async () => {
