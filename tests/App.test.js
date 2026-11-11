@@ -87,12 +87,12 @@ describe('App', () => {
     const groups = wrapper.findAll('.site-footer .foot-group');
     expect(groups.map((g) => g.find('.foot-group-title').text())).toEqual([
       'このサイト',
-      '自作ツール',
       'SNS',
       '口コミ',
-      'プロフィール・その他'
+      'プロフィール・その他',
+      '自作ツール'
     ]);
-    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 8, 3, 4, 4]);
+    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 3, 4, 4, 8]);
     expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(23);
   });
 
