@@ -627,4 +627,54 @@ describe('useBlog composable', () => {
       name: 'post',
       params: { id: '9' }
     });
-  });});
+  });
+
+  it('redirects a special article to its static page without fetching it', async () => {
+    const replace = vi.fn();
+    vi.stubGlobal('location', { pathname: '/blog', search: '', hash: '', replace });
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
+
+    mockRoute.path = '/1bNigXcTT-1LSXjUYAlfFQuJPX6U7U3ELeWAfG5XIb58';
+    mockRoute.params = { id: '1bNigXcTT-1LSXjUYAlfFQuJPX6U7U3ELeWAfG5XIb58' };
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(replace).toHaveBeenCalledWith('/map');
+    expect(api.fetchArticle).not.toHaveBeenCalled();
+    expect(wrapper.vm.article).toBeNull();
+  });
+
+  it('redirects when the resolved newest article is a special article', async () => {
+    const replace = vi.fn();
+    vi.stubGlobal('location', { pathname: '/blog', search: '', hash: '', replace });
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1WPrZI3RqXZcBIrVfrvY7Qn6AF-pFBHdNWXcK7PIwokM', '2'],
+      article_cache: []
+    });
+    api.fetchArticle.mockResolvedValue({ id: '2', title: 'Title 2', markdown: '# Content 2' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(replace).toHaveBeenCalledWith('/bucket-list');
+    expect(api.fetchArticle).not.toHaveBeenCalled();
+  });
+
+  it('does not redirect ordinary articles', async () => {
+    const replace = vi.fn();
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/1', replace });
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
+
+    mockRoute.path = '/1';
+    mockRoute.params = { id: '1' };
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(wrapper.vm.article.title).toBe('Title 1');
+  });
+});
