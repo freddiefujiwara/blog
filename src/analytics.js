@@ -4,8 +4,6 @@
 // emits page_view events, driven by the router.
 import { isStagingBuild } from './staging-banner.js';
 
-export const GA_MEASUREMENT_ID = 'G-W2C6FNCW86';
-
 // The router hands us its base-relative full path (e.g. "/<article-id>"),
 // which lacks the app base ("/blog/"). GA expects the real URL path, so
 // put the base back; otherwise one article is recorded under two
