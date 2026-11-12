@@ -221,8 +221,11 @@ export function useBlog() {
   // body and the browser has had a frame to paint it. `startedAt`
   // is a performance.now() timestamp taken when the navigation
   // began; for the first article it is 0, because performance.now()
-  // already counts from the start of the page load.
-  const reportArticleRender = (id, startedAt) => {
+  // already counts from the start of the page load. `phases`
+  // carries the two waits inside the total — the article list
+  // and the article body — measured by loadArticleFromLocation,
+  // so a slow display can be attributed to the leg that stalled.
+  const reportArticleRender = (id, startedAt, phases = {}) => {
     if (!id || reportedRenderIds.has(id)) return;
     reportedRenderIds.add(id);
     nextTick(() => {
@@ -231,9 +234,9 @@ export function useBlog() {
           ? window.requestAnimationFrame.bind(window)
           : null;
       if (raf) {
-        raf(() => trackArticleRender(performance.now() - startedAt));
+        raf(() => trackArticleRender(performance.now() - startedAt, phases));
       } else {
-        trackArticleRender(performance.now() - startedAt);
+        trackArticleRender(performance.now() - startedAt, phases);
       }
     });
   };
@@ -252,6 +255,7 @@ export function useBlog() {
       if (requestedId) {
         startArticleFetch(requestedId);
       }
+      const listStartedAt = performance.now();
       let ids = await getArticleList();
       if (usedCachedList && requestedId && !ids.includes(requestedId)) {
         // The persisted list predates the requested article, so resolving
@@ -266,6 +270,7 @@ export function useBlog() {
           // Keep the persisted list; the fallback below still applies.
         }
       }
+      const listMs = performance.now() - listStartedAt;
       const articleId = resolveArticleId(ids, getLocationContext());
       if (!articleId) {
         throw new Error('最新記事が見つかりませんでした。');
@@ -282,8 +287,10 @@ export function useBlog() {
       }
       article.value = null;
       errorMessage.value = '';
+      const fetchStartedAt = performance.now();
       await getArticle(articleId);
-      reportArticleRender(articleId, startedAt);
+      const fetchMs = performance.now() - fetchStartedAt;
+      reportArticleRender(articleId, startedAt, { listMs, fetchMs });
       prefetch();
     } finally {
       loading.value = false;

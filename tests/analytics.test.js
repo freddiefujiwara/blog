@@ -125,6 +125,62 @@ describe('analytics (GA4 page-view tracking)', () => {
     expect(window.gtag).not.toHaveBeenCalled();
   });
 
+  it('carries the list and fetch waits as parameters of article_render', () => {
+    window.gtag = vi.fn();
+    trackArticleRender(1500, { listMs: 400.4, fetchMs: 1050.6 });
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render', {
+      render_ms: 1500,
+      list_ms: 400,
+      fetch_ms: 1051
+    });
+  });
+
+  it('omits phase parameters that are not usable numbers', () => {
+    window.gtag = vi.fn();
+    trackArticleRender(1500, { listMs: Number.NaN, fetchMs: -3 });
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render', {
+      render_ms: 1500
+    });
+  });
+
+  it('sends article_render_slow alongside at and over ten seconds', () => {
+    window.gtag = vi.fn();
+    trackArticleRender(10000, { listMs: 8000, fetchMs: 1900 });
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render', {
+      render_ms: 10000,
+      list_ms: 8000,
+      fetch_ms: 1900
+    });
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render_slow', {
+      render_ms: 10000,
+      list_ms: 8000,
+      fetch_ms: 1900
+    });
+    window.gtag.mockClear();
+    trackArticleRender(41843);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render_slow', {
+      render_ms: 41843
+    });
+  });
+
+  it('sends no article_render_slow under ten seconds', () => {
+    window.gtag = vi.fn();
+    trackArticleRender(9999, { listMs: 9000, fetchMs: 900 });
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_render', {
+      render_ms: 9999,
+      list_ms: 9000,
+      fetch_ms: 900
+    });
+  });
+
+  it('sends no article_render_slow on a staging build', () => {
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    window.gtag = vi.fn();
+    trackArticleRender(20000, { listMs: 19000, fetchMs: 900 });
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
   it('music_play does nothing when gtag is not loaded', () => {
     expect(() => trackMusicPlay('list')).not.toThrow();
   });
