@@ -3,36 +3,12 @@ import {
   decodeBase64ToBlob,
   destroyMusicPlayer,
   endedPlan,
-  extractMusicTracks,
   fetchTrackBlob,
   formatTime,
   mountMusicPlayer,
   musicTrackApiUrl,
   stepIndex
 } from '../../src/services/musicPlayer';
-
-describe('extractMusicTracks', () => {
-  it('collects placeholders in document order', () => {
-    const html = '<p>本文</p>'
-      + '<div class="music-track" data-title="鳩ヶ谷から浦和まで" data-file="hatogaya-urawa.mp3"></div>'
-      + '<div class="music-track" data-title="朝5:37 芝川サイクリングロードを走ってみた" data-file="shibakawa-cycling-road.mp3"></div>';
-    expect(extractMusicTracks(html)).toEqual([
-      { title: '鳩ヶ谷から浦和まで', file: 'hatogaya-urawa.mp3' },
-      { title: '朝5:37 芝川サイクリングロードを走ってみた', file: 'shibakawa-cycling-road.mp3' }
-    ]);
-  });
-
-  it('unescapes entities in the title', () => {
-    const html = '<div class="music-track" data-title="a&quot;b&amp;c" data-file="x.mp3"></div>';
-    expect(extractMusicTracks(html)).toEqual([{ title: 'a"b&c', file: 'x.mp3' }]);
-  });
-
-  it('ignores malformed placeholders and empty input', () => {
-    expect(extractMusicTracks('<div class="music-track" data-title="曲"></div>')).toEqual([]);
-    expect(extractMusicTracks('')).toEqual([]);
-    expect(extractMusicTracks(null)).toEqual([]);
-  });
-});
 
 describe('musicTrackApiUrl', () => {
   const endpoint = 'https://script.google.com/macros/s/XXXX/exec';

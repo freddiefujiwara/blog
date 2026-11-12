@@ -25,28 +25,6 @@ import { MUSIC_ENDPOINT } from '../constants.js';
 import { trackMusicPlay, trackMusicReady, trackMusicLatency } from '../analytics.js';
 
 const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
-const TRACK_PLACEHOLDER_PATTERN =
-  /<div class="music-track" data-title="([^"]*)" data-file="([A-Za-z0-9_-]+\.mp3)"><\/div>/g;
-
-const unescapeHtml = (text) => String(text ?? '')
-  .replace(/&quot;/g, '"')
-  .replace(/&apos;/g, "'")
-  .replace(/&lt;/g, '<')
-  .replace(/&gt;/g, '>')
-  .replace(/&amp;/g, '&');
-
-// The tracks an article HTML declares, in order. Used to decide
-// whether the player is needed at all and covered by unit tests;
-// the mount below re-reads the same data from the live DOM.
-export const extractMusicTracks = (html) => {
-  const tracks = [];
-  const pattern = new RegExp(TRACK_PLACEHOLDER_PATTERN.source, 'g');
-  let match;
-  while ((match = pattern.exec(String(html ?? ''))) !== null) {
-    tracks.push({ title: unescapeHtml(match[1]), file: match[2] });
-  }
-  return tracks;
-};
 
 // The music-gas request URL for one track. The file name is
 // validated again here so a malformed placeholder can never make

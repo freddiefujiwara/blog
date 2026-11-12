@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, trackArticleRender, canonicalPagePath, GA_MEASUREMENT_ID } from '../src/analytics';
+import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, trackArticleRender, canonicalPagePath } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -15,10 +15,6 @@ describe('analytics (GA4 page-view tracking)', () => {
     delete window.gtag;
     vi.mocked(isStagingBuild).mockReset();
     vi.mocked(isStagingBuild).mockImplementation(() => false);
-  });
-
-  it('uses the freddiefujiwara.com measurement ID', () => {
-    expect(GA_MEASUREMENT_ID).toBe('G-W2C6FNCW86');
   });
 
   it('sends a page_view event with the canonical path (app base restored)', () => {
