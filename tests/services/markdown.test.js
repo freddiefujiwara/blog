@@ -288,49 +288,62 @@ describe('splitHtmlAtTocMarkers', () => {
 });
 
 describe('wrapLyricsBlocks', () => {
-  it('boxes the label and the lyric lines that follow it', () => {
-    const md = '## 曲の見出し\n\n**歌詞**\n\n[Intro]\n\n朝の風だね\n\nペダルを踏んで';
+  it('boxes the [[歌詞]] marker and the lyric lines that follow it', () => {
+    const md = '## 曲の見出し\n\n[[歌詞]]\n\n[Intro]\n\n朝の風だね\n\nペダルを踏んで';
     const out = wrapLyricsBlocks(md);
     expect(out).toContain('<div class="lyrics"><p class="lyrics-label">歌詞</p>');
     expect(out).toContain('<p class="lyrics-part">[Intro]</p>');
     expect(out).toContain('<p class="lyrics-line">朝の風だね</p>');
     expect(out).toContain('<p class="lyrics-line">ペダルを踏んで</p></div>');
     expect(out).toContain('## 曲の見出し');
+    expect(out).not.toContain('[[歌詞]]');
+  });
+
+  it('accepts the full-width marker variant', () => {
+    const out = wrapLyricsBlocks('［［歌詞］］\n\n朝の風だね');
+    expect(out).toContain('<div class="lyrics">');
+    expect(out).toContain('<p class="lyrics-line">朝の風だね</p>');
+  });
+
+  it('does not treat a bold 歌詞 paragraph as the label', () => {
+    const md = '**歌詞**\n\n朝の風だね';
+    expect(wrapLyricsBlocks(md)).toBe(md);
   });
 
   it('stops at the next heading', () => {
-    const md = '**歌詞**\n\n一行目\n\n## 次の見出し\n\n本文です。';
+    const md = '[[歌詞]]\n\n一行目\n\n## 次の見出し\n\n本文です。';
     const out = wrapLyricsBlocks(md);
     expect(out).toContain('<p class="lyrics-line">一行目</p></div>');
     expect(out).toContain('## 次の見出し');
   });
 
   it('keeps a closing sentence outside the box', () => {
-    const md = '**歌詞**\n\n最後の歌詞行\n\n曲になりそうな道があれば、ぜひ教えてください。';
+    const md = '[[歌詞]]\n\n最後の歌詞行\n\n曲になりそうな道があれば、ぜひ教えてください。';
     const out = wrapLyricsBlocks(md);
     expect(out).toContain('<p class="lyrics-line">最後の歌詞行</p></div>');
     expect(out).toContain('\n\n曲になりそうな道があれば、ぜひ教えてください。');
   });
 
-  it('leaves a lone label untouched when no lyric line follows', () => {
-    const md = '**歌詞**\n\nこれは歌詞ではなく、文章です。';
-    expect(wrapLyricsBlocks(md)).toBe(md);
+  it('replaces a lone marker with the bold label so it never leaks as-is', () => {
+    const md = '[[歌詞]]\n\nこれは歌詞ではなく、文章です。';
+    expect(wrapLyricsBlocks(md)).toBe('**歌詞**\n\nこれは歌詞ではなく、文章です。');
   });
 
-  it('leaves markdown without the label untouched', () => {
+  it('leaves markdown without the marker untouched', () => {
     const md = '## 見出し\n\n普通の段落です。\n\n短い行';
     expect(wrapLyricsBlocks(md)).toBe(md);
   });
 
   it('escapes HTML inside lyric lines', () => {
-    const md = '**歌詞**\n\nA & B <tag>';
+    const md = '[[歌詞]]\n\nA & B <tag>';
     expect(wrapLyricsBlocks(md)).toContain('<p class="lyrics-line">A &amp; B &lt;tag&gt;</p>');
   });
 
   it('renders as a lyrics box through renderMarkdown', () => {
-    const html = renderMarkdown('**歌詞**\n\n朝の風だね');
+    const html = renderMarkdown('[[歌詞]]\n\n朝の風だね');
     expect(html).toContain('<div class="lyrics">');
     expect(html).toContain('<p class="lyrics-line">朝の風だね</p>');
+    expect(html).not.toContain('[[歌詞]]');
   });
 });
 
