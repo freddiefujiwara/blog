@@ -1,19 +1,25 @@
 import { marked } from 'marked';
 
-// Hashes a heading's text into a short ASCII id (FNV-1a, 32-bit).
-// Heading text itself is not used as the id: non-ASCII fragments do
-// not scroll reliably in every browser (notably Safari/WebKit), so
-// the id stays plain ASCII and the fragment URL is safe anywhere.
-// The mapping is deterministic — the fragment for a heading is
-// always "#" + hashHeadingText(heading text).
-export const hashHeadingText = (text) => {
+// Hashes a text into a short ASCII id (FNV-1a, 32-bit). The text
+// itself is not used as the id: non-ASCII fragments do not scroll
+// reliably in every browser (notably Safari/WebKit), so the id stays
+// plain ASCII and the fragment URL is safe anywhere. The mapping is
+// deterministic — the fragment for a text is always the same.
+const fnv1aHex = (text) => {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
-  return `h-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return (hash >>> 0).toString(16).padStart(8, '0');
 };
+
+export const hashHeadingText = (text) => `h-${fnv1aHex(text)}`;
+
+// Anchored entries (see expandAnchorMarkers) receive an anchor id
+// hashed from their title text, so one entry can be shared with a
+// fragment URL: /blog/<articleId>#item-xxxxxxxx
+export const hashItemText = (text) => `item-${fnv1aHex(text)}`;
 
 // Renders an article's markdown to HTML. Headings receive the
 // hashed id of their text, so another part of the same article (for
@@ -214,6 +220,61 @@ export const wrapTables = (html) => String(html ?? '')
   .replace(/<table(\s[^>]*)?>/g, '<div class="table-wrap"><table$1>')
   .replace(/<\/table>/g, '</table></div>');
 
+// An author can make an entry shareable by putting a paragraph that
+// contains only "[[アンカーリンク]]" after the entry (the full-width
+// bracket variant is accepted too, like the [[目次]] marker). The
+// marker binds to the most recent bold-only paragraph above it —
+// the entry's title: the title is rewritten with an anchor id
+// (hashed from its text, see hashItemText) and the marker itself is
+// replaced by a small "この項目へのリンク" line pointing at it, so
+// a reader can pick up the entry's fragment URL from the page. A
+// heading or a successful binding clears the candidate title, and a
+// marker with no title above it is dropped silently. Ids are unique
+// within one article: repeated titles gain "-2", "-3", ... suffixes.
+const ANCHOR_MARKER_PATTERN = /^(?:\[\[アンカーリンク\]\]|［［アンカーリンク］］)$/;
+const BOLD_ONLY_PATTERN = /^\*\*([^*]+)\*\*$/;
+
+export const expandAnchorMarkers = (markdown) => {
+  const blocks = String(markdown ?? '').split(/\n{2,}/);
+  const seen = new Map();
+  const out = [];
+  let candidateIndex = -1;
+  let candidateTitle = '';
+  blocks.forEach((block) => {
+    const trimmed = block.trim();
+    if (trimmed.startsWith('#')) {
+      candidateIndex = -1;
+      candidateTitle = '';
+      out.push(block);
+      return;
+    }
+    const bold = trimmed.match(BOLD_ONLY_PATTERN);
+    if (bold) {
+      candidateIndex = out.length;
+      candidateTitle = bold[1].trim();
+      out.push(block);
+      return;
+    }
+    if (ANCHOR_MARKER_PATTERN.test(trimmed)) {
+      if (candidateIndex < 0) {
+        out.push('');
+        return;
+      }
+      const count = (seen.get(candidateTitle) ?? 0) + 1;
+      seen.set(candidateTitle, count);
+      const base = hashItemText(candidateTitle);
+      const id = count === 1 ? base : `${base}-${count}`;
+      out[candidateIndex] = `<p id="${id}"><strong>${escapeHtmlText(candidateTitle)}</strong></p>`;
+      candidateIndex = -1;
+      candidateTitle = '';
+      out.push(`<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`);
+      return;
+    }
+    out.push(block);
+  });
+  return out.join('\n\n');
+};
+
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
@@ -237,5 +298,5 @@ export const renderMarkdown = (markdown) => {
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${level} id="${id}">${text}</h${level}>\n`;
   };
-  return wrapTables(marked.parse(wrapLyricsBlocks(delimitBareUrls(markdown ?? '')), { renderer }));
+  return wrapTables(marked.parse(expandAnchorMarkers(wrapLyricsBlocks(delimitBareUrls(markdown ?? ''))), { renderer }));
 };
