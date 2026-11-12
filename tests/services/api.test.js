@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { buildSearchableArticles, fetchArticle, fetchArticleList, fetchArticleTitles, fetchRSS } from '../../src/services/api';
+import { API_MAX_ATTEMPTS, API_TIMEOUT_MS, buildSearchableArticles, fetchArticle, fetchArticleList, fetchArticleTitles, fetchRSS } from '../../src/services/api';
+
+const fetchOptions = () => expect.objectContaining({ signal: expect.any(AbortSignal) });
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../../src/constants';
 
 describe('api service', () => {
@@ -20,13 +22,14 @@ describe('api service', () => {
       });
 
       const result = await fetchRSS();
-      expect(fetch).toHaveBeenCalledWith(RSS_ENDPOINT);
+      expect(fetch).toHaveBeenCalledWith(RSS_ENDPOINT, fetchOptions());
       expect(result).toBe(mockXml);
     });
 
     it('throws error when response is not ok', async () => {
       fetch.mockResolvedValueOnce({
-        ok: false
+        ok: false,
+        status: 400
       });
 
       await expect(fetchRSS()).rejects.toThrow('RSSの取得に失敗しました。');
@@ -42,13 +45,14 @@ describe('api service', () => {
       });
 
       const result = await fetchArticle('1');
-      expect(fetch).toHaveBeenCalledWith(`${LIST_ENDPOINT}?id=1`);
+      expect(fetch).toHaveBeenCalledWith(`${LIST_ENDPOINT}?id=1`, fetchOptions());
       expect(result).toEqual(mockArticle);
     });
 
     it('throws error when response is not ok', async () => {
       fetch.mockResolvedValueOnce({
-        ok: false
+        ok: false,
+        status: 400
       });
 
       await expect(fetchArticle('1')).rejects.toThrow('記事の取得に失敗しました。');
@@ -67,13 +71,14 @@ describe('api service', () => {
       });
 
       const result = await fetchArticleList();
-      expect(fetch).toHaveBeenCalledWith(LIST_ENDPOINT);
+      expect(fetch).toHaveBeenCalledWith(LIST_ENDPOINT, fetchOptions());
       expect(result).toEqual(mockResponse);
     });
 
     it('throws error when response is not ok', async () => {
       fetch.mockResolvedValueOnce({
-        ok: false
+        ok: false,
+        status: 400
       });
 
       await expect(fetchArticleList()).rejects.toThrow('記事一覧の取得に失敗しました。');
@@ -110,13 +115,14 @@ describe('api service', () => {
       });
 
       const result = await fetchArticleTitles();
-      expect(fetch).toHaveBeenCalledWith(`${LIST_ENDPOINT}?o=titles`);
+      expect(fetch).toHaveBeenCalledWith(`${LIST_ENDPOINT}?o=titles`, fetchOptions());
       expect(result).toEqual(mockResponse);
     });
 
     it('throws error when response is not ok', async () => {
       fetch.mockResolvedValueOnce({
-        ok: false
+        ok: false,
+        status: 400
       });
 
       await expect(fetchArticleTitles()).rejects.toThrow('記事タイトル一覧の取得に失敗しました。');
@@ -129,6 +135,75 @@ describe('api service', () => {
       });
 
       await expect(fetchArticleTitles()).rejects.toThrow('最新記事が見つかりませんでした。');
+    });
+  });
+
+  describe('apiFetch retries', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('retries after a network error and succeeds', async () => {
+      vi.useFakeTimers();
+      const mockArticle = { id: '1', title: 'Test', markdown: 'Content' };
+      fetch
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockArticle) });
+
+      const promise = fetchArticle('1');
+      await vi.advanceTimersByTimeAsync(600);
+      await expect(promise).resolves.toEqual(mockArticle);
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries on a 5xx response and succeeds', async () => {
+      vi.useFakeTimers();
+      const mockArticle = { id: '1', title: 'Test', markdown: 'Content' };
+      fetch
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockArticle) });
+
+      const promise = fetchArticle('1');
+      await vi.advanceTimersByTimeAsync(600);
+      await expect(promise).resolves.toEqual(mockArticle);
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry a 4xx response', async () => {
+      fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+      await expect(fetchArticle('1')).rejects.toThrow('記事の取得に失敗しました。');
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up after the maximum attempts on persistent network errors', async () => {
+      vi.useFakeTimers();
+      fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      const promise = fetchArticle('1');
+      const expectation = expect(promise).rejects.toThrow('Failed to fetch');
+      await vi.advanceTimersByTimeAsync(600 + 1500);
+      await expectation;
+      expect(fetch).toHaveBeenCalledTimes(API_MAX_ATTEMPTS);
+    });
+
+    it('aborts a stalled request at the timeout and retries', async () => {
+      vi.useFakeTimers();
+      const mockArticle = { id: '1', title: 'Test', markdown: 'Content' };
+      fetch
+        .mockImplementationOnce((url, options) => new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            const error = new Error('The operation was aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        }))
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockArticle) });
+
+      const promise = fetchArticle('1');
+      await vi.advanceTimersByTimeAsync(API_TIMEOUT_MS + 600);
+      await expect(promise).resolves.toEqual(mockArticle);
+      expect(fetch).toHaveBeenCalledTimes(2);
     });
   });
 

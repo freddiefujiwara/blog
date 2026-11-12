@@ -1,10 +1,61 @@
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../constants';
 import { isStagingBuild } from '../staging-banner';
 
-// Staging previews bypass the browser's HTTP cache for API responses,
-// so a reload always shows the current data. Production keeps the
-// default caching behavior.
-const apiFetch = (url) => (isStagingBuild() ? fetch(url, { cache: 'no-store' }) : fetch(url));
+// The GAS web app sometimes drops a request before the code runs
+// (instant failures) or leaves it hanging (observed at 60s+ on
+// 2026-11-12), so every API call gets a hard timeout and retries:
+// a stalled attempt is aborted and re-issued instead of leaving
+// the page on a spinner forever. 20s is generous for a warm read
+// (normally 1–4s); a cold conversion that outlasts it usually
+// completes on the server anyway, and the retry then reads the
+// stored result.
+export const API_TIMEOUT_MS = 20000;
+export const API_MAX_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [600, 1500];
+
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+const fetchOnce = async (url) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    const options = { signal: controller.signal };
+    // Staging previews bypass the browser's HTTP cache for API
+    // responses, so a reload always shows the current data.
+    // Production keeps the default caching behavior.
+    if (isStagingBuild()) options.cache = 'no-store';
+    return await fetch(url, options);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+// Read-only GET with retries. Network errors, timeouts and 5xx
+// responses are retried; anything else is returned as-is because
+// retrying it cannot help. The final attempt's outcome is what
+// the caller sees (a response to check, or the error thrown).
+export const apiFetch = async (url) => {
+  let lastError = null;
+  for (let attempt = 0; attempt < API_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetchOnce(url);
+      // Real Responses always carry a numeric status; the ok
+      // fallback only matters for hand-rolled response doubles.
+      const retryable = typeof response?.status === 'number' ? response.status >= 500 : !response?.ok;
+      if (!retryable || attempt === API_MAX_ATTEMPTS - 1) {
+        return response;
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === API_MAX_ATTEMPTS - 1) {
+        throw error;
+      }
+    }
+    await sleep(RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]);
+  }
+  throw lastError;
+};
 
 export const fetchRSS = async () => {
   const response = await apiFetch(RSS_ENDPOINT);
