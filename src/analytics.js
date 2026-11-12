@@ -98,8 +98,43 @@ export function trackMusicLatency(ms, method) {
 // 「記事表示時間」 in GA4, so per-article average display times
 // can be read from the Data API (articles nobody read simply
 // have no data). Same suppression rules as the other events.
-export function trackArticleRender(ms) {
-  sendTiming('article_render', 'render_ms', ms);
+//
+// The event also carries the two waits that make up the total —
+// list_ms (until the article list resolved) and fetch_ms (until
+// the article body arrived) — so a slow display can be told
+// apart by which leg stalled. The parameters ride along from
+// the start; reading them back as averages needs them registered
+// as custom metrics in GA4 as well.
+//
+// A display at or over SLOW_RENDER_THRESHOLD_MS also sends the
+// companion event article_render_slow. An average alone cannot
+// tell one stalled load from uniformly slow displays (the map
+// article's 2026-11-12 average of 7.5s was six ~1.8s displays
+// and one 41.8s stall); counting the slow event per article —
+// a plain event count, which needs no custom metric — makes
+// the outliers visible in the collected data.
+export const SLOW_RENDER_THRESHOLD_MS = 10000;
+
+const phaseParam = (value) => {
+  const rounded = Math.round(Number(value));
+  return Number.isFinite(rounded) && rounded >= 0 ? rounded : undefined;
+};
+
+export function trackArticleRender(ms, phases = {}) {
+  const extra = {};
+  const listMs = phaseParam(phases.listMs);
+  if (listMs !== undefined) {
+    extra.list_ms = listMs;
+  }
+  const fetchMs = phaseParam(phases.fetchMs);
+  if (fetchMs !== undefined) {
+    extra.fetch_ms = fetchMs;
+  }
+  sendTiming('article_render', 'render_ms', ms, extra);
+  const value = Math.round(Number(ms));
+  if (Number.isFinite(value) && value >= SLOW_RENDER_THRESHOLD_MS) {
+    sendTiming('article_render_slow', 'render_ms', ms, extra);
+  }
 }
 
 export function trackPageView(pagePath) {
