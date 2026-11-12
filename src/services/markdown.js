@@ -278,12 +278,16 @@ export const expandAnchorMarkers = (markdown) => {
 export const renderMarkdown = (markdown) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
-  renderer.link = (href, title, text) => {
+  // marked v13+ のレンダラ API: メソッドはトークンオブジェクトを受け取り、
+  // インラインの HTML は this.parser.parseInline(tokens) で得る。
+  renderer.link = function ({ href, title, tokens }) {
+    const text = this.parser.parseInline(tokens);
     const titleAttr = title ? ` title="${title}"` : '';
     const target = opensInNewTab(href) ? ' target="_blank" rel="noopener noreferrer"' : '';
     return `<a href="${href}"${titleAttr}${target}>${text}</a>`;
   };
-  renderer.heading = (text, level) => {
+  renderer.heading = function ({ tokens, depth }) {
+    const text = this.parser.parseInline(tokens);
     const plain = text
       .replace(/<[^>]*>/g, '')
       .replace(/&amp;/g, '&')
@@ -296,7 +300,7 @@ export const renderMarkdown = (markdown) => {
     seen.set(plain, count);
     const base = hashHeadingText(plain);
     const id = count === 1 ? base : `${base}-${count}`;
-    return `<h${level} id="${id}">${text}</h${level}>\n`;
+    return `<h${depth} id="${id}">${text}</h${depth}>\n`;
   };
   return wrapTables(marked.parse(expandAnchorMarkers(wrapLyricsBlocks(delimitBareUrls(markdown ?? ''))), { renderer }));
 };
