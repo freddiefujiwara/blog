@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, trackArticleRender, canonicalPagePath } from '../src/analytics';
+import { trackPageView, trackNavClick, trackMusicPlay, trackMusicReady, trackMusicLatency, trackArticleRender, trackArticleScroll, canonicalPagePath } from '../src/analytics';
 import { isStagingBuild } from '../src/staging-banner.js';
 
 vi.mock('../src/staging-banner.js', async (importOriginal) => {
@@ -189,6 +189,42 @@ describe('analytics (GA4 page-view tracking)', () => {
     vi.mocked(isStagingBuild).mockReturnValue(true);
     window.gtag = vi.fn();
     trackMusicPlay('button');
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+});
+
+describe('analytics article_scroll (reading depth)', () => {
+  afterEach(() => {
+    delete window.gtag;
+    vi.mocked(isStagingBuild).mockReset();
+    vi.mocked(isStagingBuild).mockImplementation(() => false);
+  });
+
+  it('sends an article_scroll event with the reached threshold', () => {
+    window.gtag = vi.fn();
+    trackArticleScroll(50);
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'article_scroll', {
+      percent_scrolled: 50,
+    });
+  });
+
+  it('drops values outside the threshold set', () => {
+    window.gtag = vi.fn();
+    trackArticleScroll(30);
+    trackArticleScroll(0);
+    trackArticleScroll('50');
+    expect(window.gtag).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when gtag is not loaded', () => {
+    expect(() => trackArticleScroll(100)).not.toThrow();
+  });
+
+  it('sends nothing on a staging build', () => {
+    vi.mocked(isStagingBuild).mockReturnValue(true);
+    window.gtag = vi.fn();
+    trackArticleScroll(100);
     expect(window.gtag).not.toHaveBeenCalled();
   });
 });

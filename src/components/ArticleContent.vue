@@ -22,6 +22,8 @@ import TagChips from './TagChips.vue';
 import { splitHtmlAtTocMarkers } from '../services/markdown.js';
 import { extractArticleTags } from '../services/tags.js';
 import { destroyMusicPlayer, mountMusicPlayer } from '../services/musicPlayer.js';
+import { createScrollDepthTracker } from '../services/scrollDepth.js';
+import { trackArticleScroll } from '../analytics.js';
 import { LINK_CARD_FALLBACK_IMAGE } from '../constants.js';
 
 const props = defineProps({
@@ -101,6 +103,18 @@ const scrollToFragment = () => {
   }
 };
 
+// Reading depth is measured per article view: a fresh tracker
+// starts after each article render (so its reported thresholds
+// reset when the article changes) and reports the 25/50/75/100%
+// marks as article_scroll events.
+let scrollTracker = null;
+
+const restartScrollTracking = () => {
+  scrollTracker?.stop();
+  scrollTracker = createScrollDepthTracker(trackArticleScroll);
+  scrollTracker.start();
+};
+
 // Articles that carry [[音楽|...]] markers get their track
 // placeholders replaced by one playlist player after each render;
 // leaving the article destroys the player so playback stops.
@@ -108,6 +122,7 @@ const refreshAfterRender = () => {
   sweepBrokenCardImages();
   mountMusicPlayer(rootEl.value);
   scrollToFragment();
+  restartScrollTracking();
 };
 
 onMounted(refreshAfterRender);
@@ -115,5 +130,9 @@ watch(
   () => props.articleHtml,
   () => nextTick(refreshAfterRender)
 );
-onBeforeUnmount(destroyMusicPlayer);
+onBeforeUnmount(() => {
+  destroyMusicPlayer();
+  scrollTracker?.stop();
+  scrollTracker = null;
+});
 </script>
