@@ -137,6 +137,28 @@ export function trackArticleRender(ms, phases = {}) {
   }
 }
 
+// article_scroll: how far down an article the reader got. Fires
+// once per depth threshold (25/50/75/100) per article view, with
+// the threshold as percent_scrolled, so GA4 can show, per
+// article, how many readers reached each depth and where the
+// rest dropped off. Values outside the threshold set are dropped
+// here so stray callers cannot invent depths. Same suppression
+// rules as the other events.
+export const SCROLL_DEPTH_THRESHOLDS = [25, 50, 75, 100];
+
+export function trackArticleScroll(percent) {
+  if (!SCROLL_DEPTH_THRESHOLDS.includes(percent)) {
+    return;
+  }
+  if (isStagingBuild()) {
+    return;
+  }
+  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+    return;
+  }
+  window.gtag('event', 'article_scroll', { percent_scrolled: percent });
+}
+
 export function trackPageView(pagePath) {
   // Staging traffic (previews, ledger articles, checks) must not
   // pollute the production measurement, so send nothing there.
