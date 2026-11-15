@@ -1,41 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  decodeBase64ToBlob,
   destroyMusicPlayer,
   endedPlan,
-  fetchTrackBlob,
   formatTime,
   mountMusicPlayer,
   musicFeedUrl,
-  musicTrackApiUrl,
   parsePodcastFeed,
+  resetMusicFeedCache,
   stepIndex
 } from '../../src/services/musicPlayer';
-
-describe('musicTrackApiUrl', () => {
-  const endpoint = 'https://script.google.com/macros/s/XXXX/exec';
-
-  it('builds the music-gas request URL', () => {
-    expect(musicTrackApiUrl('kawaguchi-no-higashi.mp3', endpoint))
-      .toBe(`${endpoint}?track=kawaguchi-no-higashi.mp3`);
-  });
-
-  it('rejects names that are not plain mp3 files', () => {
-    expect(musicTrackApiUrl('a/b.mp3', endpoint)).toBe('');
-    expect(musicTrackApiUrl('../x.mp3', endpoint)).toBe('');
-    expect(musicTrackApiUrl('x.wav', endpoint)).toBe('');
-    expect(musicTrackApiUrl('', endpoint)).toBe('');
-    expect(musicTrackApiUrl(null, endpoint)).toBe('');
-  });
-
-  it('is empty for an explicitly empty endpoint', () => {
-    expect(musicTrackApiUrl('x.mp3', '')).toBe('');
-  });
-
-  it('builds on the configured default endpoint when none is passed', () => {
-    expect(musicTrackApiUrl('x.mp3')).toContain('track=x.mp3');
-  });
-});
 
 describe('musicFeedUrl', () => {
   const endpoint = 'https://script.google.com/macros/s/XXXX/exec';
@@ -76,27 +49,6 @@ describe('parsePodcastFeed', () => {
     expect(parsePodcastFeed('')).toEqual({});
     expect(parsePodcastFeed(null)).toEqual({});
     expect(parsePodcastFeed('<html>not a feed</html>')).toEqual({});
-  });
-});
-
-describe('decodeBase64ToBlob', () => {
-  it('decodes into a Blob with the given mime type', async () => {
-    const blob = decodeBase64ToBlob('AQID', 'audio/mpeg');
-    expect(blob.type).toBe('audio/mpeg');
-    expect(blob.size).toBe(3);
-    const buffer = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(blob);
-    });
-    expect([...new Uint8Array(buffer)]).toEqual([1, 2, 3]);
-  });
-});
-
-describe('fetchTrackBlob', () => {
-  it('rejects for an explicitly empty endpoint', async () => {
-    await expect(fetchTrackBlob('anything.mp3', '')).rejects.toThrow('not configured');
   });
 });
 
@@ -171,6 +123,34 @@ describe('endedPlan', () => {
   });
 });
 
+// Builds a podcast feed carrying the given files, with the same
+// shape music-gas publishes: guid = file name, enclosure = the
+// track's archive URL.
+const feedXmlFor = (files) => '<?xml version="1.0" encoding="UTF-8"?>'
+  + '<rss version="2.0"><channel><title>川口の歌</title>'
+  + files.map((file) => '<item><title>' + file + '</title>'
+    + '<guid isPermaLink="false">' + file + '</guid>'
+    + '<enclosure url="https://archive.org/download/freddiefujiwara-'
+    + file.replace(/\.mp3$/, '') + '/' + file
+    + '" length="100" type="audio/mpeg"/></item>').join('')
+  + '</channel></rss>';
+
+const archiveUrlFor = (file) => 'https://archive.org/download/freddiefujiwara-'
+  + file.replace(/\.mp3$/, '') + '/' + file;
+
+// The feed the mount tests share by default: every file a mount
+// test uses, except feed-c.mp3, which must stay out of the feed
+// for the not-carried test.
+const UNIVERSAL_FEED_XML = feedXmlFor([
+  'dom-a.mp3', 'dom-b.mp3', 'tap-a.mp3', 'tap-b.mp3', 'cycle-a.mp3',
+  'rnd-a.mp3', 'adv-a.mp3', 'adv-b.mp3', 'stop-a.mp3', 'stop-b.mp3',
+  'one-a.mp3', 'one-b.mp3', 'wrap-a.mp3', 'wrap-b.mp3',
+  'rstop-a.mp3', 'rstop-b.mp3', 'warm-a.mp3', 'warm-b.mp3', 'warm-c.mp3',
+  'bg-a.mp3', 'bg-b.mp3', 'bg-c.mp3', 'feed-a.mp3', 'feed-b.mp3',
+  'kpi-a.mp3', 'kpi-b.mp3', 'rdy-a.mp3', 'rdy-b.mp3',
+  'lat-a.mp3', 'lat-b.mp3', 'fix-a.mp3', 'fix-b.mp3', 'bye-a.mp3'
+]);
+
 describe('mountMusicPlayer', () => {
   let playSpy;
   let pauseSpy;
@@ -190,18 +170,21 @@ describe('mountMusicPlayer', () => {
 
   beforeEach(() => {
     vi.unstubAllGlobals();
+    resetMusicFeedCache();
     document.body.innerHTML = '';
-    let urlSeq = 0;
-    URL.createObjectURL = vi.fn(() => `blob:fake-${(urlSeq += 1)}`);
-    URL.revokeObjectURL = vi.fn();
     playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play')
       .mockImplementation(() => Promise.resolve());
     pauseSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'pause')
       .mockImplementation(() => {});
     vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
-    })));
+    // The player may only ever read the podcast feed; any other
+    // request (such as the retired per-track bridge) fails here.
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('o=rss')) {
+        return { ok: true, text: async () => UNIVERSAL_FEED_XML };
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }));
   });
 
   it('builds the labelled controls and the track list', async () => {
@@ -240,7 +223,7 @@ describe('mountMusicPlayer', () => {
     player.querySelectorAll('.mp-track')[1].click();
     await flush();
     const audio = player.querySelector('audio');
-    expect(audio.getAttribute('src')).toMatch(/^blob:fake-/);
+    expect(audio.getAttribute('src')).toBe(archiveUrlFor('tap-b.mp3'));
     expect(playSpy).toHaveBeenCalled();
     expect(player.querySelector('.mp-now').textContent).toBe('曲2');
     expect(player.querySelectorAll('.mp-track')[1].classList.contains('is-active')).toBe(true);
@@ -363,31 +346,36 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
   });
 
-  it('warms the feed and only the first track at mount so the first press is fast', async () => {
-    const fetchMock = vi.fn(async () => ({
-      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
-    }));
+  it('reads only the podcast feed at mount and warms the first track from it', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes('o=rss')) {
+        return { ok: true, text: async () => UNIVERSAL_FEED_XML };
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
     vi.stubGlobal('fetch', fetchMock);
-    await mountWith(
+    const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="warm-a.mp3"></div>'
       + '<div class="music-track" data-title="曲2" data-file="warm-b.mp3"></div>'
       + '<div class="music-track" data-title="曲3" data-file="warm-c.mp3"></div>'
     );
     await flush();
     const requested = fetchMock.mock.calls.map((call) => String(call[0]));
-    // The stub answers without ok/text, so the feed read fails and
-    // the first track warms through the per-track bridge instead.
-    expect(requested.some((url) => url.includes('o=rss'))).toBe(true);
-    expect(requested.some((url) => url.includes('track=warm-a.mp3'))).toBe(true);
-    expect(requested.some((url) => url.includes('track=warm-b.mp3'))).toBe(false);
-    expect(requested.some((url) => url.includes('track=warm-c.mp3'))).toBe(false);
+    expect(requested).toHaveLength(1);
+    expect(requested[0]).toContain('o=rss');
+    // The warmed first track is attached straight from the feed.
+    expect(player.querySelector('audio').getAttribute('src'))
+      .toBe(archiveUrlFor('warm-a.mp3'));
     destroyMusicPlayer();
   });
 
-  it('does not fetch track bytes in the background once playback starts', async () => {
-    const fetchMock = vi.fn(async () => ({
-      json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' })
-    }));
+  it('never requests per-track bytes, even once playback starts', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes('o=rss')) {
+        return { ok: true, text: async () => UNIVERSAL_FEED_XML };
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
     vi.stubGlobal('fetch', fetchMock);
     const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="bg-a.mp3"></div>'
@@ -396,17 +384,17 @@ describe('mountMusicPlayer', () => {
     );
     await flush();
     player.querySelector('audio').dispatchEvent(new Event('play'));
+    player.querySelectorAll('.mp-track')[2].click();
     await flush();
     const requested = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(requested.some((url) => url.includes('track=bg-b.mp3'))).toBe(false);
-    expect(requested.some((url) => url.includes('track=bg-c.mp3'))).toBe(false);
+    expect(requested.every((url) => url.includes('o=rss'))).toBe(true);
+    expect(player.querySelector('audio').getAttribute('src'))
+      .toBe(archiveUrlFor('bg-c.mp3'));
     destroyMusicPlayer();
   });
 
-  // The podcast feed both feed tests below share. The module
-  // caches a landed feed for the session, so the two tests use
-  // the same items: feed-a/feed-b resolve from the feed, feed-c
-  // never appears in it and always takes the fallback.
+  // The podcast feed both feed tests below share: feed-a/feed-b
+  // resolve from it, feed-c never appears in it.
   const FEED_XML = '<?xml version="1.0" encoding="UTF-8"?>'
     + '<rss version="2.0"><channel><title>川口の歌</title>'
     + '<item><title>曲A</title><guid isPermaLink="false">feed-a.mp3</guid>'
@@ -417,7 +405,7 @@ describe('mountMusicPlayer', () => {
   const stubFeedFetch = () => {
     const fetchMock = vi.fn(async (url) => {
       if (String(url).includes('o=rss')) return { ok: true, text: async () => FEED_XML };
-      return { json: async () => ({ ok: true, data: btoa('mp3'), mime: 'audio/mpeg' }) };
+      throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
@@ -444,7 +432,7 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
   });
 
-  it('falls back to the track endpoint for a track the feed does not carry', async () => {
+  it('shows an error for a track the feed does not carry, and does not play it', async () => {
     stubFeedFetch();
     const player = await mountWith(
       '<div class="music-track" data-title="曲1" data-file="feed-a.mp3"></div>'
@@ -453,10 +441,13 @@ describe('mountMusicPlayer', () => {
     await flush();
     player.querySelectorAll('.mp-track')[1].click();
     await flush();
-    const audio = player.querySelector('audio');
-    expect(audio.getAttribute('src')).toMatch(/^blob:fake-/);
-    expect(playSpy).toHaveBeenCalled();
-    expect(player.querySelector('.mp-now').textContent).toBe('曲3');
+    // There is no second source: the element keeps the warmed
+    // first track, nothing plays, and the status explains why.
+    expect(playSpy).not.toHaveBeenCalled();
+    expect(player.querySelector('audio').getAttribute('src'))
+      .toBe('https://archive.org/download/freddiefujiwara-feed-a/feed-a.mp3');
+    expect(player.querySelector('.mp-status').textContent)
+      .toBe('音源を読み込めませんでした');
     destroyMusicPlayer();
   });
 
@@ -514,7 +505,7 @@ describe('mountMusicPlayer', () => {
     await flush();
     const audio = player.querySelector('audio');
     // No click yet, but the element already holds the first track.
-    expect(audio.getAttribute('src')).toMatch(/^blob:fake-/);
+    expect(audio.getAttribute('src')).toBe(archiveUrlFor('fix-a.mp3'));
     // The press must reach play() synchronously (iOS gesture rule):
     // assert before any promise gets a chance to run.
     player.querySelector('.mp-play').click();
@@ -549,6 +540,5 @@ describe('mountMusicPlayer', () => {
     destroyMusicPlayer();
     expect(pauseSpy).toHaveBeenCalled();
     expect(player.innerHTML).toBe('');
-    expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 });
