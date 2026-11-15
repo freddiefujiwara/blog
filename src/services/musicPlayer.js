@@ -7,14 +7,13 @@
 // The MP3s live in Google Drive; Drive's direct-download responses
 // arrive as Content-Disposition: attachment, which browsers refuse
 // to play in an <audio> element, and the files are not hosted on
-// GitHub either. Published tracks are therefore resolved through
-// the podcast feed music-gas publishes (?o=rss): each item's guid
-// is the mp3 file name and its enclosure is the track's Internet
-// Archive URL, which the element streams directly. A track the
-// feed does not carry (not yet published to the archive) falls
-// back to the older bridge: music-gas returns the track's bytes
-// as base64 JSON, which the player decodes into a Blob and hands
-// the element an object URL.
+// GitHub either. Tracks are therefore resolved through the podcast
+// feed music-gas publishes (?o=rss): each item's guid is the mp3
+// file name and its enclosure is the track's Internet Archive URL,
+// which the element streams directly. The article and the feed are
+// both generated from the same track sheet, so every track in an
+// article is in the feed by construction — the player has no
+// second source, and a file the feed does not carry does not play.
 //
 // The player itself is hand-rolled around a single <audio> element
 // (an earlier version embedded the APlayer library; its icon-only
@@ -31,17 +30,7 @@ import { trackMusicPlay, trackMusicReady, trackMusicLatency } from '../analytics
 
 const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
 
-// The music-gas request URL for one track. The file name is
-// validated again here so a malformed placeholder can never make
-// the player ask the endpoint for anything but a plain mp3 name.
-// Returns '' while the endpoint is not configured.
-export const musicTrackApiUrl = (file, endpoint = MUSIC_ENDPOINT) => (
-  AUDIO_FILE_PATTERN.test(file ?? '') && endpoint
-    ? `${endpoint}?track=${encodeURIComponent(file)}`
-    : ''
-);
-
-// The podcast feed the same endpoint publishes (?o=rss). Returns
+// The podcast feed the music endpoint publishes (?o=rss). Returns
 // '' while the endpoint is not configured.
 export const musicFeedUrl = (endpoint = MUSIC_ENDPOINT) => (
   endpoint ? `${endpoint}?o=rss` : ''
@@ -70,8 +59,7 @@ export const parsePodcastFeed = (xml) => {
 // The feed is fetched at most once per endpoint per session: the
 // map it yields covers every published track at once, so no
 // per-track request is needed afterwards. A failed fetch is not
-// cached — the next mount retries it — and while it lasts the
-// player falls back to the per-track bridge for every track.
+// cached — the next mount retries it.
 const feedByEndpoint = new Map();
 
 export const fetchFeedMap = (endpoint = MUSIC_ENDPOINT) => {
@@ -102,50 +90,12 @@ export const feedUrlFor = (file, endpoint = MUSIC_ENDPOINT) => {
   return entry && entry.map ? entry.map[file] : undefined;
 };
 
-export const decodeBase64ToBlob = (base64, mime) => {
-  const binary = atob(String(base64 ?? ''));
-  const chunkSize = 0x8000;
-  const parts = [];
-  for (let offset = 0; offset < binary.length; offset += chunkSize) {
-    const chunk = binary.slice(offset, offset + chunkSize);
-    const bytes = new Uint8Array(chunk.length);
-    for (let i = 0; i < chunk.length; i += 1) bytes[i] = chunk.charCodeAt(i);
-    parts.push(bytes);
-  }
-  return new Blob(parts, { type: mime || 'audio/mpeg' });
+// Test hook: forgets every cached feed, so the next mount reads
+// the feed again. The app itself never calls this — a landed feed
+// stays valid for the whole session.
+export const resetMusicFeedCache = () => {
+  feedByEndpoint.clear();
 };
-
-// Fetched track blobs are kept for the session: switching back to
-// a track that already played never asks music-gas again. The
-// resolved blobs are remembered separately, because iOS Safari
-// only honours play() calls made synchronously inside the tap
-// handler — a cached track must be attachable without waiting
-// for a promise tick first.
-const blobCache = new Map();
-const blobValues = new Map();
-
-export const fetchTrackBlob = (file, endpoint = MUSIC_ENDPOINT) => {
-  if (blobCache.has(file)) return blobCache.get(file);
-  const promise = (async () => {
-    const url = musicTrackApiUrl(file, endpoint);
-    if (!url) throw new Error('music endpoint is not configured');
-    const response = await fetch(url);
-    const payload = await response.json();
-    if (!payload || !payload.ok) {
-      throw new Error((payload && payload.error) || 'music-gas request failed');
-    }
-    const blob = decodeBase64ToBlob(payload.data, payload.mime);
-    blobValues.set(file, blob);
-    return blob;
-  })();
-  blobCache.set(file, promise);
-  promise.catch(() => blobCache.delete(file));
-  return promise;
-};
-
-// The already-fetched blob for a file, or undefined while its
-// fetch has not landed yet.
-export const cachedBlob = (file) => blobValues.get(file);
 
 // Seconds → "m:ss" for the progress readout. Anything unusable
 // (NaN before metadata arrives, Infinity for a stream) reads 0:00.
@@ -255,41 +205,20 @@ const createPlayer = (container, tracks) => {
     destroyed: false
   };
 
-  const objectUrls = new Map();
-  const objectUrlFor = async (file) => {
-    if (objectUrls.has(file)) return objectUrls.get(file);
-    const blob = await fetchTrackBlob(file);
-    const url = URL.createObjectURL(blob);
-    objectUrls.set(file, url);
-    return url;
-  };
-  // The same, synchronously, when the blob is already in: returns
-  // null while the track still needs the network.
-  const objectUrlForSync = (file) => {
-    if (objectUrls.has(file)) return objectUrls.get(file);
-    const blob = cachedBlob(file);
-    if (!blob) return null;
-    const url = URL.createObjectURL(blob);
-    objectUrls.set(file, url);
-    return url;
-  };
+  // The playable URL for a track, synchronously when the feed
+  // has already landed: the track's archive URL. Returns null
+  // while the feed is still in flight (or does not carry the
+  // file, in which case the track cannot play at all).
+  const sourceForSync = (file) => feedUrlFor(file) ?? null;
 
-  // The playable URL for a track, synchronously when one is
-  // already known: the archive URL once the feed has landed, or an
-  // object URL for an already-fetched fallback blob. Returns null
-  // while the track still needs the network.
-  const sourceForSync = (file) => feedUrlFor(file) ?? objectUrlForSync(file);
-
-  // The playable URL for a track, asking the network as needed:
-  // the feed first (one small XML fetch covers every published
-  // track), then the per-track base64 bridge for a file the feed
-  // does not carry.
+  // The playable URL for a track once the feed has been read.
+  // Rejects when the feed does not carry the file — there is no
+  // other source to try.
   const resolveSource = async (file) => {
-    try {
-      const map = await fetchFeedMap();
-      if (map[file]) return map[file];
-    } catch (err) { /* fall through to the per-track bridge */ }
-    return objectUrlFor(file);
+    const map = await fetchFeedMap();
+    const url = map[file];
+    if (!url) throw new Error('track is not in the podcast feed');
+    return url;
   };
 
   // --- DOM ------------------------------------------------------------
@@ -597,21 +526,14 @@ const createPlayer = (container, tracks) => {
   // pressed, and a press that waits seconds for the first fetch
   // is a press that may never come back. Warm the first track as
   // soon as the player appears, so the first press starts
-  // playback almost immediately: the podcast feed resolves it to
-  // its archive URL, and only a track the feed does not carry
-  // warms its bytes through the per-track bridge instead.
+  // playback almost immediately: reading the podcast feed (a
+  // small XML) resolves it to its archive URL.
   (async () => {
     let url = null;
     try {
       const map = await fetchFeedMap();
       if (map[tracks[0].file]) url = map[tracks[0].file];
-    } catch (err) { /* the bridge below can still warm the track */ }
-    if (!url) {
-      try {
-        await fetchTrackBlob(tracks[0].file);
-        url = objectUrlForSync(tracks[0].file);
-      } catch (err) { /* the first press retries on its own */ }
-    }
+    } catch (err) { /* the first press retries on its own */ }
     if (state.destroyed || !url) return;
     // performance.now() counts from page load, so this is the
     // reader's full wait until the first press could play.
@@ -637,8 +559,6 @@ const createPlayer = (container, tracks) => {
       } catch (err) {
         // A half-initialised element must not break navigation.
       }
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-      objectUrls.clear();
       container.innerHTML = '';
     }
   };
