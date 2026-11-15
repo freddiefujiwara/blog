@@ -7,9 +7,14 @@
 // The MP3s live in Google Drive; Drive's direct-download responses
 // arrive as Content-Disposition: attachment, which browsers refuse
 // to play in an <audio> element, and the files are not hosted on
-// GitHub either. The music-gas endpoint bridges the gap: it returns
-// a track's bytes as base64 JSON, which the player decodes into a
-// Blob and hands the element an object URL.
+// GitHub either. Published tracks are therefore resolved through
+// the podcast feed music-gas publishes (?o=rss): each item's guid
+// is the mp3 file name and its enclosure is the track's Internet
+// Archive URL, which the element streams directly. A track the
+// feed does not carry (not yet published to the archive) falls
+// back to the older bridge: music-gas returns the track's bytes
+// as base64 JSON, which the player decodes into a Blob and hands
+// the element an object URL.
 //
 // The player itself is hand-rolled around a single <audio> element
 // (an earlier version embedded the APlayer library; its icon-only
@@ -35,6 +40,67 @@ export const musicTrackApiUrl = (file, endpoint = MUSIC_ENDPOINT) => (
     ? `${endpoint}?track=${encodeURIComponent(file)}`
     : ''
 );
+
+// The podcast feed the same endpoint publishes (?o=rss). Returns
+// '' while the endpoint is not configured.
+export const musicFeedUrl = (endpoint = MUSIC_ENDPOINT) => (
+  endpoint ? `${endpoint}?o=rss` : ''
+);
+
+// Parses the podcast feed into a { file: enclosureUrl } map. Plain
+// string work (no DOMParser), so it behaves the same in the
+// browser and in tests; the feed is machine-generated with a
+// fixed shape. Items without a usable guid or enclosure are
+// skipped, as are guids that are not plain mp3 names.
+export const parsePodcastFeed = (xml) => {
+  const map = {};
+  if (typeof xml !== 'string') return map;
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+  items.forEach((item) => {
+    const guid = /<guid[^>]*>([^<]+)<\/guid>/.exec(item);
+    const enclosure = /<enclosure[^>]*\burl="([^"]+)"/.exec(item);
+    const file = guid ? guid[1].trim() : '';
+    if (file && AUDIO_FILE_PATTERN.test(file) && enclosure) {
+      map[file] = enclosure[1];
+    }
+  });
+  return map;
+};
+
+// The feed is fetched at most once per endpoint per session: the
+// map it yields covers every published track at once, so no
+// per-track request is needed afterwards. A failed fetch is not
+// cached — the next mount retries it — and while it lasts the
+// player falls back to the per-track bridge for every track.
+const feedByEndpoint = new Map();
+
+export const fetchFeedMap = (endpoint = MUSIC_ENDPOINT) => {
+  const cached = feedByEndpoint.get(endpoint);
+  if (cached) return cached.promise;
+  const entry = { promise: null, map: null };
+  entry.promise = (async () => {
+    const url = musicFeedUrl(endpoint);
+    if (!url) throw new Error('music endpoint is not configured');
+    const response = await fetch(url);
+    if (!response || !response.ok) throw new Error('music feed request failed');
+    entry.map = parsePodcastFeed(await response.text());
+    return entry.map;
+  })();
+  entry.promise.catch(() => {
+    entry.map = {};
+    if (feedByEndpoint.get(endpoint) === entry) feedByEndpoint.delete(endpoint);
+  });
+  feedByEndpoint.set(endpoint, entry);
+  return entry.promise;
+};
+
+// The archive URL for a file once the feed has landed, or
+// undefined while it is still in flight (or the feed does not
+// carry the file).
+export const feedUrlFor = (file, endpoint = MUSIC_ENDPOINT) => {
+  const entry = feedByEndpoint.get(endpoint);
+  return entry && entry.map ? entry.map[file] : undefined;
+};
 
 export const decodeBase64ToBlob = (base64, mime) => {
   const binary = atob(String(base64 ?? ''));
@@ -208,6 +274,24 @@ const createPlayer = (container, tracks) => {
     return url;
   };
 
+  // The playable URL for a track, synchronously when one is
+  // already known: the archive URL once the feed has landed, or an
+  // object URL for an already-fetched fallback blob. Returns null
+  // while the track still needs the network.
+  const sourceForSync = (file) => feedUrlFor(file) ?? objectUrlForSync(file);
+
+  // The playable URL for a track, asking the network as needed:
+  // the feed first (one small XML fetch covers every published
+  // track), then the per-track base64 bridge for a file the feed
+  // does not carry.
+  const resolveSource = async (file) => {
+    try {
+      const map = await fetchFeedMap();
+      if (map[file]) return map[file];
+    } catch (err) { /* fall through to the per-track bridge */ }
+    return objectUrlFor(file);
+  };
+
   // --- DOM ------------------------------------------------------------
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
@@ -308,30 +392,12 @@ const createPlayer = (container, tracks) => {
   const setStatus = (text) => { statusEl.textContent = text; };
 
   // --- Track loading ------------------------------------------------------
-  // Loading stays light on purpose. At mount only the first track
-  // is warmed, so opening an article never pulls the whole playlist
-  // (about 11 MB of audio, more again as base64 text) over the
+  // Loading stays light on purpose. At mount only the podcast
+  // feed is fetched (a small XML) and the first track is attached,
+  // so opening an article never pulls the whole playlist over the
   // wire, while the first press can still start almost at once.
-  // The remaining tracks are fetched in the background, one at a
-  // time, once playback has actually started. A track the reader
-  // taps is always served first: its request starts immediately
-  // and the background chain waits for it before moving on.
-  let backgroundStarted = false;
-  let priorityPromise = null;
-  const startBackgroundPrefetch = () => {
-    if (backgroundStarted) return;
-    backgroundStarted = true;
-    (async () => {
-      for (const track of tracks) {
-        if (state.destroyed) return;
-        if (priorityPromise) {
-          try { await priorityPromise; } catch (err) { /* the tap retries on its own */ }
-        }
-        if (state.destroyed) return;
-        try { await fetchTrackBlob(track.file); } catch (err) { /* a later tap can retry */ }
-      }
-    })();
-  };
+  // Every later track streams straight from the archive when it
+  // is started; nothing is prefetched in the background.
 
   // Starts the track at index i. Records it in the round's played
   // set and the back-history, loads its bytes if the element does
@@ -353,11 +419,11 @@ const createPlayer = (container, tracks) => {
       syncPlayButton();
       return;
     }
-    // A cached track is attached and started synchronously, still
-    // inside the tap handler's call stack: iOS Safari refuses a
-    // play() that only happens after a promise resolves, which is
-    // why the first press used to fail there.
-    const syncUrl = objectUrlForSync(file);
+    // A resolved track is attached and started synchronously,
+    // still inside the tap handler's call stack: iOS Safari
+    // refuses a play() that only happens after a promise resolves,
+    // which is why the first press used to fail there.
+    const syncUrl = sourceForSync(file);
     if (syncUrl) {
       state.loadedFile = file;
       audio.src = syncUrl;
@@ -369,13 +435,7 @@ const createPlayer = (container, tracks) => {
     state.loading = true;
     syncPlayButton();
     setStatus('');
-    const request = fetchTrackBlob(file);
-    priorityPromise = request;
-    const clearPriority = () => {
-      if (priorityPromise === request) priorityPromise = null;
-    };
-    request.then(clearPriority, clearPriority);
-    objectUrlFor(file)
+    resolveSource(file)
       .then((url) => {
         if (state.destroyed || seq !== state.loadSeq) return;
         state.loading = false;
@@ -486,10 +546,7 @@ const createPlayer = (container, tracks) => {
   });
 
   // --- Audio events ---------------------------------------------------------
-  audio.addEventListener('play', () => {
-    syncPlayButton();
-    startBackgroundPrefetch();
-  });
+  audio.addEventListener('play', syncPlayButton);
   audio.addEventListener('playing', () => {
     if (state.pressStartedAt == null) return;
     trackMusicLatency(performance.now() - state.pressStartedAt, state.pressMethod || 'button');
@@ -538,28 +595,36 @@ const createPlayer = (container, tracks) => {
 
   // The player's top KPI is how often the play button gets
   // pressed, and a press that waits seconds for the first fetch
-  // is a press that may never come back. Warm only the first track
-  // as soon as the player appears, so the first press starts
-  // playback almost immediately; the rest follows once playback
-  // has started (see the 'play' handler above).
-  fetchTrackBlob(tracks[0].file)
-    .then(() => {
-      // performance.now() counts from page load, so this is the
-      // reader's full wait until the first press could play.
-      trackMusicReady(performance.now());
-      // Attach the warmed track right away, so the first press is
-      // a plain play() on a loaded element — the one form iOS
-      // Safari always honours. Skipped once the reader (or an
-      // earlier load) has moved on to another track.
-      if (state.destroyed || state.loadedFile !== '' || state.loadSeq !== 0) return;
-      const url = objectUrlForSync(tracks[0].file);
-      if (url) {
-        state.loadedFile = tracks[0].file;
-        audio.src = url;
-        syncProgress();
-      }
-    })
-    .catch(() => {});
+  // is a press that may never come back. Warm the first track as
+  // soon as the player appears, so the first press starts
+  // playback almost immediately: the podcast feed resolves it to
+  // its archive URL, and only a track the feed does not carry
+  // warms its bytes through the per-track bridge instead.
+  (async () => {
+    let url = null;
+    try {
+      const map = await fetchFeedMap();
+      if (map[tracks[0].file]) url = map[tracks[0].file];
+    } catch (err) { /* the bridge below can still warm the track */ }
+    if (!url) {
+      try {
+        await fetchTrackBlob(tracks[0].file);
+        url = objectUrlForSync(tracks[0].file);
+      } catch (err) { /* the first press retries on its own */ }
+    }
+    if (state.destroyed || !url) return;
+    // performance.now() counts from page load, so this is the
+    // reader's full wait until the first press could play.
+    trackMusicReady(performance.now());
+    // Attach the warmed track right away, so the first press is
+    // a plain play() on a loaded element — the one form iOS
+    // Safari always honours. Skipped once the reader (or an
+    // earlier load) has moved on to another track.
+    if (state.loadedFile !== '' || state.loadSeq !== 0) return;
+    state.loadedFile = tracks[0].file;
+    audio.src = url;
+    syncProgress();
+  })();
 
   return {
     destroy() {
