@@ -107,6 +107,18 @@ export const delimitBareUrls = (markdown) => String(markdown ?? '')
   .map((segment, index) => (index % 2 === 1 ? segment : wrapBareUrls(segment)))
   .join('');
 
+
+// Strips markup from a rendered inline fragment and unescapes the
+// entities marked emits, yielding the plain text a reader sees.
+const toPlainText = (html) => String(html ?? '')
+  .replace(/<[^>]*>/g, '')
+  .replace(/&amp;/g, '&')
+  .replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>')
+  .replace(/&quot;/g, '"')
+  .replace(/&#39;/g, "'")
+  .trim();
+
 // Builds an article's table of contents from its rendered HTML.
 // Reading the entries back out of the rendered markup guarantees the
 // ids match the heading anchors exactly (including the "-2" suffixes
@@ -117,14 +129,7 @@ export const extractTocFromHtml = (html) => {
   const pattern = /<h([23]) id="(h-[0-9a-f]{8}(?:-\d+)?)">([\s\S]*?)<\/h\1>/g;
   let match;
   while ((match = pattern.exec(String(html ?? ''))) !== null) {
-    const text = match[3]
-      .replace(/<[^>]*>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
+    const text = toPlainText(match[3]);
     if (text) {
       toc.push({ level: Number(match[1]), id: match[2], text });
     }
@@ -295,14 +300,7 @@ export const renderMarkdown = (markdown) => {
   };
   renderer.heading = function ({ tokens, depth }) {
     const text = this.parser.parseInline(tokens);
-    const plain = text
-      .replace(/<[^>]*>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
+    const plain = toPlainText(text);
     const count = (seen.get(plain) ?? 0) + 1;
     seen.set(plain, count);
     const base = hashHeadingText(plain);

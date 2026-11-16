@@ -52,14 +52,21 @@ export function useBlog() {
     pendingArticleFetches.set(id, promise);
   };
 
+  // Makes a fetched article the displayed one and remembers it in
+  // the session cache.
+  const adoptArticle = (id, data) => {
+    articleCache.value[id] = data;
+    article.value = data;
+    currentId.value = id;
+    errorMessage.value = '';
+    if (data?.title) {
+      document.title = data.title;
+    }
+  };
+
   const getArticle = async (id) => {
     if (articleCache.value[id]) {
-      article.value = articleCache.value[id];
-      currentId.value = id;
-      errorMessage.value = '';
-      if (article.value?.title) {
-        document.title = article.value.title;
-      }
+      adoptArticle(id, articleCache.value[id]);
       return;
     }
 
@@ -67,14 +74,7 @@ export function useBlog() {
     if (pending) {
       pendingArticleFetches.delete(id);
       try {
-        const data = await pending;
-        articleCache.value[id] = data;
-        article.value = data;
-        currentId.value = id;
-        errorMessage.value = '';
-        if (data?.title) {
-          document.title = data.title;
-        }
+        adoptArticle(id, await pending);
         return;
       } catch {
         // Fall through to a fresh fetch so error handling matches the
@@ -82,18 +82,7 @@ export function useBlog() {
       }
     }
 
-    try {
-      const data = await fetchArticle(id);
-      articleCache.value[id] = data;
-      article.value = data;
-      currentId.value = id;
-      errorMessage.value = '';
-      if (data?.title) {
-        document.title = data.title;
-      }
-    } catch (error) {
-      throw error;
-    }
+    adoptArticle(id, await fetchArticle(id));
   };
 
   const getLocationContext = () => {
