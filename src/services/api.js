@@ -65,14 +65,18 @@ export const fetchRSS = async () => {
   return await response.text();
 };
 
-export const fetchArticle = async (id) => {
-  const articleResponse = await apiFetch(`${LIST_ENDPOINT}?id=${id}`);
-  if (!articleResponse.ok) {
-    throw new Error('記事の取得に失敗しました。');
+// Fetches a JSON response, turning a non-OK status into an error
+// with the caller's message.
+const fetchJson = async (url, failureMessage) => {
+  const response = await apiFetch(url);
+  if (!response.ok) {
+    throw new Error(failureMessage);
   }
-  const data = await articleResponse.json();
-  return data;
+  return response.json();
 };
+
+export const fetchArticle = async (id) =>
+  fetchJson(`${LIST_ENDPOINT}?id=${id}`, '記事の取得に失敗しました。');
 
 // Maps a list response to the {id, title} entries the title search
 // offers, newest first. Titles come from the response's titles map;
@@ -101,11 +105,7 @@ export const buildSearchableArticles = (data) => {
 // returns ids and titles only (no article bodies), which keeps the
 // search responsive even when the article cache is cold.
 export const fetchArticleTitles = async () => {
-  const response = await apiFetch(`${LIST_ENDPOINT}?o=titles`);
-  if (!response.ok) {
-    throw new Error('記事タイトル一覧の取得に失敗しました。');
-  }
-  const data = await response.json();
+  const data = await fetchJson(`${LIST_ENDPOINT}?o=titles`, '記事タイトル一覧の取得に失敗しました。');
   if (!data?.ids?.length) {
     throw new Error('最新記事が見つかりませんでした。');
   }
@@ -113,11 +113,7 @@ export const fetchArticleTitles = async () => {
 };
 
 export const fetchArticleList = async () => {
-  const listResponse = await apiFetch(LIST_ENDPOINT);
-  if (!listResponse.ok) {
-    throw new Error('記事一覧の取得に失敗しました。');
-  }
-  const data = await listResponse.json();
+  const data = await fetchJson(LIST_ENDPOINT, '記事一覧の取得に失敗しました。');
   if (!data?.ids?.length) {
     throw new Error('最新記事が見つかりませんでした。');
   }

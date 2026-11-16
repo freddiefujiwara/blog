@@ -34,11 +34,15 @@ export function canonicalPagePath(pagePath, baseUrl = import.meta.env.BASE_URL) 
 // can be trimmed later based on which items are actually used.
 // Same suppression rules as page views: nothing is sent on staging
 // builds or when gtag is not loaded.
+// Every event goes through the same gate: nothing is sent on
+// staging builds or when gtag is not loaded.
+const canSendEvent = () =>
+  !isStagingBuild() &&
+  typeof window !== 'undefined' &&
+  typeof window.gtag === 'function';
+
 export function trackNavClick(navItem) {
-  if (isStagingBuild()) {
-    return;
-  }
-  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+  if (!canSendEvent()) {
     return;
   }
   window.gtag('event', 'nav_click', { nav_item: navItem });
@@ -51,10 +55,7 @@ export function trackNavClick(navItem) {
 // presses and are not counted. Same suppression rules as the
 // other events.
 export function trackMusicPlay(method) {
-  if (isStagingBuild()) {
-    return;
-  }
-  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+  if (!canSendEvent()) {
     return;
   }
   window.gtag('event', 'music_play', { method });
@@ -63,17 +64,14 @@ export function trackMusicPlay(method) {
 // How long the reader waits, in milliseconds, so the values can
 // be registered as custom metrics in GA4 and read as averages.
 // music_ready fires once per player, when the first track has been
-// fetched and cached; ready_ms is measured from page load, so it
+// read and the first track attached; ready_ms is measured from page load, so it
 // is the time until a press would start playback almost at once.
 // music_latency fires when playback actually starts after a start
 // intent (button / list / auto advance); latency_ms runs from the
 // intent to the audio element's 'playing' event. Same suppression
 // rules as the other events.
 const sendTiming = (eventName, paramName, ms, extra = {}) => {
-  if (isStagingBuild()) {
-    return;
-  }
-  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+  if (!canSendEvent()) {
     return;
   }
   const value = Math.round(Number(ms));
@@ -150,10 +148,7 @@ export function trackArticleScroll(percent) {
   if (!SCROLL_DEPTH_THRESHOLDS.includes(percent)) {
     return;
   }
-  if (isStagingBuild()) {
-    return;
-  }
-  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+  if (!canSendEvent()) {
     return;
   }
   window.gtag('event', 'article_scroll', { percent_scrolled: percent });
@@ -162,10 +157,7 @@ export function trackArticleScroll(percent) {
 export function trackPageView(pagePath) {
   // Staging traffic (previews, ledger articles, checks) must not
   // pollute the production measurement, so send nothing there.
-  if (isStagingBuild()) {
-    return;
-  }
-  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+  if (!canSendEvent()) {
     return;
   }
   window.gtag('event', 'page_view', {
