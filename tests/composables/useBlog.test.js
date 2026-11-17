@@ -487,6 +487,55 @@ describe('useBlog composable', () => {
     expect(api.fetchArticle).toHaveBeenCalledTimes(1);
   });
 
+  it('renders a deep-linked article without waiting for the list to resolve', async () => {
+    api.fetchArticleTitles.mockReturnValue(new Promise(() => {})); // titles still in flight
+    api.fetchArticleList.mockReturnValue(new Promise(() => {})); // full list still in flight
+    api.fetchArticle.mockResolvedValue({
+      id: 'deep',
+      title: 'Deep Title',
+      markdown: 'Deep Content'
+    });
+
+    mockRoute.path = '/deep';
+    mockRoute.params = { id: 'deep' };
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/deep' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    // The article is on screen even though neither list response
+    // has resolved yet.
+    expect(wrapper.vm.article.id).toBe('deep');
+    expect(wrapper.vm.article.title).toBe('Deep Title');
+    expect(api.fetchArticle).toHaveBeenCalledTimes(1);
+    expect(api.fetchArticle).toHaveBeenCalledWith('deep');
+
+    // Restore the automock defaults so the never-resolving list
+    // mocks cannot leak into later tests.
+    api.fetchArticleTitles.mockReset();
+    api.fetchArticleList.mockReset();
+  });
+
+  it('falls back to the list when the deep-linked article fetch fails', async () => {
+    api.fetchArticleTitles.mockRejectedValue(new Error('Titles Error'));
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['9', '1', '2'],
+      article_cache: []
+    });
+    api.fetchArticle.mockRejectedValue(new Error('Fetch Error'));
+
+    mockRoute.path = '/gone';
+    mockRoute.params = { id: 'gone' };
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      name: 'post',
+      params: { id: '9' }
+    });
+  });
+
   it('persists the fetched list for the next visit', async () => {
     api.fetchArticleList.mockResolvedValue({
       ids: ['1', '2'],
@@ -609,11 +658,14 @@ describe('useBlog composable', () => {
       ids: ['9', '1', '2'],
       article_cache: []
     });
-    api.fetchArticle.mockImplementation(async (id) => ({
-      id,
-      title: `Title ${id}`,
-      markdown: `Content ${id}`
-    }));
+    // The API answers a document outside the blog folder with an
+    // error payload rather than a failed request, so a gone article
+    // never displays and the list-based fallback decides instead.
+    api.fetchArticle.mockImplementation(async (id) =>
+      id === 'gone'
+        ? { error: 'Document not found' }
+        : { id, title: `Title ${id}`, markdown: `Content ${id}` }
+    );
 
     mockRoute.path = '/gone';
     mockRoute.params = { id: 'gone' };
