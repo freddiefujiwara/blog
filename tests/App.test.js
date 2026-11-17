@@ -92,8 +92,8 @@ describe('App', () => {
       'プロフィール・その他',
       '自作ツール'
     ]);
-    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 3, 4, 4, 8]);
-    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(23);
+    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 3, 4, 5, 8]);
+    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(24);
   });
 
   it('renders RSS link in the footer', async () => {
