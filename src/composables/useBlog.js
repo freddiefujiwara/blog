@@ -230,6 +230,29 @@ export function useBlog() {
     });
   };
 
+  // Consumes the article fetch startArticleFetch began for a
+  // deep-linked visit. Returns the article when it arrived as a
+  // real article, and null when the fetch failed or the API
+  // answered with an error payload (a document outside the blog
+  // folder gets an error payload, not a failed request), so the
+  // caller can fall back to resolving through the article list.
+  const takeStartedArticle = async (id) => {
+    if (articleCache.value[id]) {
+      return articleCache.value[id];
+    }
+    const pending = pendingArticleFetches.get(id);
+    if (!pending) {
+      return null;
+    }
+    pendingArticleFetches.delete(id);
+    try {
+      const data = await pending;
+      return data && !data.error ? data : null;
+    } catch {
+      return null;
+    }
+  };
+
   const loadArticleFromLocation = async (initial = false) => {
     if (loading.value) return;
     const startedAt = initial ? 0 : performance.now();
@@ -245,7 +268,41 @@ export function useBlog() {
         startArticleFetch(requestedId);
       }
       const listStartedAt = performance.now();
-      let ids = await getArticleList();
+      const listPromise = getArticleList();
+      // The list keeps resolving in the background even when the
+      // article wins the race below; the rejection is surfaced by
+      // whichever path ends up awaiting the promise.
+      listPromise.catch(() => {});
+
+      // A deep-linked article no longer waits for the list. The
+      // list only decides which article an id-less URL means and
+      // feeds the navigation links, and a successful article fetch
+      // already proves the id names a real article (the API checks
+      // folder membership itself), so the article is displayed as
+      // soon as it arrives. The list still populates articleIds
+      // through getArticleList's own side effects, so navigation
+      // catches up on its own. An id the API refuses (an error
+      // payload) or cannot fetch falls back to the list-based
+      // resolution below, exactly as before.
+      if (requestedId && requestedId !== currentId.value) {
+        // Match the list-based path below: the previous article
+        // clears while the new one is on its way.
+        article.value = null;
+        errorMessage.value = '';
+        const early = await takeStartedArticle(requestedId);
+        if (early) {
+          adoptArticle(requestedId, early);
+          // No list_ms is reported: the list was not waited for,
+          // so there is no list wait to attribute to this display.
+          reportArticleRender(requestedId, startedAt, {
+            fetchMs: performance.now() - listStartedAt
+          });
+          listPromise.then(() => prefetch(), () => {});
+          return;
+        }
+      }
+
+      let ids = await listPromise;
       if (usedCachedList && requestedId && !ids.includes(requestedId)) {
         // The persisted list predates the requested article, so resolving
         // against it would fall back to a stale "newest" article and send
