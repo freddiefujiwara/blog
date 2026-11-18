@@ -41,11 +41,17 @@ const canSendEvent = () =>
   typeof window !== 'undefined' &&
   typeof window.gtag === 'function';
 
-export function trackNavClick(navItem) {
+// Sends one event through the gate above; a suppressed build
+// simply sends nothing.
+const sendEvent = (name, params) => {
   if (!canSendEvent()) {
     return;
   }
-  window.gtag('event', 'nav_click', { nav_item: navItem });
+  window.gtag('event', name, params);
+};
+
+export function trackNavClick(navItem) {
+  sendEvent('nav_click', { nav_item: navItem });
 }
 
 // Play presses are the music player's top KPI: every deliberate
@@ -55,10 +61,7 @@ export function trackNavClick(navItem) {
 // presses and are not counted. Same suppression rules as the
 // other events.
 export function trackMusicPlay(method) {
-  if (!canSendEvent()) {
-    return;
-  }
-  window.gtag('event', 'music_play', { method });
+  sendEvent('music_play', { method });
 }
 
 // How long the reader waits, in milliseconds, so the values can
@@ -148,19 +151,13 @@ export function trackArticleScroll(percent) {
   if (!SCROLL_DEPTH_THRESHOLDS.includes(percent)) {
     return;
   }
-  if (!canSendEvent()) {
-    return;
-  }
-  window.gtag('event', 'article_scroll', { percent_scrolled: percent });
+  sendEvent('article_scroll', { percent_scrolled: percent });
 }
 
 export function trackPageView(pagePath) {
   // Staging traffic (previews, ledger articles, checks) must not
   // pollute the production measurement, so send nothing there.
-  if (!canSendEvent()) {
-    return;
-  }
-  window.gtag('event', 'page_view', {
+  sendEvent('page_view', {
     page_path: canonicalPagePath(pagePath),
     page_title: document.title,
   });
