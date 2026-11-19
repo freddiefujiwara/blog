@@ -137,6 +137,15 @@ describe('api service', () => {
 
       await expect(fetchArticleList()).rejects.toThrow('最新記事が見つかりませんでした。');
     });
+
+    it('throws error when ids is not an array (a string has a length too)', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ ids: 'abc', article_cache: [] })
+      });
+
+      await expect(fetchArticleList()).rejects.toThrow('最新記事が見つかりませんでした。');
+    });
   });
 
   describe('fetchArticleTitles', () => {
@@ -168,6 +177,15 @@ describe('api service', () => {
       fetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ ids: [], titles: {} })
+      });
+
+      await expect(fetchArticleTitles()).rejects.toThrow('最新記事が見つかりませんでした。');
+    });
+
+    it('throws error when ids is not an array (a string has a length too)', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ ids: 'abc', titles: {} })
       });
 
       await expect(fetchArticleTitles()).rejects.toThrow('最新記事が見つかりませんでした。');
@@ -284,6 +302,89 @@ describe('api service', () => {
       expect(buildSearchableArticles(null)).toEqual([]);
       expect(buildSearchableArticles({})).toEqual([]);
       expect(buildSearchableArticles({ ids: 'nope' })).toEqual([]);
+    });
+  });
+
+  // Malformed payloads, drawn from shapes that actually reached
+  // production: a stale cache once served titles in a different
+  // shape than the map the code expects, and the API's fields are
+  // not type-guaranteed. Every case must degrade to a sane search
+  // list instead of throwing or leaking a non-string title (the
+  // search calls string methods on titles).
+  describe('buildSearchableArticles malformed payloads', () => {
+    it('ignores titles delivered as an array and fills in from article_cache', () => {
+      const data = {
+        ids: ['1', '2'],
+        titles: ['Title 1', 'Title 2'],
+        article_cache: [{ id: '1', title: 'Cached 1', markdown: 'x' }]
+      };
+      expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Cached 1' }]);
+    });
+
+    it('treats a titles field of the wrong type as missing', () => {
+      const data = {
+        ids: ['1'],
+        titles: 'nope',
+        article_cache: [{ id: '1', title: 'Cached 1', markdown: 'x' }]
+      };
+      expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Cached 1' }]);
+    });
+
+    it('never leaks a non-string title from the titles map', () => {
+      const data = {
+        ids: ['1', '2', '3', '4'],
+        titles: { 1: 42, 2: null, 3: { text: 'Title 3' }, 4: true },
+        article_cache: []
+      };
+      expect(buildSearchableArticles(data)).toEqual([]);
+    });
+
+    it('falls back to the cached title when the mapped title has the wrong type', () => {
+      const data = {
+        ids: ['1'],
+        titles: { 1: 42 },
+        article_cache: [{ id: '1', title: 'Cached 1', markdown: 'x' }]
+      };
+      expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Cached 1' }]);
+    });
+
+    it('never leaks a non-string title from article_cache', () => {
+      const data = {
+        ids: ['1'],
+        titles: {},
+        article_cache: [{ id: '1', title: 42, markdown: 'x' }]
+      };
+      expect(buildSearchableArticles(data)).toEqual([]);
+    });
+
+    it('drops null and undefined entries in ids and keeps the rest', () => {
+      const data = {
+        ids: [null, '1', undefined, '2'],
+        titles: { 1: 'Title 1', 2: 'Title 2' },
+        article_cache: []
+      };
+      expect(buildSearchableArticles(data)).toEqual([
+        { id: '1', title: 'Title 1' },
+        { id: '2', title: 'Title 2' }
+      ]);
+    });
+
+    it('ignores null, undefined and id-less entries in article_cache', () => {
+      const data = {
+        ids: ['1'],
+        titles: {},
+        article_cache: [null, undefined, { title: 'No id' }, { id: '1' }, { id: '1', title: 'Cached 1' }]
+      };
+      expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Cached 1' }]);
+    });
+
+    it('drops ids that have no title in any source', () => {
+      const data = {
+        ids: ['1', '2'],
+        titles: { 1: 'Title 1' },
+        article_cache: []
+      };
+      expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Title 1' }]);
     });
   });
 });

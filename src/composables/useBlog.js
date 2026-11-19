@@ -190,9 +190,13 @@ export function useBlog() {
     articleIds.value = data.ids;
     loadedListLang = lang;
     rememberListTitles(data, lang);
-    if (data.article_cache) {
+    if (Array.isArray(data.article_cache)) {
       data.article_cache.forEach((item) => {
-        articleCache.value[cacheKey(lang, item.id)] = item;
+        // Skip unusable entries (null, id-less): one malformed
+        // entry must not fail the whole list.
+        if (item?.id) {
+          articleCache.value[cacheKey(lang, item.id)] = item;
+        }
       });
     }
   };
