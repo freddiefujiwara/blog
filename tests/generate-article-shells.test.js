@@ -4,13 +4,17 @@ import { join} from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
 MAX_ARTICLES,
+SHELL_LANGUAGES,
 articleIdFromLink,
 buildShellHtml,
 decodeEntities,
 descriptionFromMarkdown,
 fetchArticleItems,
+fetchTranslatedArticle,
+fetchTranslatedTitles,
 generateArticleShells,
 stripLeadingDate,
+translatedTitlesFromResponse,
 truncateDescription
 } from '../scripts/generate-article-shells.mjs';
 
@@ -120,6 +124,119 @@ url: 'u',
 imageUrl: 'i'
 })
 ).toThrow();
+});
+
+it('言語シェルでは html lang と canonical・hreflang を差し込む', () => {
+const alternates = [
+{ hreflang: 'ja', href: 'https://freddiefujiwara.com/blog/ID_A'},
+{ hreflang: 'en', href: 'https://freddiefujiwara.com/blog/en/ID_A'},
+{ hreflang: 'x-default', href: 'https://freddiefujiwara.com/blog/ID_A'}
+];
+const html = buildShellHtml(TEMPLATE, {
+title: 'Test Article',
+description: 'English description',
+url: 'https://freddiefujiwara.com/blog/en/ID_A',
+imageUrl: 'https://freddiefujiwara.com/blog/ogp/ID_A.en.png',
+lang: 'en',
+canonicalUrl: 'https://freddiefujiwara.com/blog/en/ID_A',
+alternates
+});
+expect(html).toContain('<html lang="en">');
+expect(html).toContain(
+'<link rel="canonical" href="https://freddiefujiwara.com/blog/en/ID_A" />'
+);
+expect(html).toContain(
+'<link rel="alternate" hreflang="ja" href="https://freddiefujiwara.com/blog/ID_A" />'
+);
+expect(html).toContain(
+'<link rel="alternate" hreflang="en" href="https://freddiefujiwara.com/blog/en/ID_A" />'
+);
+expect(html).toContain(
+'<link rel="alternate" hreflang="x-default" href="https://freddiefujiwara.com/blog/ID_A" />'
+);
+});
+
+it('言語指定が無ければ html lang もリンクも付けない（従来どおり）', () => {
+const html = buildShellHtml(TEMPLATE, {
+title: '記事タイトル',
+description: '記事の説明',
+url: 'https://freddiefujiwara.com/blog/ID_A',
+imageUrl: 'https://freddiefujiwara.com/blog/ogp/ID_A.png'
+});
+expect(html).toContain('<html lang="ja">');
+expect(html).not.toContain('hreflang');
+expect(html).not.toContain('rel="canonical"');
+});
+});
+
+describe('SHELL_LANGUAGES', () => {
+it('英語と中国語（簡体字）の定義を持つ', () => {
+expect(SHELL_LANGUAGES).toEqual([
+{ code: 'en', htmlLang: 'en', hreflang: 'en'},
+{ code: 'zh', htmlLang: 'zh-CN', hreflang: 'zh'}
+]);
+});
+});
+
+describe('translatedTitlesFromResponse', () => {
+it('idをキーにしたオブジェクト形式を Map にする', () => {
+const map = translatedTitlesFromResponse({
+ids: ['ID_A', 'ID_B'],
+titles: { ID_A: 'Title A', ID_B: 'Title B'}
+});
+expect(map.get('ID_A')).toBe('Title A');
+expect(map.get('ID_B')).toBe('Title B');
+expect(map.size).toBe(2);
+});
+it('ids と並行な配列形式も Map にする', () => {
+const map = translatedTitlesFromResponse({
+ids: ['ID_A', 'ID_B'],
+titles: ['Title A', 'Title B']
+});
+expect(map.get('ID_B')).toBe('Title B');
+});
+it('使えるタイトルが無ければ null', () => {
+expect(translatedTitlesFromResponse(null)).toBeNull();
+expect(translatedTitlesFromResponse({})).toBeNull();
+expect(translatedTitlesFromResponse({ ids: [], titles: {}})).toBeNull();
+expect(translatedTitlesFromResponse({ png: 'base64' })).toBeNull();
+});
+});
+
+describe('fetchTranslatedTitles / fetchTranslatedArticle', () => {
+const API = 'https://example/api/exec';
+
+it('タイトル一覧を取得して Map で返す', async () => {
+const fetchImpl = vi.fn((url) => {
+expect(url).toBe(`${API}?o=titles&lang=en`);
+return Promise.resolve(jsonResponse({ ids: ['ID_A'], titles: { ID_A: 'Title A'}}));
+});
+const map = await fetchTranslatedTitles(API, 'en', fetchImpl);
+expect(map.get('ID_A')).toBe('Title A');
+});
+
+it('タイトル一覧の取得に失敗したら null（言語を丸ごとスキップ）', async () => {
+const httpError = vi.fn(() => Promise.resolve(jsonResponse(null, false, 500)));
+expect(await fetchTranslatedTitles(API, 'en', httpError)).toBeNull();
+const networkError = vi.fn(() => Promise.reject(new Error('boom')));
+expect(await fetchTranslatedTitles(API, 'zh', networkError)).toBeNull();
+});
+
+it('翻訳記事を取得する。失敗や欠落は null', async () => {
+const fetchImpl = vi.fn((url) => {
+expect(url).toBe(`${API}?id=ID_A&lang=zh`);
+return Promise.resolve(
+jsonResponse({ id: 'ID_A', title: '测试文章', markdown: '中文正文'})
+);
+});
+await expect(fetchTranslatedArticle(API, 'ID_A', 'zh', fetchImpl)).resolves.toEqual({
+title: '测试文章',
+markdown: '中文正文'
+});
+const failing = vi.fn(() => Promise.resolve(jsonResponse(null, false, 404)));
+expect(await fetchTranslatedArticle(API, 'ID_A', 'en', failing)).toBeNull();
+const incomplete = vi.fn(() => Promise.resolve(jsonResponse({ id: 'ID_A'})));
+expect(await fetchTranslatedArticle(API, 'ID_A', 'en', incomplete)).toBeNull();
 });
 });
 
@@ -269,5 +386,230 @@ const result = await generateArticleShells(
 { fetchImpl, log: () => {}}
 );
 expect(result.count).toBe(0);
+});
+});
+
+describe('generateArticleShells（多言語シェル）', () => {
+let dir;
+beforeEach(async () => {
+dir = await mkdtemp(join(tmpdir(), 'shells-i18n-'));
+const { writeFile} = await import('node:fs/promises');
+await writeFile(join(dir, 'index.html'), TEMPLATE);
+});
+afterEach(async () => {
+await rm(dir, { recursive: true, force: true});
+});
+
+const API = 'https://example/api/exec';
+const BASE = 'https://freddiefujiwara.com/blog/';
+const LIST = {
+ids: ['ID_A', 'ID_B'],
+article_cache: [
+{ id: 'ID_A', title: '2026-11-04 テスト記事', markdown: '## 見出しA\n本文Aです。'},
+{ id: 'ID_B', title: '2026-11-03 もう一つの記事', markdown: '本文Bです。'}
+]
+};
+const EN_TITLES = {
+ids: ['ID_A', 'ID_B'],
+titles: { ID_A: '2026-11-04 Test Article', ID_B: '2026-11-03 Another Article'}
+};
+const ZH_TITLES = {
+ids: ['ID_A', 'ID_B'],
+titles: { ID_A: '2026-11-04 测试文章', ID_B: '2026-11-03 另一篇文章'}
+};
+const EN_BODIES = {
+ID_A: 'English body A.',
+ID_B: 'English body B.'
+};
+const ZH_BODIES = {
+ID_A: '中文正文A。',
+ID_B: '中文正文B。'
+};
+const okImage = () =>
+Promise.resolve({
+ok: true,
+json: () => Promise.resolve({ png: Buffer.from('PNGDATA').toString('base64')})
+});
+
+// overrides で各エンドポイントの応答を差し替えられるモック。
+// キー: 'titles:en' / 'titles:zh' / 'article:<id>:<lang>' → 応答を返す関数
+const i18nFetch = (overrides = {}) =>
+vi.fn((url) => {
+if (url === API) return Promise.resolve(jsonResponse(LIST));
+for (const lang of ['en', 'zh']) {
+if (url === `${API}?o=titles&lang=${lang}`) {
+const override = overrides[`titles:${lang}`];
+if (override) return override();
+return Promise.resolve(
+jsonResponse(lang === 'en'? EN_TITLES: ZH_TITLES)
+);
+}
+const m = url.match(/\?id=(ID_[A-Z])&lang=(en|zh)$/);
+if (m && url.startsWith(API)) {
+const override = overrides[`article:${m[1]}:${m[2]}`];
+if (override) return override();
+const titles = m[2] === 'en'? EN_TITLES.titles: ZH_TITLES.titles;
+const bodies = m[2] === 'en'? EN_BODIES: ZH_BODIES;
+return Promise.resolve(
+jsonResponse({ id: m[1], title: titles[m[1]], markdown: bodies[m[1]]})
+);
+}
+}
+return okImage();
+});
+
+it('英語・中国語のシェルとOGP画像も書き出す', async () => {
+const result = await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE},
+{ fetchImpl: i18nFetch(), log: () => {}}
+);
+expect(result).toEqual({ count: 2, fallbacks: 0});
+expect((await readdir(join(dir, 'en'))).sort()).toEqual(['ID_A.html', 'ID_B.html']);
+expect((await readdir(join(dir, 'zh'))).sort()).toEqual(['ID_A.html', 'ID_B.html']);
+expect((await readdir(join(dir, 'ogp'))).sort()).toEqual([
+'ID_A.en.png',
+'ID_A.png',
+'ID_A.zh.png',
+'ID_B.en.png',
+'ID_B.png',
+'ID_B.zh.png'
+]);
+
+const en = await readFile(join(dir, 'en', 'ID_A.html'), 'utf8');
+expect(en).toContain('<html lang="en">');
+expect(en).toContain('<title>2026-11-04 Test Article</title>');
+expect(en).toContain('<meta property="og:title" content="2026-11-04 Test Article" />');
+expect(en).toContain('<meta property="og:description" content="English body A." />');
+expect(en).toContain(`<meta property="og:url" content="${BASE}en/ID_A" />`);
+expect(en).toContain(
+`<meta property="og:image" content="${BASE}ogp/ID_A.en.png" />`
+);
+expect(en).toContain(`<link rel="canonical" href="${BASE}en/ID_A" />`);
+
+const zh = await readFile(join(dir, 'zh', 'ID_A.html'), 'utf8');
+expect(zh).toContain('<html lang="zh-CN">');
+expect(zh).toContain('<meta property="og:title" content="2026-11-04 测试文章" />');
+expect(zh).toContain(
+`<meta property="og:image" content="${BASE}ogp/ID_A.zh.png" />`
+);
+expect(zh).toContain(`<link rel="canonical" href="${BASE}zh/ID_A" />`);
+});
+
+it('全シェルに実在する言語だけの hreflang を相互に付ける', async () => {
+await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE},
+{ fetchImpl: i18nFetch(), log: () => {}}
+);
+for (const path of ['ID_A.html', join('en', 'ID_A.html'), join('zh', 'ID_A.html')]) {
+const shell = await readFile(join(dir, path), 'utf8');
+expect(shell).toContain(
+`<link rel="alternate" hreflang="ja" href="${BASE}ID_A" />`
+);
+expect(shell).toContain(
+`<link rel="alternate" hreflang="en" href="${BASE}en/ID_A" />`
+);
+expect(shell).toContain(
+`<link rel="alternate" hreflang="zh" href="${BASE}zh/ID_A" />`
+);
+expect(shell).toContain(
+`<link rel="alternate" hreflang="x-default" href="${BASE}ID_A" />`
+);
+}
+const ja = await readFile(join(dir, 'ID_A.html'), 'utf8');
+expect(ja).not.toContain('rel="canonical"');
+expect(ja).toContain('<html lang="ja">');
+});
+
+it('翻訳の説明文も日本語と同じ120字で切り詰める', async () => {
+const fetchImpl = i18nFetch({
+'article:ID_A:en': () =>
+Promise.resolve(
+jsonResponse({
+id: 'ID_A',
+title: '2026-11-04 Test Article',
+markdown: 'word '.repeat(60)
+})
+)
+});
+await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE},
+{ fetchImpl, log: () => {}}
+);
+const en = await readFile(join(dir, 'en', 'ID_A.html'), 'utf8');
+const m = en.match(/<meta property="og:description" content="([^"]*)" \/>/);
+expect(m).not.toBeNull();
+expect(m[1]).toHaveLength(120);
+});
+
+it('タイトル一覧が取れない言語は丸ごとスキップし、残りの言語は作る', async () => {
+const fetchImpl = i18nFetch({
+'titles:en': () => Promise.resolve(jsonResponse(null, false, 500))
+});
+const result = await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE},
+{ fetchImpl, log: () => {}}
+);
+expect(result.count).toBe(2);
+await expect(readdir(join(dir, 'en'))).rejects.toThrow();
+expect((await readdir(join(dir, 'zh'))).sort()).toEqual(['ID_A.html', 'ID_B.html']);
+const ja = await readFile(join(dir, 'ID_A.html'), 'utf8');
+expect(ja).toContain('hreflang="zh"');
+expect(ja).not.toContain('hreflang="en"');
+});
+
+it('翻訳が日本語のまま返るバックエンドでは日本語シェルのみ（従来どおり）', async () => {
+const jaTitles = {
+ids: LIST.ids,
+titles: {
+ID_A: '2026-11-04 テスト記事',
+ID_B: '2026-11-03 もう一つの記事'
+}
+};
+const fetchImpl = vi.fn((url) => {
+if (url === API) return Promise.resolve(jsonResponse(LIST));
+if (url.includes('o=titles')) return Promise.resolve(jsonResponse(jaTitles));
+if (url.includes('&lang=')) {
+const id = new URL(url).searchParams.get('id');
+const src = LIST.article_cache.find((a) => a.id === id);
+return Promise.resolve(jsonResponse(src));
+}
+return okImage();
+});
+const result = await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE},
+{ fetchImpl, log: () => {}}
+);
+expect(result.count).toBe(2);
+const files = await readdir(dir);
+expect(files).not.toContain('en');
+expect(files).not.toContain('zh');
+const ja = await readFile(join(dir, 'ID_A.html'), 'utf8');
+expect(ja).not.toContain('hreflang');
+expect(ja).not.toContain('rel="canonical"');
+});
+
+it('個別の翻訳取得に失敗した記事だけ、その言語のシェルを欠かす', async () => {
+const fetchImpl = i18nFetch({
+'article:ID_B:en': () => Promise.resolve(jsonResponse(null, false, 503)),
+'article:ID_B:zh': () =>
+Promise.resolve(
+jsonResponse({
+id: 'ID_B',
+title: '2026-11-03 另一篇文章',
+markdown: '本文Bです。' // 日本語のまま＝未翻訳として弾く
+})
+)
+});
+await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE},
+{ fetchImpl, log: () => {}}
+);
+expect((await readdir(join(dir, 'en'))).sort()).toEqual(['ID_A.html']);
+expect((await readdir(join(dir, 'zh'))).sort()).toEqual(['ID_A.html']);
+const jaB = await readFile(join(dir, 'ID_B.html'), 'utf8');
+expect(jaB).not.toContain('hreflang');
+const jaA = await readFile(join(dir, 'ID_A.html'), 'utf8');
+expect(jaA).toContain('hreflang="en"');
+expect(jaA).toContain('hreflang="zh"');
 });
 });
