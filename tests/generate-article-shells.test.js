@@ -162,7 +162,7 @@ fetched.push(id);
 return Promise.resolve(jsonResponse({ id, title: `タイトル${id}`, markdown: `本文${id}`}));
 });
 const items = await fetchArticleItems(API, fetchImpl);
-expect(MAX_ARTICLES).toBe(50);
+expect(MAX_ARTICLES).toBe(100);
 expect(items).toHaveLength(MAX_ARTICLES);
 expect(items.at(-1).id).toBe(`ID_${MAX_ARTICLES - 1}`);
 expect(fetched).not.toContain(`ID_${MAX_ARTICLES}`);
