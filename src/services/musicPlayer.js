@@ -27,6 +27,7 @@
 
 import { MUSIC_ENDPOINT } from '../constants.js';
 import { trackMusicPlay, trackMusicReady, trackMusicLatency } from '../analytics.js';
+import { t } from './i18n.js';
 
 const AUDIO_FILE_PATTERN = /^[A-Za-z0-9_-]+\.mp3$/;
 
@@ -168,7 +169,7 @@ const iconSvg = (name) => (
   `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${ICON_PATHS[name]}"/></svg>`
 );
 
-const REPEAT_LABELS = { none: 'リピート：なし', all: 'リピート：全曲', one: 'リピート：1曲' };
+const REPEAT_LABEL_KEYS = { none: 'repeatNone', all: 'repeatAll', one: 'repeatOne' };
 const REPEAT_CYCLE = { none: 'all', all: 'one', one: 'none' };
 
 const pickRandom = (candidates) => candidates[Math.floor(Math.random() * candidates.length)];
@@ -255,8 +256,8 @@ const createPlayer = (container, tracks) => {
   const nextButton = el('button', 'mp-button mp-next');
   nextButton.innerHTML = iconSvg('next');
   [prevButton, playButton, nextButton].forEach((b) => { b.type = 'button'; });
-  setLabel(prevButton, '前へ');
-  setLabel(nextButton, '次へ');
+  setLabel(prevButton, t('playerPrev'));
+  setLabel(nextButton, t('playerNext'));
   const controlsEl = el('div', 'mp-controls');
   controlsEl.append(prevButton, playButton, nextButton);
 
@@ -268,7 +269,7 @@ const createPlayer = (container, tracks) => {
   seekEl.max = '0';
   seekEl.step = '0.1';
   seekEl.value = '0';
-  seekEl.setAttribute('aria-label', '再生位置');
+  seekEl.setAttribute('aria-label', t('playerSeek'));
   const totalTimeEl = el('span', 'mp-time mp-total', '0:00');
   const progressEl = el('div', 'mp-progress');
   progressEl.append(currentTimeEl, seekEl, totalTimeEl);
@@ -321,7 +322,7 @@ const createPlayer = (container, tracks) => {
   };
   const syncPlayButton = () => {
     playButton.innerHTML = state.loading ? '…' : iconSvg(audio.paused ? 'play' : 'pause');
-    setLabel(playButton, state.loading ? '読み込み中' : (audio.paused ? '再生' : '一時停止'));
+    setLabel(playButton, state.loading ? t('playerLoading') : (audio.paused ? t('playerPlay') : t('playerPause')));
   };
   const syncProgress = () => {
     const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
@@ -388,7 +389,7 @@ const createPlayer = (container, tracks) => {
         if (state.destroyed || seq !== state.loadSeq) return;
         state.loading = false;
         state.pressStartedAt = null;
-        setStatus('音源を読み込めませんでした');
+        setStatus(t('playerLoadError'));
         syncPlayButton();
       });
   };
@@ -445,19 +446,32 @@ const createPlayer = (container, tracks) => {
     startTrack(stepIndex(state.index, tracks.length, -1));
   });
 
-  // The mode switches are icons, so the Japanese state names live
-  // in the accessible label and tooltip; the visual state is just
-  // muted (off) versus full-strength (on), plus a "1" badge for
+  // The mode switches are icons, so the state names live in the
+  // accessible label and tooltip; the visual state is just muted
+  // (off) versus full-strength (on), plus a "1" badge for
   // repeat-one. Only the play button gets the primary color.
   const syncRepeat = () => {
-    setLabel(repeatButton, REPEAT_LABELS[state.repeat]);
+    setLabel(repeatButton, t(REPEAT_LABEL_KEYS[state.repeat]));
     repeatButton.classList.toggle('is-on', state.repeat !== 'none');
     repeatBadge.hidden = state.repeat !== 'one';
   };
   const syncRandom = () => {
-    setLabel(randomButton, state.random ? 'ランダム：オン' : 'ランダム：オフ');
+    setLabel(randomButton, state.random ? t('shuffleOn') : t('shuffleOff'));
     randomButton.setAttribute('aria-pressed', state.random ? 'true' : 'false');
     randomButton.classList.toggle('is-on', state.random);
+  };
+
+  // Re-applies every language-dependent label from the current UI
+  // language. The player is imperative DOM, so a language switch
+  // while it exists cannot rely on re-rendering; ArticleContent
+  // calls this through refreshMusicPlayerLabels instead.
+  const refreshLabels = () => {
+    setLabel(prevButton, t('playerPrev'));
+    setLabel(nextButton, t('playerNext'));
+    seekEl.setAttribute('aria-label', t('playerSeek'));
+    syncPlayButton();
+    syncRepeat();
+    syncRandom();
   };
 
   repeatButton.addEventListener('click', () => {
@@ -492,7 +506,7 @@ const createPlayer = (container, tracks) => {
   audio.addEventListener('loadedmetadata', syncProgress);
   audio.addEventListener('durationchange', syncProgress);
   audio.addEventListener('error', () => {
-    if (state.loadedFile) setStatus('音源を読み込めませんでした');
+    if (state.loadedFile) setStatus(t('playerLoadError'));
   });
   audio.addEventListener('ended', () => {
     const plan = endedPlan({
@@ -553,6 +567,7 @@ const createPlayer = (container, tracks) => {
   })();
 
   return {
+    refreshLabels,
     destroy() {
       state.destroyed = true;
       state.loadSeq += 1;
@@ -569,6 +584,18 @@ const createPlayer = (container, tracks) => {
 };
 
 let currentPlayer = null;
+
+// Re-labels the live player after a UI language switch (see
+// createPlayer's refreshLabels). No player (the common case)
+// leaves the page untouched.
+export const refreshMusicPlayerLabels = () => {
+  if (!currentPlayer) return;
+  try {
+    currentPlayer.refreshLabels();
+  } catch (err) {
+    // A half-initialised player must not break the language switch.
+  }
+};
 
 export const destroyMusicPlayer = () => {
   if (!currentPlayer) return;

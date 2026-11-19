@@ -1,5 +1,6 @@
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../constants';
 import { isStagingBuild } from '../staging-banner';
+import { t } from './i18n';
 
 // The GAS web app sometimes drops a request before the code runs
 // (instant failures) or leaves it hanging (observed at 60s+ on
@@ -60,7 +61,7 @@ export const apiFetch = async (url) => {
 export const fetchRSS = async () => {
   const response = await apiFetch(RSS_ENDPOINT);
   if (!response.ok) {
-    throw new Error('RSSの取得に失敗しました。');
+    throw new Error(t('rssFetchFailed'));
   }
   return await response.text();
 };
@@ -76,7 +77,7 @@ const fetchJson = async (url, failureMessage) => {
 };
 
 export const fetchArticle = async (id) =>
-  fetchJson(`${LIST_ENDPOINT}?id=${id}`, '記事の取得に失敗しました。');
+  fetchJson(`${LIST_ENDPOINT}?id=${id}`, t('articleFetchFailed'));
 
 // Maps a list response to the {id, title} entries the title search
 // offers, newest first. Titles come from the response's titles map;
@@ -105,17 +106,17 @@ export const buildSearchableArticles = (data) => {
 // returns ids and titles only (no article bodies), which keeps the
 // search responsive even when the article cache is cold.
 export const fetchArticleTitles = async () => {
-  const data = await fetchJson(`${LIST_ENDPOINT}?o=titles`, '記事タイトル一覧の取得に失敗しました。');
+  const data = await fetchJson(`${LIST_ENDPOINT}?o=titles`, t('articleTitlesFetchFailed'));
   if (!data?.ids?.length) {
-    throw new Error('最新記事が見つかりませんでした。');
+    throw new Error(t('latestNotFound'));
   }
   return data;
 };
 
 export const fetchArticleList = async () => {
-  const data = await fetchJson(LIST_ENDPOINT, '記事一覧の取得に失敗しました。');
+  const data = await fetchJson(LIST_ENDPOINT, t('articleListFetchFailed'));
   if (!data?.ids?.length) {
-    throw new Error('最新記事が見つかりませんでした。');
+    throw new Error(t('latestNotFound'));
   }
   return data;
 };

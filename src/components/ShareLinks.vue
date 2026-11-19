@@ -1,6 +1,6 @@
 <template>
   <div class="share-links">
-    <p class="share-heading">この記事をシェアする</p>
+    <p class="share-heading">{{ t('shareHeading') }}</p>
     <div class="share-row">
       <a
         v-for="link in shareLinks"
@@ -27,6 +27,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { buildShareLinks } from '../share';
+import { t } from '../services/i18n';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -35,14 +36,17 @@ const props = defineProps({
 
 const shareLinks = computed(() => buildShareLinks({ title: props.title, url: props.url }));
 
-const copyLabel = ref('リンクをコピー');
+// The label is derived from the copied flag so it also follows a
+// UI language switch while the confirmation is showing.
+const copied = ref(false);
+const copyLabel = computed(() => (copied.value ? t('copied') : t('copyLink')));
 
 const copyUrl = async () => {
   try {
     await navigator.clipboard.writeText(props.url);
-    copyLabel.value = 'コピーしました';
+    copied.value = true;
     setTimeout(() => {
-      copyLabel.value = 'リンクをコピー';
+      copied.value = false;
     }, 2000);
   } catch (err) {
     console.error('Failed to copy: ', err);

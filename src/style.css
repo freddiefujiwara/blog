@@ -253,6 +253,16 @@ a.hero-inner {
 @media (max-width: 560px) {
   .site-nav {
     grid-template-columns: 1fr;
+    /* The language switcher takes a compact second row here. */
+    height: auto;
+    min-height: 56px;
+    row-gap: 2px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .nav-end {
+    justify-self: end;
   }
 
   .site-nav .brand {
@@ -616,11 +626,48 @@ article th {
 /* Wide screens: the search lives in the site nav (see .nav-search);
    narrower ones keep it in the hero, full-width on phones. Only one
    of the two instances is visible at a time. */
-.nav-search {
+.nav-end {
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-search {
   width: 230px;
   flex: none;
-  margin-left: 24px;
+}
+
+/* UI language switcher: compact text buttons in the site nav,
+   styled like the nav links (muted, accent + underline when on). */
+.lang-switch {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.lang-switch-button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  padding: 4px 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lang-switch-button:hover {
+  color: var(--text);
+}
+
+.lang-switch-button.active {
+  color: var(--link);
+  border-bottom-color: var(--link);
+  font-weight: 700;
 }
 
 .nav-search .title-search .title-search-results {

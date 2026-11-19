@@ -1,6 +1,6 @@
 <template>
   <div>
-    <StatusMessage v-if="!article && !errorMessage" message="読み込み中..." />
+    <StatusMessage v-if="!article && !errorMessage" :message="t('loading')" />
     <NavigationLinks
       v-if="article"
       :prev-link="prevLink"
@@ -20,7 +20,7 @@
       :next-title="nextTitle"
     />
     <div v-if="article && articleIds.length > 0" class="footer-link">
-      <router-link :to="'/' + articleIds[0]">最新記事（トップ）へ戻る</router-link>
+      <router-link :to="'/' + articleIds[0]">{{ t('backToLatest') }}</router-link>
       &nbsp;|&nbsp;
       <a :href="RSS_ENDPOINT" target="_blank" rel="noopener noreferrer">RSS</a>
       &nbsp;|&nbsp;
@@ -45,6 +45,7 @@ import StatusMessage from '../components/StatusMessage.vue';
 import { RSS_ENDPOINT } from '../constants';
 import { extractTocFromHtml } from '../services/markdown';
 import { buildArticleUrl } from '../share';
+import { t } from '../services/i18n';
 
 const { article, articleHtml, articleIds, currentId, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
 
@@ -53,15 +54,18 @@ const toc = computed(() => extractTocFromHtml(articleHtml.value));
 const articleUrl = computed(() => (currentId.value ? buildArticleUrl(currentId.value) : ''));
 const { rssXml, fetchRSS } = useRSS();
 
-const copyText = ref('コピー');
+// Derived from the copied flag so the label also follows a UI
+// language switch while the confirmation is showing.
+const copied = ref(false);
+const copyText = computed(() => (copied.value ? t('copyDone') : t('copy')));
 
 const copyRSS = async () => {
   if (!rssXml.value) return;
   try {
     await navigator.clipboard.writeText(rssXml.value);
-    copyText.value = 'コピー完了';
+    copied.value = true;
     setTimeout(() => {
-      copyText.value = 'コピー';
+      copied.value = false;
     }, 2000);
   } catch (err) {
     console.error('Failed to copy: ', err);

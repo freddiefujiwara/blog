@@ -1,3 +1,5 @@
+import { currentLang, t } from './i18n';
+
 // Fetches the cumulative 川口の歌 play count shown in the shared
 // header nav. The count lives in a tiny JSON file on the top site
 // (https://freddiefujiwara.com/music-count.json), which the top
@@ -24,6 +26,9 @@ export async function fetchMusicPlayCount(fetchImpl = fetch) {
   }
 }
 
+const COUNT_LOCALES = { ja: 'ja-JP', en: 'en-US', zh: 'zh-CN' };
+
 export function formatMusicPlayCount(count) {
-  return `${count.toLocaleString('ja-JP')}回再生`;
+  const formatted = count.toLocaleString(COUNT_LOCALES[currentLang.value] ?? 'ja-JP');
+  return t('musicPlayCount', { count: formatted });
 }
