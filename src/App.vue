@@ -11,11 +11,6 @@
         <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">{{ t('navList') }}</a></li>
         <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">{{ t('navMusic') }} ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
       </ul>
-      <div class="nav-end">
-        <div class="nav-search">
-          <TitleSearch :articles="searchableArticles" :state="searchState" />
-        </div>
-      </div>
     </nav>
     <header class="header hero">
       <router-link
@@ -30,11 +25,11 @@
         <p class="hero-place">KAWAGUCHI — BLOG</p>
         <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
       </div>
-      <div class="hero-search">
-        <TitleSearch :articles="searchableArticles" :state="searchState" />
-      </div>
     </header>
     <div class="layout">
+      <div class="list-search">
+        <TitleSearch :articles="searchableArticles" :state="searchState" />
+      </div>
       <TagIndex :tags="tagIndex" />
       <router-view />
       <footer class="site-footer">

@@ -633,21 +633,6 @@ article th {
   pointer-events: none;
 }
 
-/* Wide screens: the search lives in the site nav (see .nav-search);
-   narrower ones keep it in the hero, full-width on phones. Only one
-   of the two instances is visible at a time. */
-.nav-end {
-  justify-self: end;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.nav-search {
-  width: 230px;
-  flex: none;
-}
-
 /* UI language switcher: compact text buttons at the end of the
    footer, styled like the footer links (muted, accent + underline
    when on). It used to sit in the site nav, where on phones it
@@ -686,50 +671,18 @@ article th {
   font-weight: 700;
 }
 
-.nav-search .title-search .title-search-results {
-  left: auto;
-  right: 0;
-  width: min(340px, calc(100vw - 32px));
+/* Title search: a single instance at the top of the layout, above
+   the article list. It used to live in the site nav on wide screens
+   and in the hero on narrower ones, which made the header two rows
+   tall on phones; out of the nav, the header is one row at every
+   width, same as the top page. */
+.list-search {
+  margin: 0 0 20px;
+}
+
+.list-search .title-search-results {
   max-height: 320px;
   overflow-y: auto;
-}
-
-@media (max-width: 900px) {
-  .nav-search {
-    display: none;
-  }
-}
-
-@media (min-width: 901px) {
-  .hero-search {
-    display: none;
-  }
-}
-
-.hero-search {
-  position: absolute;
-  top: 14px;
-  right: clamp(16px, 4vw, 40px);
-  z-index: 3;
-  width: min(330px, calc(100vw - 32px));
-}
-
-.hero-search .title-search-input {
-  border-color: transparent;
-  box-shadow: 0 2px 12px rgba(16, 11, 6, 0.35);
-}
-
-.hero-search .title-search-results {
-  max-height: 216px;
-  overflow-y: auto;
-}
-
-@media (max-width: 560px) {
-  .hero-search {
-    left: 16px;
-    right: 16px;
-    width: auto;
-  }
 }
 
 .title-search {
