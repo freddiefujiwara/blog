@@ -20,6 +20,13 @@ export function useBlog() {
   const currentId = ref('');
   const loading = ref(false);
   const articleCache = ref({});
+  // Article titles for the current list, keyed by id, taken from
+  // the titles map the list payloads themselves carry. Navigation
+  // links read neighbour titles from here first, so they always
+  // speak the page's language; the session article cache is only a
+  // fallback for ids the payload did not name.
+  const listTitles = ref({});
+  let listTitlesLang = null;
   const pendingArticleFetches = new Map();
   let listRefreshInFlight = false;
   // The language the in-memory article list was loaded in. Article
@@ -74,8 +81,14 @@ export function useBlog() {
 
   const prevLink = computed(() => navigationLinks.value.prevLink);
   const nextLink = computed(() => navigationLinks.value.nextLink);
-  const prevTitle = computed(() => articleCache.value[cacheKey(contentLang.value, navigationLinks.value.prevId)]?.title || '');
-  const nextTitle = computed(() => articleCache.value[cacheKey(contentLang.value, navigationLinks.value.nextId)]?.title || '');
+  const prevTitle = computed(() =>
+    listTitles.value[navigationLinks.value.prevId]
+    || articleCache.value[cacheKey(contentLang.value, navigationLinks.value.prevId)]?.title
+    || '');
+  const nextTitle = computed(() =>
+    listTitles.value[navigationLinks.value.nextId]
+    || articleCache.value[cacheKey(contentLang.value, navigationLinks.value.nextId)]?.title
+    || '');
 
   // Starts fetching an article before the article list has arrived, so a
   // deep-linked article downloads in parallel with the list instead of
@@ -155,9 +168,28 @@ export function useBlog() {
     errorMessage.value = '';
   };
 
+  // Rebuilds the id -> title map from a list payload. Every list
+  // response (full list, titles response, persisted list) carries
+  // titles as an id-keyed map in the list's own language, so the
+  // map is replaced wholesale whenever one arrives. A payload
+  // without a map (older API responses) keeps the current map
+  // within the same language, but never inherits one across a
+  // language switch.
+  const rememberListTitles = (data, lang) => {
+    const titles = data?.titles;
+    if (titles && typeof titles === 'object' && !Array.isArray(titles)) {
+      listTitles.value = { ...titles };
+      listTitlesLang = lang;
+    } else if (listTitlesLang !== lang) {
+      listTitles.value = {};
+      listTitlesLang = lang;
+    }
+  };
+
   const applyListData = (data, lang) => {
     articleIds.value = data.ids;
     loadedListLang = lang;
+    rememberListTitles(data, lang);
     if (data.article_cache) {
       data.article_cache.forEach((item) => {
         articleCache.value[cacheKey(lang, item.id)] = item;
@@ -231,6 +263,7 @@ export function useBlog() {
       if (data?.ids?.length) {
         articleIds.value = data.ids;
         loadedListLang = lang;
+        rememberListTitles(data, lang);
         refreshArticleList(lang);
         return data.ids;
       }
