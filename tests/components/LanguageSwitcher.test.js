@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 import LanguageSwitcher from '../../src/components/LanguageSwitcher.vue';
-import { LANGUAGE_STORAGE_KEY, applyRouteLang, currentLang, initLang, routeLang, setLang } from '../../src/services/i18n';
+import { LANGUAGE_STORAGE_KEY, LEGACY_LANGUAGE_STORAGE_KEY, applyRouteLang, currentLang, initLang, routeLang, setLang } from '../../src/services/i18n';
 
 const mockRoute = reactive({ path: '/' });
 const mockRouter = { push: vi.fn() };
@@ -50,6 +50,8 @@ describe('LanguageSwitcher', () => {
     await buttons[2].trigger('click');
     expect(currentLang.value).toBe('zh');
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+    // The switcher writes the shared key only, never the legacy one.
+    expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBeNull();
     expect(buttons[2].classes()).toContain('active');
     expect(document.documentElement.lang).toBe('zh-CN');
   });
