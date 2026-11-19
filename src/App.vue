@@ -12,7 +12,6 @@
         <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">{{ t('navMusic') }} ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
       </ul>
       <div class="nav-end">
-        <LanguageSwitcher />
         <div class="nav-search">
           <TitleSearch :articles="searchableArticles" :state="searchState" />
         </div>
@@ -89,6 +88,9 @@
               <a href="https://freddiefujiwara.com/dtdt/" target="_blank" rel="noopener">{{ t('toolDtdt') }} <span class="arr">↗</span></a>
             </div>
           </div>
+        </div>
+        <div class="foot-lang">
+          <LanguageSwitcher />
         </div>
         <p class="copy">© {{ year }} 藤原史和（Fumikazu Fujiwara）— freddiefujiwara.com</p>
       </footer>

@@ -6,6 +6,7 @@ import {
   MESSAGES,
   SUPPORTED_LANGS,
   currentLang,
+  detectBrowserLang,
   initLang,
   isSupportedLang,
   resolveInitialLang,
@@ -13,17 +14,25 @@ import {
   t
 } from '../../src/services/i18n';
 
+const stubBrowserLanguages = (languages) => {
+  vi.stubGlobal('navigator', { language: languages[0], languages });
+};
+
 describe('i18n service', () => {
   beforeEach(() => {
     localStorage.clear();
     setLang(DEFAULT_LANG);
     localStorage.clear();
     window.history.replaceState(null, '', '/');
+    // A Japanese browser by default, so the initial-language
+    // tests below exercise the param/stored steps deterministically.
+    stubBrowserLanguages(['ja-JP']);
   });
 
   afterEach(() => {
     setLang(DEFAULT_LANG);
     window.history.replaceState(null, '', '/');
+    vi.unstubAllGlobals();
   });
 
   it('supports Japanese, English and Simplified Chinese, Japanese first', () => {
@@ -79,13 +88,31 @@ describe('i18n service', () => {
     expect(t('noSuchKey')).toBe('noSuchKey');
   });
 
-  it('resolves the initial language: parameter, then stored, then Japanese', () => {
-    expect(resolveInitialLang({ param: 'en', stored: 'zh' })).toBe('en');
-    expect(resolveInitialLang({ param: 'fr', stored: 'zh' })).toBe('zh');
-    expect(resolveInitialLang({ param: null, stored: 'en' })).toBe('en');
-    expect(resolveInitialLang({ param: 'fr', stored: 'fr' })).toBe('ja');
+  it('resolves the initial language: parameter, then stored, then browser, then Japanese', () => {
+    expect(resolveInitialLang({ param: 'en', stored: 'zh', browser: 'zh' })).toBe('en');
+    expect(resolveInitialLang({ param: 'fr', stored: 'zh', browser: 'en' })).toBe('zh');
+    expect(resolveInitialLang({ param: null, stored: 'en', browser: 'zh' })).toBe('en');
+    expect(resolveInitialLang({ param: null, stored: null, browser: 'en' })).toBe('en');
+    expect(resolveInitialLang({ param: null, stored: 'fr', browser: 'zh' })).toBe('zh');
+    expect(resolveInitialLang({ param: 'fr', stored: 'fr', browser: 'fr' })).toBe('ja');
     expect(resolveInitialLang({})).toBe('ja');
     expect(resolveInitialLang()).toBe('ja');
+  });
+
+  it('maps browser language tags: en-* to English, any zh-* to Chinese', () => {
+    expect(detectBrowserLang(['en'])).toBe('en');
+    expect(detectBrowserLang(['en-US'])).toBe('en');
+    expect(detectBrowserLang(['EN-GB'])).toBe('en');
+    expect(detectBrowserLang(['zh-CN'])).toBe('zh');
+    expect(detectBrowserLang(['zh-TW'])).toBe('zh');
+    expect(detectBrowserLang(['zh-Hans-CN'])).toBe('zh');
+    // The first mappable tag wins; unmappable ones are skipped.
+    expect(detectBrowserLang(['fr-FR', 'en-GB'])).toBe('en');
+    expect(detectBrowserLang(['ja-JP'])).toBeNull();
+    expect(detectBrowserLang(['fr-FR'])).toBeNull();
+    expect(detectBrowserLang([])).toBeNull();
+    expect(detectBrowserLang()).toBeNull();
+    expect(detectBrowserLang(null)).toBeNull();
   });
 
   it('recognizes only the supported languages', () => {
@@ -139,6 +166,49 @@ describe('i18n service', () => {
     expect(initLang()).toBe('ja');
     expect(currentLang.value).toBe('ja');
     expect(document.documentElement.lang).toBe('ja');
+  });
+
+  it('initLang applies the browser language when nothing is stored', () => {
+    stubBrowserLanguages(['en-US']);
+    expect(initLang()).toBe('en');
+    expect(currentLang.value).toBe('en');
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('initLang maps any Chinese browser variant to Simplified Chinese', () => {
+    stubBrowserLanguages(['zh-TW']);
+    expect(initLang()).toBe('zh');
+    expect(currentLang.value).toBe('zh');
+    expect(document.documentElement.lang).toBe('zh-CN');
+  });
+
+  it('initLang does not persist a browser-detected language', () => {
+    stubBrowserLanguages(['en-US']);
+    expect(initLang()).toBe('en');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
+    // With the preference still unset, the next visit re-evaluates
+    // the browser: a Japanese browser now yields Japanese.
+    stubBrowserLanguages(['ja-JP']);
+    expect(initLang()).toBe('ja');
+  });
+
+  it('initLang prefers the stored choice over the browser language', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'zh');
+    stubBrowserLanguages(['en-US']);
+    expect(initLang()).toBe('zh');
+  });
+
+  it('initLang prefers ?lang= over the browser language and persists it', () => {
+    stubBrowserLanguages(['en-US']);
+    window.history.replaceState(null, '', '/?lang=zh');
+    expect(initLang()).toBe('zh');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+  });
+
+  it('initLang falls back to Japanese for an unsupported browser language', () => {
+    stubBrowserLanguages(['fr-FR']);
+    expect(initLang()).toBe('ja');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
   });
 
   it('uses the production storage key outside staging builds', () => {

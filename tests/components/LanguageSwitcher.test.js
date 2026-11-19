@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LanguageSwitcher from '../../src/components/LanguageSwitcher.vue';
-import { LANGUAGE_STORAGE_KEY, currentLang, setLang } from '../../src/services/i18n';
+import { LANGUAGE_STORAGE_KEY, currentLang, initLang, setLang } from '../../src/services/i18n';
 
 describe('LanguageSwitcher', () => {
   beforeEach(() => {
@@ -12,6 +12,7 @@ describe('LanguageSwitcher', () => {
 
   afterEach(() => {
     setLang('ja');
+    vi.unstubAllGlobals();
   });
 
   it('offers the three languages under their own names', () => {
@@ -36,5 +37,21 @@ describe('LanguageSwitcher', () => {
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
     expect(buttons[2].classes()).toContain('active');
     expect(document.documentElement.lang).toBe('zh-CN');
+  });
+
+  it('marks a browser-detected language as active without persisting it', async () => {
+    vi.stubGlobal('navigator', { language: 'en-US', languages: ['en-US'] });
+    expect(initLang()).toBe('en');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
+
+    const wrapper = mount(LanguageSwitcher);
+    const buttons = wrapper.findAll('.lang-switch-button');
+    expect(buttons[1].classes()).toContain('active');
+    expect(buttons[1].attributes('aria-pressed')).toBe('true');
+
+    // An explicit click is a manual choice and does persist.
+    await buttons[0].trigger('click');
+    expect(currentLang.value).toBe('ja');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ja');
   });
 });
