@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import router from '../src/router';
 import {
   LANGUAGE_STORAGE_KEY,
+  LEGACY_LANGUAGE_STORAGE_KEY,
   applyRouteLang,
   currentLang,
   routeLang,
@@ -68,6 +69,14 @@ describe('router language redirect', () => {
     expect(route.path).toBe('/en/stored-article');
     expect(route.name).toBe('post');
     expect(route.params).toEqual({ lang: 'en', id: 'stored-article' });
+  });
+
+  it('honours a preference stored under the legacy blog key', async () => {
+    localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'en');
+    const route = await visit('/legacy-article');
+    expect(route.path).toBe('/en/legacy-article');
+    expect(route.name).toBe('post');
+    expect(route.params).toEqual({ lang: 'en', id: 'legacy-article' });
   });
 
   it('sends a Chinese browser at /tag/<tag> to /zh/tag/<tag>', async () => {

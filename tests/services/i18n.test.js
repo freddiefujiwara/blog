@@ -3,6 +3,7 @@ import {
   DEFAULT_LANG,
   HTML_LANG,
   LANGUAGE_STORAGE_KEY,
+  LEGACY_LANGUAGE_STORAGE_KEY,
   MESSAGES,
   SUPPORTED_LANGS,
   TAG_LABELS,
@@ -221,7 +222,42 @@ describe('i18n service', () => {
   });
 
   it('uses the production storage key outside staging builds', () => {
-    expect(LANGUAGE_STORAGE_KEY).toBe('blog:lang:v1');
+    expect(LANGUAGE_STORAGE_KEY).toBe('site:lang:v1');
+  });
+
+  describe('shared storage key (shared with the top page)', () => {
+    it('honours the legacy blog key when the shared key is unset', () => {
+      localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'en');
+      expect(initLang()).toBe('en');
+      expect(currentLang.value).toBe('en');
+      expect(resolveViewerLang(null)).toBe('en');
+    });
+
+    it('prefers the shared key when both are set', () => {
+      localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'en');
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, 'zh');
+      expect(initLang()).toBe('zh');
+      expect(resolveViewerLang(null)).toBe('zh');
+    });
+
+    it('persists to the shared key only, never the legacy key', () => {
+      setLang('en');
+      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
+      expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBeNull();
+
+      window.history.replaceState(null, '', '/?lang=zh');
+      expect(initLang()).toBe('zh');
+      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+      expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBeNull();
+    });
+
+    it('leaves a legacy value untouched when persisting', () => {
+      localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'en');
+      setLang('zh');
+      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+      // The legacy key is read-only now: not updated, not removed.
+      expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBe('en');
+    });
   });
 
   describe('resolveViewerLang (the router\u2019s resolution)', () => {
@@ -407,7 +443,8 @@ describe('i18n service', () => {
     vi.resetModules();
     try {
       const stagingModule = await import('../../src/services/i18n');
-      expect(stagingModule.LANGUAGE_STORAGE_KEY).toBe('blog:lang:v1:staging');
+      expect(stagingModule.LANGUAGE_STORAGE_KEY).toBe('site:lang:v1:staging');
+      expect(stagingModule.LEGACY_LANGUAGE_STORAGE_KEY).toBe('blog:lang:v1:staging');
     } finally {
       vi.stubEnv('VITE_STAGING', '');
     }

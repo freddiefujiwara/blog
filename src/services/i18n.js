@@ -16,11 +16,23 @@ export const DEFAULT_LANG = 'ja';
 // The value written to <html lang="..."> for each language.
 export const HTML_LANG = { ja: 'ja', en: 'en', zh: 'zh-CN' };
 
+// One language preference for the whole site: the top page and
+// the blog share this key (same origin), so the language a
+// visitor sees on one carries over to the other — the top page
+// records its current language here on every load.
 // Environment-separated like the list cache (services/listCache):
 // production and staging are served from the same origin, so an
 // unscoped key would let one environment's preference leak into
 // the other.
 export const LANGUAGE_STORAGE_KEY = isStagingBuild()
+  ? 'site:lang:v1:staging'
+  : 'site:lang:v1';
+
+// Where the preference lived while it was the blog's alone.
+// Reads fall back to it (see readStoredLang) so a choice made
+// before the key was shared is not lost; writes go to the
+// shared key only.
+export const LEGACY_LANGUAGE_STORAGE_KEY = isStagingBuild()
   ? 'blog:lang:v1:staging'
   : 'blog:lang:v1';
 
@@ -269,7 +281,10 @@ export const resolveInitialLang = ({ param = null, stored = null, browser = null
 
 const readStoredLang = () => {
   try {
-    return localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return (
+      localStorage.getItem(LANGUAGE_STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)
+    );
   } catch {
     return null;
   }
