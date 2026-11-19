@@ -26,6 +26,21 @@
 // https://freddiefujiwara.com/blog/ or.../blog/staging/
 // A failed/empty article list aborts the deploy (unless --allow-empty) so
 // a backend hiccup never wipes the shells that are already published.
+//
+// Translated shells: for each language in SHELL_LANGUAGES the script also
+// writes <distDir>/<code>/<article-id>.html (published at
+// <baseUrl><code>/<id>) with the translated title/description and a
+// per-language OGP image <distDir>/ogp/<id>.<code>.png, fed by blog-gas's
+// translated endpoints (?o=titles&lang=<code> for the titles, ?id=&lang=
+// for the body the description is cut from). A language — or a single
+// article in it — is skipped whenever its translation is missing, fails
+// to load, or comes back identical to the Japanese text, so a backend
+// without lang support (or with a half-filled translation cache) yields
+// exactly the Japanese-only output this script has always produced, and
+// Japanese content is never served labelled as another language. When at
+// least one translated shell exists for an article, every shell of that
+// article cross-links the existing ones with hreflang alternates
+// (x-default points at the Japanese URL).
 
 import { mkdir, readFile, writeFile} from 'node:fs/promises';
 import { join} from 'node:path';
@@ -35,6 +50,15 @@ export const OGP_IMAGE_API_URL =
 'https://script.google.com/macros/s/AKfycbzbMAKxkzHlwN8SY7ygJA34xYESMNNdkGNt8vv1XMcZSksgHsUwOxCCdP-wgg6fv7M/exec';
 
 const IMAGE_CONCURRENCY = 4;
+
+// Languages that get translated shells next to the Japanese ones. `code`
+// is the blog-gas lang parameter and the URL path segment, `htmlLang` the
+// value for the shell's <html lang> attribute, `hreflang` the value used
+// in the alternate links.
+export const SHELL_LANGUAGES = [
+{ code: 'en', htmlLang: 'en', hreflang: 'en'},
+{ code: 'zh', htmlLang: 'zh-CN', hreflang: 'zh'}
+];
 
 // How many of the newest articles get shells. Raised from the old RSS
 // feed limit (50) to keep headroom as the article count grows.
@@ -87,7 +111,10 @@ if (!re.test(html)) throw new Error(`template is missing <meta ${attr}="${key}">
 return html.replace(re, `$1${escapeAttr(value)}$2`);
 };
 
-export const buildShellHtml = (template, { title, description, url, imageUrl}) => {
+export const buildShellHtml = (
+template,
+{ title, description, url, imageUrl, lang, canonicalUrl, alternates}
+) => {
 let html = template;
 const titleTag = /<title>[\s\S]*?<\/title>/;
 if (!titleTag.test(html)) throw new Error('template is missing <title>');
@@ -98,6 +125,24 @@ html = replaceMeta(html, 'property', 'og:type', 'article');
 html = replaceMeta(html, 'property', 'og:url', url);
 html = replaceMeta(html, 'property', 'og:image', imageUrl);
 html = replaceMeta(html, 'name', 'twitter:image', imageUrl);
+if (lang) {
+const htmlTag = /<html lang="[^"]*"/;
+if (!htmlTag.test(html)) throw new Error('template is missing <html lang>');
+html = html.replace(htmlTag, `<html lang="${lang}"`);
+}
+const headLinks = [];
+if (canonicalUrl) {
+headLinks.push(`<link rel="canonical" href="${escapeAttr(canonicalUrl)}" />`);
+}
+for (const alt of alternates?? []) {
+headLinks.push(
+`<link rel="alternate" hreflang="${alt.hreflang}" href="${escapeAttr(alt.href)}" />`
+);
+}
+if (headLinks.length > 0) {
+if (!html.includes('</head>')) throw new Error('template is missing </head>');
+html = html.replace('</head>', `${headLinks.join('\n')}\n</head>`);
+}
 return html;
 };
 
@@ -158,6 +203,63 @@ return null;
 return items.filter((item) => item!== null);
 };
 
+// Normalises a ?o=titles response into an id → title Map. The backend's
+// titles field is a plain object keyed by article id; an array parallel
+// to ids (or of {id, title}) is accepted too so a shape change on the
+// backend degrades to "language unavailable" instead of garbage shells.
+// Returns null when nothing usable is in the response.
+export const translatedTitlesFromResponse = (data) => {
+if (!data || typeof data!== 'object') return null;
+const titles = data.titles;
+if (!titles) return null;
+const map = new Map();
+if (Array.isArray(titles)) {
+const ids = Array.isArray(data.ids)? data.ids: [];
+titles.forEach((t, i) => {
+if (typeof t === 'string' && ids[i]) map.set(ids[i], t);
+else if (t && typeof t === 'object' && t.id && t.title) map.set(t.id, t.title);
+});
+} else if (typeof titles === 'object') {
+for (const [id, t] of Object.entries(titles)) {
+if (typeof t === 'string') map.set(id, t);
+}
+}
+return map.size > 0? map: null;
+};
+
+// Translated titles for one language, or null when the backend does not
+// serve them (endpoint missing, HTTP error, unexpected shape). Null is
+// the normal state until blog-gas's lang support is deployed, and simply
+// skips that language's shells for the whole run.
+export const fetchTranslatedTitles = async (apiUrl, lang, fetchImpl = fetch) => {
+const sep = apiUrl.includes('?')? '&': '?';
+try {
+const res = await fetchImpl(`${apiUrl}${sep}o=titles&lang=${lang}`);
+if (!res.ok) return null;
+return translatedTitlesFromResponse(await res.json());
+} catch {
+return null;
+}
+};
+
+// One translated article ({title, markdown}) for the description source,
+// or null on any failure or incomplete payload — the caller then skips
+// that article's shell in this language.
+export const fetchTranslatedArticle = async (apiUrl, id, lang, fetchImpl = fetch) => {
+const sep = apiUrl.includes('?')? '&': '?';
+try {
+const res = await fetchImpl(
+`${apiUrl}${sep}id=${encodeURIComponent(id)}&lang=${lang}`
+);
+if (!res.ok) return null;
+const art = await res.json();
+if (!art ||!art.title ||!art.markdown) return null;
+return { title: art.title, markdown: art.markdown};
+} catch {
+return null;
+}
+};
+
 export const generateArticleShells = async (
 { distDir, apiUrl, baseUrl, allowEmpty = false},
 { fetchImpl = fetch, log = console.log} = {}
@@ -175,7 +277,21 @@ const template = await readFile(join(distDir, 'index.html'), 'utf8');
 const ogpDir = join(distDir, 'ogp');
 await mkdir(ogpDir, { recursive: true});
 
+// Translated titles per language up front (one request each). A language
+// whose titles cannot be loaded is skipped for the whole run — this is
+// the expected state until blog-gas's lang support is deployed.
+const langTitles = new Map();
+for (const lang of SHELL_LANGUAGES) {
+const titles = await fetchTranslatedTitles(apiUrl, lang.code, fetchImpl);
+if (titles) {
+langTitles.set(lang.code, titles);
+} else {
+log(`No translated titles for ${lang.code}; skipping its shells`);
+}
+}
+
 let fallbacks = 0;
+const langCounts = new Map(SHELL_LANGUAGES.map((lang) => [lang.code, 0]));
 await mapWithConcurrency(items, IMAGE_CONCURRENCY, async (item) => {
 let imageUrl = `${baseUrl}ogp/${item.id}.png`;
 try {
@@ -188,16 +304,87 @@ fallbacks++;
 log(`OGP image failed for ${item.id} (${err.message}); using fallback image`);
 imageUrl = `${baseUrl}ogp.png`;
 }
+
+// Resolve this article's translated variants before writing any shell,
+// so the hreflang alternates only ever point at shells that exist. A
+// variant is dropped when its title is missing, its body fails to load,
+// or either still equals the Japanese text (backend without lang
+// support, or a not-yet-translated article).
+const variants = [];
+for (const lang of SHELL_LANGUAGES) {
+const titles = langTitles.get(lang.code);
+if (!titles) continue;
+const translatedTitle = titles.get(item.id);
+if (!translatedTitle || translatedTitle === item.title) continue;
+const art = await fetchTranslatedArticle(apiUrl, item.id, lang.code, fetchImpl);
+if (!art || art.markdown === item.markdown) continue;
+let langImageUrl = `${baseUrl}ogp/${item.id}.${lang.code}.png`;
+try {
+const png = await fetchOgpImage(stripLeadingDate(translatedTitle), fetchImpl);
+await writeFile(join(ogpDir, `${item.id}.${lang.code}.png`), png);
+} catch (err) {
+fallbacks++;
+log(
+`OGP image failed for ${item.id} (${lang.code}) (${err.message}); using fallback image`
+);
+langImageUrl = `${baseUrl}ogp.png`;
+}
+variants.push({
+lang,
+title: translatedTitle,
+markdown: art.markdown,
+imageUrl: langImageUrl
+});
+}
+
+// With no translated variant the Japanese shell is byte-identical to
+// the pre-i18n output; once a variant exists, all of the article's
+// shells cross-link the existing languages (x-default → Japanese).
+const jaUrl = `${baseUrl}${item.id}`;
+const alternates =
+variants.length > 0
+? [
+{ hreflang: 'ja', href: jaUrl},
+...variants.map((v) => ({
+hreflang: v.lang.hreflang,
+href: `${baseUrl}${v.lang.code}/${item.id}`
+})),
+{ hreflang: 'x-default', href: jaUrl}
+]
+: undefined;
+
 const html = buildShellHtml(template, {
 title: item.title,
 description: truncateDescription(descriptionFromMarkdown(item.markdown)),
-url: `${baseUrl}${item.id}`,
-imageUrl
+url: jaUrl,
+imageUrl,
+alternates
 });
 await writeFile(join(distDir, `${item.id}.html`), html);
+
+for (const v of variants) {
+const url = `${baseUrl}${v.lang.code}/${item.id}`;
+await mkdir(join(distDir, v.lang.code), { recursive: true});
+const langHtml = buildShellHtml(template, {
+title: v.title,
+description: truncateDescription(descriptionFromMarkdown(v.markdown)),
+url,
+imageUrl: v.imageUrl,
+lang: v.lang.htmlLang,
+canonicalUrl: url,
+alternates
+});
+await writeFile(join(distDir, v.lang.code, `${item.id}.html`), langHtml);
+langCounts.set(v.lang.code, langCounts.get(v.lang.code) + 1);
+}
 });
 
 log(`Generated ${items.length} article shells (${fallbacks} image fallbacks)`);
+for (const lang of SHELL_LANGUAGES) {
+if (langTitles.has(lang.code)) {
+log(`Generated ${langCounts.get(lang.code)} ${lang.code} article shells`);
+}
+}
 return { count: items.length, fallbacks};
 };
 
