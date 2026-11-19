@@ -96,6 +96,24 @@ describe('App', () => {
     expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(24);
   });
 
+  it('renders the language switcher in the footer, not in the header nav', async () => {
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    expect(wrapper.find('.site-nav .lang-switch').exists()).toBe(false);
+    const switcher = wrapper.find('.site-footer .lang-switch');
+    expect(switcher.exists()).toBe(true);
+    expect(switcher.findAll('.lang-switch-button').map((b) => b.text())).toEqual([
+      '日本語',
+      'English',
+      '中文'
+    ]);
+  });
+
   it('renders RSS link in the footer', async () => {
     const wrapper = mount(App, {
       global: {

@@ -239,12 +239,28 @@ export const MESSAGES = {
 
 export const isSupportedLang = (value) => SUPPORTED_LANGS.includes(value);
 
+// Maps browser language tags (navigator.languages) to a supported
+// language: any en-* tag means English, any zh-* tag means Chinese
+// (the dictionary is Simplified, whatever the region). The first
+// tag that maps wins; tags for other languages are skipped, and a
+// list with no mappable tag yields null.
+export const detectBrowserLang = (languages = []) => {
+  for (const tag of languages ?? []) {
+    const primary = String(tag).toLowerCase().split('-')[0];
+    if (primary === 'en') return 'en';
+    if (primary === 'zh') return 'zh';
+  }
+  return null;
+};
+
 // Resolution order: the ?lang= parameter, then the persisted
-// choice, then Japanese. Invalid values are ignored at each step,
-// so a shared link with a stray parameter can never break the page.
-export const resolveInitialLang = ({ param = null, stored = null } = {}) => {
+// choice, then the browser's language, then Japanese. Invalid
+// values are ignored at each step, so a shared link with a stray
+// parameter can never break the page.
+export const resolveInitialLang = ({ param = null, stored = null, browser = null } = {}) => {
   if (isSupportedLang(param)) return param;
   if (isSupportedLang(stored)) return stored;
+  if (isSupportedLang(browser)) return browser;
   return DEFAULT_LANG;
 };
 
@@ -259,6 +275,17 @@ const readStoredLang = () => {
 const readParamLang = () => {
   try {
     return new URLSearchParams(window.location.search).get('lang');
+  } catch {
+    return null;
+  }
+};
+
+const readBrowserLang = () => {
+  try {
+    const languages = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
+    return detectBrowserLang(languages);
   } catch {
     return null;
   }
@@ -284,10 +311,17 @@ export const currentLang = ref(DEFAULT_LANG);
 // Resolves the language once at startup (called from main.js
 // before the app mounts). A ?lang= parameter wins over the stored
 // choice and is itself persisted, so following an in-page link
-// keeps the language the reader arrived with.
+// keeps the language the reader arrived with. A language taken
+// from the browser's settings is applied but NOT persisted, so
+// detection runs again on the next visit until the reader picks
+// a language in the switcher (which setLang persists).
 export const initLang = () => {
   const param = readParamLang();
-  const lang = resolveInitialLang({ param, stored: readStoredLang() });
+  const lang = resolveInitialLang({
+    param,
+    stored: readStoredLang(),
+    browser: readBrowserLang()
+  });
   currentLang.value = lang;
   if (isSupportedLang(param)) {
     persistLang(lang);

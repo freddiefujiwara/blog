@@ -253,16 +253,6 @@ a.hero-inner {
 @media (max-width: 560px) {
   .site-nav {
     grid-template-columns: 1fr;
-    /* The language switcher takes a compact second row here. */
-    height: auto;
-    min-height: 56px;
-    row-gap: 2px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-  }
-
-  .nav-end {
-    justify-self: end;
   }
 
   .site-nav .brand {
@@ -638,8 +628,14 @@ article th {
   flex: none;
 }
 
-/* UI language switcher: compact text buttons in the site nav,
-   styled like the nav links (muted, accent + underline when on). */
+/* UI language switcher: compact text buttons at the end of the
+   footer, styled like the footer links (muted, accent + underline
+   when on). It used to sit in the site nav, where on phones it
+   wrapped onto a second header row and crowded the navigation. */
+.foot-lang {
+  margin-bottom: 14px;
+}
+
 .lang-switch {
   display: flex;
   gap: 2px;
