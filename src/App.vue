@@ -7,7 +7,7 @@
         <li class="nav-section"><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">{{ t('navProfile') }}</a></li>
         <li class="nav-section"><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">{{ t('navActivity') }}</a></li>
         <li class="nav-section"><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">{{ t('navContact') }}</a></li>
-        <li><a href="/blog/" class="active" aria-current="page" @click="trackNavClick('blog')">{{ t('navBlog') }}</a></li>
+        <li><a :href="blogHomeHref" class="active" aria-current="page" @click="trackNavClick('blog')">{{ t('navBlog') }}</a></li>
         <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">{{ t('navList') }}</a></li>
         <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">{{ t('navMusic') }} ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
       </ul>
@@ -103,7 +103,7 @@ import { computed, ref, onMounted, watch } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
 import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
-import { currentLang, MESSAGES, SUPPORTED_LANGS, t } from './services/i18n';
+import { contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
@@ -111,6 +111,13 @@ import { loadCachedList } from './services/listCache';
 import { fetchMusicPlayCount, formatMusicPlayCount } from './services/musicCount';
 
 const year = new Date().getFullYear();
+
+// The nav's blog link is the blog's own root: on a translated page
+// it stays inside that language instead of dropping back to the
+// Japanese root.
+const blogHomeHref = computed(() =>
+  (routeLang.value ? `/blog/${routeLang.value}/` : '/blog/')
+);
 
 // The static document.title is the site title; article pages
 // replace it with the article's own (untranslated) title and tag
@@ -134,8 +141,17 @@ onMounted(() => {
 const musicPlayCount = ref(null);
 
 // Same destination as the footer's "最新記事（トップ）へ戻る" link:
-// the first id in the article list is the latest article.
-const latestArticlePath = ref('');
+// the first id in the article list is the latest article. The path
+// follows the page's language, so the hero on a translated page
+// links to the latest article in that language.
+const latestArticleId = ref('');
+const latestArticlePath = computed(() => {
+  if (!latestArticleId.value) {
+    return '';
+  }
+  const prefix = routeLang.value ? `/${routeLang.value}` : '';
+  return `${prefix}/${latestArticleId.value}`;
+});
 const searchableArticles = ref([]);
 const searchState = ref('loading');
 // Tag index under the hero, fed by the same titles payload as the
@@ -146,19 +162,15 @@ const tagIndex = computed(() =>
   buildTagIndex(searchableArticles.value, tagsMap.value)
 );
 
-onMounted(async () => {
-  // The play count is independent of the article list: fetch it in
-  // parallel and fill the nav in when (and only when) it succeeds.
-  fetchMusicPlayCount().then((count) => {
-    if (count !== null) {
-      musicPlayCount.value = count;
-    }
-  });
-  // Prime from the list cached on the previous visit so the search is
-  // usable immediately; the fetch below refreshes it in the background.
-  const cached = loadCachedList();
+// Loads the titles payload in the current content language: it
+// feeds the hero link, the title search and the tag index. Primed
+// from the list cached on the previous visit (per language) so the
+// search is usable immediately; the fetch refreshes it.
+const loadTitles = async () => {
+  const lang = contentLang.value;
+  const cached = loadCachedList(lang);
   if (cached?.ids?.length) {
-    latestArticlePath.value = `/${cached.ids[0]}`;
+    latestArticleId.value = cached.ids[0];
     searchableArticles.value = buildSearchableArticles(cached);
     tagsMap.value = mergeTagsMaps(tagsMap.value, extractTagsMap(cached));
     if (searchableArticles.value.length) {
@@ -166,9 +178,9 @@ onMounted(async () => {
     }
   }
   try {
-    const data = await fetchArticleTitles();
+    const data = await fetchArticleTitles(lang);
     if (data?.ids?.[0]) {
-      latestArticlePath.value = `/${data.ids[0]}`;
+      latestArticleId.value = data.ids[0];
     }
     searchableArticles.value = buildSearchableArticles(data);
     tagsMap.value = mergeTagsMaps(tagsMap.value, extractTagsMap(data));
@@ -182,5 +194,22 @@ onMounted(async () => {
       searchState.value = 'failed';
     }
   }
+};
+
+onMounted(async () => {
+  // The play count is independent of the article list: fetch it in
+  // parallel and fill the nav in when (and only when) it succeeds.
+  fetchMusicPlayCount().then((count) => {
+    if (count !== null) {
+      musicPlayCount.value = count;
+    }
+  });
+  loadTitles();
+});
+
+// A language switch changes the URL prefix; the search, tag index
+// and hero must follow into the new language's titles.
+watch(routeLang, () => {
+  loadTitles();
 });
 </script>

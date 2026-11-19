@@ -76,8 +76,13 @@ const fetchJson = async (url, failureMessage) => {
   return response.json();
 };
 
-export const fetchArticle = async (id) =>
-  fetchJson(`${LIST_ENDPOINT}?id=${id}`, t('articleFetchFailed'));
+// The translated variants of the API take a lang parameter
+// (en|zh). Japanese is the API's native shape and is requested
+// exactly as before — no parameter at all.
+const langQuery = (lang) => (lang === 'en' || lang === 'zh' ? `&lang=${lang}` : '');
+
+export const fetchArticle = async (id, lang) =>
+  fetchJson(`${LIST_ENDPOINT}?id=${id}${langQuery(lang)}`, t('articleFetchFailed'));
 
 // Maps a list response to the {id, title} entries the title search
 // offers, newest first. Titles come from the response's titles map;
@@ -105,14 +110,17 @@ export const buildSearchableArticles = (data) => {
 // Lightweight list fetch for the hero link and title search: the API
 // returns ids and titles only (no article bodies), which keeps the
 // search responsive even when the article cache is cold.
-export const fetchArticleTitles = async () => {
-  const data = await fetchJson(`${LIST_ENDPOINT}?o=titles`, t('articleTitlesFetchFailed'));
+export const fetchArticleTitles = async (lang) => {
+  const data = await fetchJson(`${LIST_ENDPOINT}?o=titles${langQuery(lang)}`, t('articleTitlesFetchFailed'));
   if (!data?.ids?.length) {
     throw new Error(t('latestNotFound'));
   }
   return data;
 };
 
+// The full list (with pre-cached article bodies) exists only in
+// Japanese; translated pages use the titles endpoint as their list
+// source instead (see useBlog).
 export const fetchArticleList = async () => {
   const data = await fetchJson(LIST_ENDPOINT, t('articleListFetchFailed'));
   if (!data?.ids?.length) {

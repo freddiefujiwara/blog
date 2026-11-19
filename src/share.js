@@ -4,7 +4,11 @@
 
 export const SITE_ORIGIN = 'https://freddiefujiwara.com';
 
-export const buildArticleUrl = (id) => `${SITE_ORIGIN}/blog/${id}`;
+// The canonical article URL. Translated pages share their own
+// language's URL (/blog/en/<id>, /blog/zh/<id>); Japanese keeps
+// the original shape.
+export const buildArticleUrl = (id, lang) =>
+  `${SITE_ORIGIN}/blog/${lang === 'en' || lang === 'zh' ? `${lang}/` : ''}${id}`;
 
 export const buildShareLinks = ({ title, url }) => {
   const text = encodeURIComponent(title ?? '');

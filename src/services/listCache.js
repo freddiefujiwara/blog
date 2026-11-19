@@ -10,9 +10,17 @@ import { isStagingBuild } from '../staging-banner';
 // preview, and edits must show up on the next load instead of hiding
 // behind the previous visit's list until a background refresh lands.
 const CACHE_DISABLED = isStagingBuild();
-const STORAGE_KEY = isStagingBuild()
+const BASE_STORAGE_KEY = isStagingBuild()
   ? 'blog:list-cache:v1:staging'
   : 'blog:list-cache:v1';
+
+// One persisted list per language, keyed the same way the staging
+// key is separated: a suffix on the base key. The Japanese key is
+// the original one, unchanged, so existing visitors keep their
+// cache; translated lists live under ':en' / ':zh' and can never
+// bleed into the Japanese list (or each other).
+const storageKeyFor = (lang) =>
+  (lang === 'en' || lang === 'zh' ? `${BASE_STORAGE_KEY}:${lang}` : BASE_STORAGE_KEY);
 
 const isTitlesMap = (value) =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -33,14 +41,15 @@ const sanitizeTagsMap = (value) => {
   return map;
 };
 
-// Loads the last article list saved by saveCachedList. Returns null when
-// nothing usable is stored (first visit, cleared storage, corrupt data).
-export const loadCachedList = () => {
+// Loads the last article list saved by saveCachedList for one
+// language (Japanese when omitted). Returns null when nothing
+// usable is stored (first visit, cleared storage, corrupt data).
+export const loadCachedList = (lang) => {
   if (CACHE_DISABLED) {
     return null;
   }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKeyFor(lang));
     if (!raw) {
       return null;
     }
@@ -61,15 +70,16 @@ export const loadCachedList = () => {
   }
 };
 
-// Persists the article list for the next visit. Storage failures (quota,
-// private mode) are ignored: the cache is an optimization, not a requirement.
-export const saveCachedList = (data) => {
+// Persists the article list for the next visit, under the list's
+// own language. Storage failures (quota, private mode) are
+// ignored: the cache is an optimization, not a requirement.
+export const saveCachedList = (data, lang) => {
   if (CACHE_DISABLED) {
     return;
   }
   try {
     localStorage.setItem(
-      STORAGE_KEY,
+      storageKeyFor(lang),
       JSON.stringify({
         ids: data.ids,
         titles: isTitlesMap(data.titles) ? data.titles : {},

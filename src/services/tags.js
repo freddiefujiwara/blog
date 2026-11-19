@@ -114,6 +114,9 @@ export const filterArticlesByTag = (articles, tagsMap, tag) => {
   );
 };
 
-// Route path for a tag page. Tag names are Japanese text, so they are
-// percent-encoded; vue-router decodes the param back on the page.
-export const tagPath = (tag) => `/tag/${encodeURIComponent(tag)}`;
+// Route path for a tag page. Tag names are Japanese text in every
+// language, so they are percent-encoded; vue-router decodes the
+// param back on the page. Translated pages carry their language
+// prefix (/en/tag/…, /zh/tag/…).
+export const tagPath = (tag, lang) =>
+  `${lang === 'en' || lang === 'zh' ? `/${lang}` : ''}/tag/${encodeURIComponent(tag)}`;

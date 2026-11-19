@@ -158,5 +158,11 @@ describe('tags service', () => {
     it('percent-encodes the tag name for the route', () => {
       expect(tagPath('運営')).toBe(`/tag/${encodeURIComponent('運営')}`);
     });
+
+    it('prefixes the path with the language on translated pages', () => {
+      expect(tagPath('運営', 'ja')).toBe(`/tag/${encodeURIComponent('運営')}`);
+      expect(tagPath('運営', 'en')).toBe(`/en/tag/${encodeURIComponent('運営')}`);
+      expect(tagPath('運営', 'zh')).toBe(`/zh/tag/${encodeURIComponent('運営')}`);
+    });
   });
 });

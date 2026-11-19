@@ -1,12 +1,13 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { isStagingBuild } from '../staging-banner';
 
 // UI language for the blog chrome: the header, search, tag index,
-// footer, share links and the music player's labels. Article content
-// (titles, bodies, tag names) is NOT translated — only the fixed
-// strings the front-end itself renders. Japanese is the default and
-// the fallback for any missing key, so a partially translated
-// dictionary can never leave a hole in the page.
+// footer, share links and the music player's labels. Japanese is
+// the default and the fallback for any missing key, so a partially
+// translated dictionary can never leave a hole in the page.
+// Article content follows the URL instead (see routeLang below):
+// Japanese at the plain URLs, translated under /blog/en/… and
+// /blog/zh/… — tag names stay Japanese in every language.
 export const SUPPORTED_LANGS = ['ja', 'en', 'zh'];
 export const DEFAULT_LANG = 'ja';
 
@@ -335,6 +336,62 @@ export const setLang = (lang) => {
   currentLang.value = lang;
   persistLang(lang);
   applyHtmlLang(lang);
+};
+
+// The language named by the URL prefix (/blog/en/…, /blog/zh/…), or
+// null on Japanese URLs, which carry no prefix. While a route
+// language is set it decides BOTH the article language and the UI
+// language: the URL is the reader's explicit choice, so it outranks
+// the stored preference and the browser detection below. Japanese
+// URLs keep the phase-1 behaviour (the resolved UI language above,
+// Japanese articles).
+export const routeLang = ref(null);
+
+// The language article content is fetched and cached in: the route
+// language on translated pages, Japanese everywhere else.
+export const contentLang = computed(() => routeLang.value ?? DEFAULT_LANG);
+
+// Applies the language a route names (called by the router on every
+// navigation). Entering a translated route forces the UI language
+// to the route's, WITHOUT persisting it — the stored preference
+// stays what the reader last picked in the switcher. Leaving the
+// translated routes re-resolves the UI language the phase-1 way
+// (parameter, stored choice, browser), which is where a preference
+// saved by the switcher on the way out takes effect. Japanese-to-
+// Japanese navigations change nothing: the phase-1 state stands.
+export const applyRouteLang = (lang) => {
+  if (isSupportedLang(lang) && lang !== DEFAULT_LANG) {
+    routeLang.value = lang;
+    currentLang.value = lang;
+    applyHtmlLang(lang);
+    return lang;
+  }
+  const wasRouted = routeLang.value !== null;
+  routeLang.value = null;
+  if (!wasRouted) {
+    return currentLang.value;
+  }
+  const resolved = resolveInitialLang({
+    param: readParamLang(),
+    stored: readStoredLang(),
+    browser: readBrowserLang()
+  });
+  currentLang.value = resolved;
+  applyHtmlLang(resolved);
+  return resolved;
+};
+
+// Swaps the language prefix of an in-app path: Japanese paths carry
+// no prefix, translated ones carry /en or /zh, and the rest of the
+// path (root, article id, tag page) is preserved. The language
+// switcher uses it to send the reader to the same page in another
+// language.
+export const localizedPath = (path, lang) => {
+  const stripped = String(path || '/').replace(/^\/(en|zh)(?=\/|$)/, '') || '/';
+  if (!isSupportedLang(lang) || lang === DEFAULT_LANG) {
+    return stripped;
+  }
+  return stripped === '/' ? `/${lang}` : `/${lang}${stripped}`;
 };
 
 // Translates one UI string. {name} placeholders are filled from

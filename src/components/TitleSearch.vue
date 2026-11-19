@@ -14,7 +14,7 @@
       <li v-else-if="state === 'failed'" class="title-search-status">{{ t('loadFailedReload') }}</li>
       <template v-else>
         <li v-for="entry in matches" :key="entry.id" class="title-search-item">
-          <router-link :to="`/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
+          <router-link :to="`${langPrefix}/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
         </li>
         <li v-if="matches.length === 0" class="title-search-empty">{{ t('searchEmpty') }}</li>
       </template>
@@ -24,7 +24,12 @@
 
 <script setup>
 import { computed, ref } from 'vue';
-import { t } from '../services/i18n';
+import { routeLang, t } from '../services/i18n';
+
+// Results link into the current page's language: on a translated
+// page the search offers translated titles, and following one must
+// stay inside that language's URLs.
+const langPrefix = computed(() => (routeLang.value ? `/${routeLang.value}` : ''));
 
 // Title search, simple version: substring match over the article
 // titles only (no full-text search). Results keep the list order,

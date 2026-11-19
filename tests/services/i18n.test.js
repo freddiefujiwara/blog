@@ -5,11 +5,15 @@ import {
   LANGUAGE_STORAGE_KEY,
   MESSAGES,
   SUPPORTED_LANGS,
+  applyRouteLang,
+  contentLang,
   currentLang,
   detectBrowserLang,
   initLang,
   isSupportedLang,
+  localizedPath,
   resolveInitialLang,
+  routeLang,
   setLang,
   t
 } from '../../src/services/i18n';
@@ -213,6 +217,94 @@ describe('i18n service', () => {
 
   it('uses the production storage key outside staging builds', () => {
     expect(LANGUAGE_STORAGE_KEY).toBe('blog:lang:v1');
+  });
+
+  describe('route language (translated URLs)', () => {
+    afterEach(() => {
+      applyRouteLang(null);
+      routeLang.value = null;
+    });
+
+    it('defaults to no route language and Japanese content', () => {
+      expect(routeLang.value).toBeNull();
+      expect(contentLang.value).toBe('ja');
+    });
+
+    it('applyRouteLang makes the URL language drive UI and content', () => {
+      expect(applyRouteLang('en')).toBe('en');
+      expect(routeLang.value).toBe('en');
+      expect(contentLang.value).toBe('en');
+      expect(currentLang.value).toBe('en');
+      expect(document.documentElement.lang).toBe('en');
+
+      expect(applyRouteLang('zh')).toBe('zh');
+      expect(routeLang.value).toBe('zh');
+      expect(contentLang.value).toBe('zh');
+      expect(currentLang.value).toBe('zh');
+      expect(document.documentElement.lang).toBe('zh-CN');
+    });
+
+    it('does not persist a route language as the UI preference', () => {
+      applyRouteLang('en');
+      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
+    });
+
+    it('leaving a translated route restores the stored UI preference', () => {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, 'zh');
+      applyRouteLang('en');
+      expect(currentLang.value).toBe('en');
+      applyRouteLang(null);
+      expect(routeLang.value).toBeNull();
+      expect(contentLang.value).toBe('ja');
+      expect(currentLang.value).toBe('zh');
+      expect(document.documentElement.lang).toBe('zh-CN');
+    });
+
+    it('leaving a translated route falls back to the browser language', () => {
+      stubBrowserLanguages(['en-US']);
+      applyRouteLang('zh');
+      applyRouteLang(null);
+      expect(currentLang.value).toBe('en');
+    });
+
+    it('ignores unsupported route languages', () => {
+      expect(applyRouteLang('fr')).toBe('ja');
+      expect(routeLang.value).toBeNull();
+      expect(contentLang.value).toBe('ja');
+      expect(applyRouteLang('ja')).toBe('ja');
+      expect(routeLang.value).toBeNull();
+    });
+
+    it('a Japanese-to-Japanese application keeps the phase-1 state', () => {
+      setLang('en');
+      localStorage.clear();
+      // No route language was ever applied, so nothing is re-resolved:
+      // the in-session UI choice stands even without storage.
+      expect(applyRouteLang(null)).toBe('en');
+      expect(currentLang.value).toBe('en');
+    });
+  });
+
+  describe('localizedPath', () => {
+    it('adds, swaps and removes the language prefix, keeping the page', () => {
+      expect(localizedPath('/', 'ja')).toBe('/');
+      expect(localizedPath('/', 'en')).toBe('/en');
+      expect(localizedPath('/', 'zh')).toBe('/zh');
+      expect(localizedPath('/abc', 'ja')).toBe('/abc');
+      expect(localizedPath('/abc', 'en')).toBe('/en/abc');
+      expect(localizedPath('/en/abc', 'ja')).toBe('/abc');
+      expect(localizedPath('/en/abc', 'zh')).toBe('/zh/abc');
+      expect(localizedPath('/zh/abc', 'en')).toBe('/en/abc');
+      expect(localizedPath('/en', 'ja')).toBe('/');
+      expect(localizedPath('/en', 'zh')).toBe('/zh');
+      expect(localizedPath('/tag/x', 'en')).toBe('/en/tag/x');
+      expect(localizedPath('/en/tag/x', 'ja')).toBe('/tag/x');
+    });
+
+    it('treats an unsupported language as Japanese (no prefix)', () => {
+      expect(localizedPath('/en/abc', 'fr')).toBe('/abc');
+      expect(localizedPath('/abc', null)).toBe('/abc');
+    });
   });
 
   // Kept last: it reloads the module under a stubbed staging env,

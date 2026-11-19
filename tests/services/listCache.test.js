@@ -99,6 +99,32 @@ describe('listCache service', () => {
     expect(loadCachedList().tags).toEqual({ 1: ['運営'] });
   });
 
+  it('keeps each language\'s list under its own key', () => {
+    const ja = { ids: ['1'], titles: { 1: 'タイトル' }, article_cache: [] };
+    const en = { ids: ['1'], titles: { 1: 'Title EN' }, article_cache: [] };
+    const zh = { ids: ['1'], titles: { 1: '标题' }, article_cache: [] };
+    saveCachedList(ja);
+    saveCachedList(en, 'en');
+    saveCachedList(zh, 'zh');
+
+    // The Japanese list stays under the original key, untouched by
+    // the translated saves.
+    expect(JSON.parse(localStorage.getItem('blog:list-cache:v1')).titles).toEqual({ 1: 'タイトル' });
+    expect(localStorage.getItem('blog:list-cache:v1:en')).not.toBeNull();
+    expect(localStorage.getItem('blog:list-cache:v1:zh')).not.toBeNull();
+    expect(loadCachedList()).toEqual(ja);
+    expect(loadCachedList('ja')).toEqual(ja);
+    expect(loadCachedList('en')).toEqual(en);
+    expect(loadCachedList('zh')).toEqual(zh);
+  });
+
+  it('returns null for a language with nothing stored, even when another language has a list', () => {
+    saveCachedList({ ids: ['1'], titles: { 1: 'Title EN' }, article_cache: [] }, 'en');
+    expect(loadCachedList('en')).not.toBeNull();
+    expect(loadCachedList()).toBeNull();
+    expect(loadCachedList('zh')).toBeNull();
+  });
+
   it('never saves or loads the cache in staging builds', async () => {
     vi.stubEnv('VITE_STAGING', '1');
     vi.resetModules();

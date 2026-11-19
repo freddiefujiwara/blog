@@ -3,6 +3,7 @@ import { useBlog } from '../../src/composables/useBlog';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as api from '../../src/services/api';
 import { defineComponent, reactive } from 'vue';
+import { applyRouteLang, routeLang } from '../../src/services/i18n';
 
 vi.mock('../../src/services/api');
 
@@ -718,5 +719,110 @@ describe('useBlog composable', () => {
 
     expect(replace).not.toHaveBeenCalled();
     expect(wrapper.vm.article.title).toBe('Title 1');
+  });
+
+  describe('translated routes', () => {
+    afterEach(() => {
+      applyRouteLang(null);
+      routeLang.value = null;
+      mockRoute.name = undefined;
+    });
+
+    it('fetches the article and titles with the route language, never the Japanese full list', async () => {
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['1', '2'],
+        titles: { 1: 'Title 1 EN', 2: 'Title 2 EN' }
+      });
+      api.fetchArticle.mockImplementation(async (id, lang) => ({
+        id,
+        title: `Title ${id} ${lang}`,
+        markdown: `# Content ${id} ${lang}`
+      }));
+
+      applyRouteLang('en');
+      mockRoute.path = '/en/2';
+      mockRoute.params = { lang: 'en', id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/en/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(api.fetchArticle).toHaveBeenCalledWith('2', 'en');
+      expect(api.fetchArticleTitles).toHaveBeenCalledWith('en');
+      expect(api.fetchArticleList).not.toHaveBeenCalled();
+      expect(wrapper.vm.article.title).toBe('Title 2 en');
+      // Navigation links stay inside the language.
+      expect(wrapper.vm.prevLink).toBe('/en/1');
+      expect(wrapper.vm.nextLink).toBe('');
+    });
+
+    it('keeps the per-language session caches apart for the same article', async () => {
+      api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+      api.fetchArticleTitles.mockResolvedValue({ ids: ['1', '2'], titles: {} });
+      api.fetchArticle.mockImplementation(async (id, lang) => ({
+        id,
+        title: lang ? `Title ${id} EN` : `Title ${id} JA`,
+        markdown: 'Content'
+      }));
+
+      mockRoute.path = '/1';
+      mockRoute.params = { id: '1' };
+      wrapper = mount(TestComponent);
+      await flushPromises();
+      expect(wrapper.vm.article.title).toBe('Title 1 JA');
+      expect(api.fetchArticle).toHaveBeenCalledWith('1');
+      expect(api.fetchArticle).not.toHaveBeenCalledWith('1', 'en');
+
+      // Same article, English URL: the Japanese cache entry must
+      // not be served; the translated article is fetched instead.
+      applyRouteLang('en');
+      mockRoute.path = '/en/1';
+      mockRoute.params = { lang: 'en', id: '1' };
+      await flushPromises();
+      expect(api.fetchArticle).toHaveBeenCalledWith('1', 'en');
+      expect(wrapper.vm.article.title).toBe('Title 1 EN');
+
+      // Back to Japanese: the original entry is still cached, so
+      // no second Japanese fetch happens.
+      applyRouteLang(null);
+      mockRoute.path = '/1';
+      mockRoute.params = { id: '1' };
+      await flushPromises();
+      expect(wrapper.vm.article.title).toBe('Title 1 JA');
+      expect(api.fetchArticle.mock.calls.filter((args) => args.length === 1 && args[0] === '1')).toHaveLength(1);
+    });
+
+    it('redirects the translated root to the newest article in the same language', async () => {
+      api.fetchArticleTitles.mockResolvedValue({ ids: ['first-id', 'second-id'], titles: {} });
+      api.fetchArticle.mockResolvedValue({ id: 'first-id', title: 'Title EN', markdown: 'Content' });
+
+      applyRouteLang('en');
+      mockRoute.name = 'lang-home';
+      mockRoute.path = '/en';
+      mockRoute.params = { lang: 'en' };
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(mockRouter.replace).toHaveBeenCalledWith({
+        name: 'post',
+        params: { lang: 'en', id: 'first-id' }
+      });
+    });
+
+    it('surfaces a titles failure on a translated page instead of falling back to the Japanese list', async () => {
+      api.fetchArticleTitles.mockRejectedValue(new Error('Titles Error'));
+
+      applyRouteLang('zh');
+      mockRoute.name = 'lang-home';
+      mockRoute.path = '/zh';
+      mockRoute.params = { lang: 'zh' };
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(api.fetchArticleList).not.toHaveBeenCalled();
+      expect(wrapper.vm.errorMessage).toBe('Titles Error');
+    });
   });
 });
