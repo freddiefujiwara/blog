@@ -4,18 +4,18 @@
       v-if="prevLink"
       :to="prevLink"
       class="nav-link nav-prev"
-      :aria-label="prevTitle ? `前の記事: ${prevTitle}` : '前の記事'"
+      :aria-label="prevTitle ? t('prevArticleWithTitle', { title: prevTitle }) : t('prevArticle')"
     >
       <span class="nav-arrow" aria-hidden="true">←</span>
-      <span class="nav-title">{{ formatNavTitle(prevTitle, '前の記事') }}</span>
+      <span class="nav-title">{{ formatNavTitle(prevTitle, t('prevArticle')) }}</span>
     </router-link>
     <router-link
       v-if="nextLink"
       :to="nextLink"
       class="nav-link nav-next"
-      :aria-label="nextTitle ? `次の記事: ${nextTitle}` : '次の記事'"
+      :aria-label="nextTitle ? t('nextArticleWithTitle', { title: nextTitle }) : t('nextArticle')"
     >
-      <span class="nav-title">{{ formatNavTitle(nextTitle, '次の記事') }}</span>
+      <span class="nav-title">{{ formatNavTitle(nextTitle, t('nextArticle')) }}</span>
       <span class="nav-arrow" aria-hidden="true">→</span>
     </router-link>
   </nav>
@@ -23,6 +23,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { t } from '../services/i18n';
 
 const props = defineProps({
   prevLink: {

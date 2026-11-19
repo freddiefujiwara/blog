@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import { t } from './i18n.js';
 
 // Hashes a text into a short ASCII id (FNV-1a, 32-bit). The text
 // itself is not used as the id: non-ASCII fragments do not scroll
@@ -169,8 +170,10 @@ export const splitHtmlAtTocMarkers = (html) => {
 // Shown in place of a [[歌詞]] marker that has no lyric lines under
 // it, so the marker never leaks into the article as literal text.
 // (The bold paragraph itself is NOT a label: the markers were
-// unified in 2026-11 and the articles migrated to [[歌詞]].)
-const LYRICS_LABEL = '**歌詞**';
+// unified in 2026-11 and the articles migrated to [[歌詞]].) The
+// label word itself is front-end chrome, so it follows the UI
+// language like the lyrics box heading below.
+const lyricsLabel = () => `**${t('lyricsLabel')}**`;
 const LYRICS_LABELS = new Set(['[[歌詞]]', '［［歌詞］］']);
 const LYRICS_PART_PATTERN = /^\[[^\]]*\]$/;
 
@@ -206,14 +209,14 @@ export const wrapLyricsBlocks = (markdown) => {
     if (!lines.length) {
       // A marker with no lyric lines under it must not leak into
       // the article as literal text: show the bold label instead.
-      out.push(LYRICS_LABEL);
+      out.push(lyricsLabel());
       i += 1;
       continue;
     }
     const inner = lines.map((line) => (LYRICS_PART_PATTERN.test(line)
       ? `<p class="lyrics-part">${escapeHtmlText(line)}</p>`
       : `<p class="lyrics-line">${escapeHtmlText(line)}</p>`)).join('');
-    out.push(`<div class="lyrics"><p class="lyrics-label">歌詞</p>${inner}</div>`);
+    out.push(`<div class="lyrics"><p class="lyrics-label">${t('lyricsLabel')}</p>${inner}</div>`);
     i = j;
   }
   return out.join('\n\n');
@@ -277,7 +280,7 @@ export const expandAnchorMarkers = (markdown) => {
       out[candidateIndex] = `<p id="${id}"><strong>${escapeHtmlText(candidateTitle)}</strong></p>`;
       candidateIndex = -1;
       candidateTitle = '';
-      out.push(`<p class="item-link"><a href="#${id}">この項目へのリンク</a></p>`);
+      out.push(`<p class="item-link"><a href="#${id}">${t('itemLink')}</a></p>`);
       return;
     }
     out.push(block);

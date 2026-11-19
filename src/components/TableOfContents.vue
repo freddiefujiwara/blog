@@ -1,6 +1,6 @@
 <template>
-  <nav v-if="entries.length >= MIN_ENTRIES" class="table-of-contents" aria-label="目次">
-    <p class="toc-heading">目次</p>
+  <nav v-if="entries.length >= MIN_ENTRIES" class="table-of-contents" :aria-label="t('tocHeading')">
+    <p class="toc-heading">{{ t('tocHeading') }}</p>
     <ul class="toc-list">
       <li
         v-for="entry in entries"
@@ -15,6 +15,8 @@
 </template>
 
 <script setup>
+import { t } from '../services/i18n';
+
 // A table of contents only earns its place on longer articles;
 // below this many sections it stays hidden.
 const MIN_ENTRIES = 3;

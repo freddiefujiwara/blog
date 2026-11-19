@@ -4,19 +4,19 @@
       v-model="query"
       type="search"
       class="title-search-input"
-      placeholder="記事タイトルで探す"
-      aria-label="記事タイトルで探す"
+      :placeholder="t('searchPlaceholder')"
+      :aria-label="t('searchPlaceholder')"
     >
     <ul v-if="query.trim()" class="title-search-results">
       <li v-if="state === 'loading'" class="title-search-status">
-        <span class="title-search-spinner" aria-hidden="true"></span>検索中…
+        <span class="title-search-spinner" aria-hidden="true"></span>{{ t('searchLoading') }}
       </li>
-      <li v-else-if="state === 'failed'" class="title-search-status">読み込みに失敗しました。再読み込みしてください</li>
+      <li v-else-if="state === 'failed'" class="title-search-status">{{ t('loadFailedReload') }}</li>
       <template v-else>
         <li v-for="entry in matches" :key="entry.id" class="title-search-item">
           <router-link :to="`/${entry.id}`" @click="query = ''">{{ entry.title }}</router-link>
         </li>
-        <li v-if="matches.length === 0" class="title-search-empty">該当する記事がありません</li>
+        <li v-if="matches.length === 0" class="title-search-empty">{{ t('searchEmpty') }}</li>
       </template>
     </ul>
   </div>
@@ -24,6 +24,7 @@
 
 <script setup>
 import { computed, ref } from 'vue';
+import { t } from '../services/i18n';
 
 // Title search, simple version: substring match over the article
 // titles only (no full-text search). Results keep the list order,

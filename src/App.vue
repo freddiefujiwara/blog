@@ -1,18 +1,21 @@
 <template>
   <div>
     <nav class="site-nav">
-      <a class="brand" href="https://freddiefujiwara.com/">藤原史和｜川口を歩くQAエンジニア</a>
+      <a class="brand" href="https://freddiefujiwara.com/">{{ t('siteTitle') }}</a>
       <ul>
-        <li><a href="https://freddiefujiwara.com/" @click="trackNavClick('top')">トップ</a></li>
-        <li class="nav-section"><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">プロフィール</a></li>
-        <li class="nav-section"><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">活動・発信</a></li>
-        <li class="nav-section"><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">情報交換</a></li>
-        <li><a href="/blog/" class="active" aria-current="page" @click="trackNavClick('blog')">ブログ</a></li>
-        <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">持ち物リスト</a></li>
-        <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">川口の歌 ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
+        <li><a href="https://freddiefujiwara.com/" @click="trackNavClick('top')">{{ t('navTop') }}</a></li>
+        <li class="nav-section"><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">{{ t('navProfile') }}</a></li>
+        <li class="nav-section"><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">{{ t('navActivity') }}</a></li>
+        <li class="nav-section"><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">{{ t('navContact') }}</a></li>
+        <li><a href="/blog/" class="active" aria-current="page" @click="trackNavClick('blog')">{{ t('navBlog') }}</a></li>
+        <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">{{ t('navList') }}</a></li>
+        <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">{{ t('navMusic') }} ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
       </ul>
-      <div class="nav-search">
-        <TitleSearch :articles="searchableArticles" :state="searchState" />
+      <div class="nav-end">
+        <LanguageSwitcher />
+        <div class="nav-search">
+          <TitleSearch :articles="searchableArticles" :state="searchState" />
+        </div>
       </div>
     </nav>
     <header class="header hero">
@@ -22,11 +25,11 @@
         class="hero-inner hero-link"
       >
         <p class="hero-place">KAWAGUCHI — BLOG</p>
-        <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
+        <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
       </router-link>
       <div v-else class="hero-inner">
         <p class="hero-place">KAWAGUCHI — BLOG</p>
-        <h1><span class="h1-name">藤原史和</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">川口を歩くQAエンジニア</span></h1>
+        <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
       </div>
       <div class="hero-search">
         <TitleSearch :articles="searchableArticles" :state="searchState" />
@@ -38,16 +41,16 @@
       <footer class="site-footer">
         <div class="foot-groups">
           <div class="foot-group">
-            <p class="foot-group-title">このサイト</p>
+            <p class="foot-group-title">{{ t('footerSite') }}</p>
             <div class="foot-links">
-              <a href="https://freddiefujiwara.com/" target="_blank" rel="noopener">トップ <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/blog/" target="_blank" rel="noopener">ブログ <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/list-of-stuff/" target="_blank" rel="noopener">持ち物 <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/bucket-list/" target="_blank" rel="noopener">バケットリスト <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/" target="_blank" rel="noopener">{{ t('navTop') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/blog/" target="_blank" rel="noopener">{{ t('navBlog') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/list-of-stuff/" target="_blank" rel="noopener">{{ t('footerBelongings') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/bucket-list/" target="_blank" rel="noopener">{{ t('footerBucketList') }} <span class="arr">↗</span></a>
             </div>
           </div>
           <div class="foot-group">
-            <p class="foot-group-title">SNS</p>
+            <p class="foot-group-title">{{ t('footerSns') }}</p>
             <div class="foot-links">
               <a href="https://www.instagram.com/freddiefujiwara" target="_blank" rel="noopener">Instagram <span class="arr">↗</span></a>
               <a href="https://x.com/freddiefujiwara" target="_blank" rel="noopener">X <span class="arr">↗</span></a>
@@ -55,16 +58,16 @@
             </div>
           </div>
           <div class="foot-group">
-            <p class="foot-group-title">口コミ</p>
+            <p class="foot-group-title">{{ t('footerReviews') }}</p>
             <div class="foot-links">
-              <a href="https://www.google.com/maps/contrib/105456242747265663411/reviews" target="_blank" rel="noopener">Googleマップの口コミ <span class="arr">↗</span></a>
-              <a href="https://review.travel.rakuten.co.jp/reviewer/fumikazufujiwara" target="_blank" rel="noopener">楽天トラベルの口コミ <span class="arr">↗</span></a>
-              <a href="https://tabelog.com/rvwr/zegenvs/" target="_blank" rel="noopener">食べログの口コミ <span class="arr">↗</span></a>
-              <a href="https://retty.me/user/50281/" target="_blank" rel="noopener">Rettyの口コミ <span class="arr">↗</span></a>
+              <a href="https://www.google.com/maps/contrib/105456242747265663411/reviews" target="_blank" rel="noopener">{{ t('footerGoogleReviews') }} <span class="arr">↗</span></a>
+              <a href="https://review.travel.rakuten.co.jp/reviewer/fumikazufujiwara" target="_blank" rel="noopener">{{ t('footerRakutenReviews') }} <span class="arr">↗</span></a>
+              <a href="https://tabelog.com/rvwr/zegenvs/" target="_blank" rel="noopener">{{ t('footerTabelogReviews') }} <span class="arr">↗</span></a>
+              <a href="https://retty.me/user/50281/" target="_blank" rel="noopener">{{ t('footerRettyReviews') }} <span class="arr">↗</span></a>
             </div>
           </div>
           <div class="foot-group">
-            <p class="foot-group-title">プロフィール・その他</p>
+            <p class="foot-group-title">{{ t('footerProfile') }}</p>
             <div class="foot-links">
               <a href="https://github.com/freddiefujiwara" target="_blank" rel="noopener">GitHub <span class="arr">↗</span></a>
               <a href="https://linkedin.com/in/freddiefujiwara" target="_blank" rel="noopener">LinkedIn <span class="arr">↗</span></a>
@@ -74,16 +77,16 @@
             </div>
           </div>
           <div class="foot-group">
-            <p class="foot-group-title">自作ツール</p>
+            <p class="foot-group-title">{{ t('footerTools') }}</p>
             <div class="foot-links">
-              <a href="https://freddiefujiwara.com/xuexi/" target="_blank" rel="noopener">学习（中国語の復習） <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/xuexi/" target="_blank" rel="noopener">{{ t('toolXuexi') }} <span class="arr">↗</span></a>
               <a href="https://freddiefujiwara.com/openapi-fetch/" target="_blank" rel="noopener">openapi-fetch <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/md2img/" target="_blank" rel="noopener">md2img（Markdown to Image） <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/portfolio-treemap/" target="_blank" rel="noopener">portfolio-treemap（ポートフォリオ構成図） <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/dtgwt/" target="_blank" rel="noopener">dtgwt（デシジョンテーブル→Given/When/Then） <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/node-qict/" target="_blank" rel="noopener">node-qict（ペアワイズ法のテストケース生成） <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/smtc/" target="_blank" rel="noopener">smtc（状態遷移のテストケース生成） <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/dtdt/" target="_blank" rel="noopener">dtdt（デシジョンツリー→デシジョンテーブル） <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/md2img/" target="_blank" rel="noopener">{{ t('toolMd2img') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/portfolio-treemap/" target="_blank" rel="noopener">{{ t('toolPortfolio') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/dtgwt/" target="_blank" rel="noopener">{{ t('toolDtgwt') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/node-qict/" target="_blank" rel="noopener">{{ t('toolQict') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/smtc/" target="_blank" rel="noopener">{{ t('toolSmtc') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/dtdt/" target="_blank" rel="noopener">{{ t('toolDtdt') }} <span class="arr">↗</span></a>
             </div>
           </div>
         </div>
@@ -94,9 +97,11 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
+import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
+import { currentLang, MESSAGES, SUPPORTED_LANGS, t } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
@@ -104,6 +109,22 @@ import { loadCachedList } from './services/listCache';
 import { fetchMusicPlayCount, formatMusicPlayCount } from './services/musicCount';
 
 const year = new Date().getFullYear();
+
+// The static document.title is the site title; article pages
+// replace it with the article's own (untranslated) title and tag
+// pages with theirs. When the UI language changes, only a title
+// that is still one of the site titles follows the new language.
+const SITE_TITLES = new Set(SUPPORTED_LANGS.map((lang) => MESSAGES[lang].siteTitle));
+watch(currentLang, () => {
+  if (SITE_TITLES.has(document.title)) {
+    document.title = t('siteTitle');
+  }
+});
+onMounted(() => {
+  if (SITE_TITLES.has(document.title)) {
+    document.title = t('siteTitle');
+  }
+});
 
 // Cumulative 川口の歌 play count for the header nav, read from the
 // top site's music-count.json. Stays null (and renders nothing)

@@ -4,6 +4,7 @@ import { fetchArticle, fetchArticleList, fetchArticleTitles } from '../services/
 import { trackArticleRender } from '../analytics';
 import { loadCachedList, saveCachedList } from '../services/listCache';
 import { renderMarkdown } from '../services/markdown';
+import { t } from '../services/i18n';
 import {
   resolveArticleId,
   extractRequestedId,
@@ -320,7 +321,7 @@ export function useBlog() {
       const listMs = performance.now() - listStartedAt;
       const articleId = resolveArticleId(ids, getLocationContext());
       if (!articleId) {
-        throw new Error('最新記事が見つかりませんでした。');
+        throw new Error(t('latestNotFound'));
       }
 
       if (route && (route.path === '/' || (route.params.id && route.params.id !== articleId))) {
@@ -347,7 +348,7 @@ export function useBlog() {
     try {
       await loadArticleFromLocation(initial);
     } catch (error) {
-      errorMessage.value = error?.message ?? '読み込みに失敗しました。';
+      errorMessage.value = error?.message ?? t('loadFailed');
     }
   };
 

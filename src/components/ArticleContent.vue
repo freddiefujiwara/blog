@@ -21,7 +21,8 @@ import TableOfContents from './TableOfContents.vue';
 import TagChips from './TagChips.vue';
 import { splitHtmlAtTocMarkers } from '../services/markdown.js';
 import { extractArticleTags } from '../services/tags.js';
-import { destroyMusicPlayer, mountMusicPlayer } from '../services/musicPlayer.js';
+import { destroyMusicPlayer, mountMusicPlayer, refreshMusicPlayerLabels } from '../services/musicPlayer.js';
+import { currentLang } from '../services/i18n.js';
 import { createScrollDepthTracker } from '../services/scrollDepth.js';
 import { trackArticleScroll } from '../analytics.js';
 import { LINK_CARD_FALLBACK_IMAGE } from '../constants.js';
@@ -130,6 +131,9 @@ watch(
   () => props.articleHtml,
   () => nextTick(refreshAfterRender)
 );
+// The player is imperative DOM: a UI language switch re-labels it
+// in place instead of rebuilding it (playback must not restart).
+watch(currentLang, () => refreshMusicPlayerLabels());
 onBeforeUnmount(() => {
   destroyMusicPlayer();
   scrollTracker?.stop();
