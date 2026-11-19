@@ -319,7 +319,7 @@ describe('App', () => {
     });
   });
 
-  it('offers title search in the nav and hero, fed by the list titles', async () => {
+  it('offers title search above the article list, fed by the list titles', async () => {
     fetch.mockImplementation(async (url) => {
       if (url.includes('?o=rss')) {
         return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
@@ -347,12 +347,13 @@ describe('App', () => {
     });
     await flushPromises();
 
-    expect(wrapper.find('.nav-search input').exists()).toBe(true);
-    const input = wrapper.find('.hero-search input');
+    expect(wrapper.find('.site-nav input').exists()).toBe(false);
+    expect(wrapper.find('.hero-search').exists()).toBe(false);
+    const input = wrapper.find('.list-search input');
     expect(input.exists()).toBe(true);
 
     await input.setValue('川口');
-    const results = wrapper.findAll('.hero-search .title-search-item a');
+    const results = wrapper.findAll('.list-search .title-search-item a');
     expect(results).toHaveLength(1);
     expect(results[0].text()).toBe('川口の記事タイトル');
     expect(results[0].attributes('href')).toBe('/blog/older-id');
@@ -374,13 +375,13 @@ describe('App', () => {
     });
     await flushPromises();
 
-    const input = wrapper.find('.hero-search input');
+    const input = wrapper.find('.list-search input');
     expect(input.exists()).toBe(true);
     await input.setValue('川口');
-    const results = wrapper.findAll('.hero-search .title-search-item a');
+    const results = wrapper.findAll('.list-search .title-search-item a');
     expect(results).toHaveLength(1);
     expect(results[0].text()).toBe('川口のキャッシュ記事');
-    expect(wrapper.find('.hero-search .title-search-status').exists()).toBe(false);
+    expect(wrapper.find('.list-search .title-search-status').exists()).toBe(false);
   });
 
   it('links the hero to the latest article, same as the footer link', async () => {

@@ -105,7 +105,7 @@ describe('article title links in lists (tag page, title search)', () => {
   });
 });
 
-describe('title search results inside the site nav', () => {
+describe('title search results', () => {
   it('scopes the results list under .title-search so the nav list styles cannot leak in', () => {
     const block = blockFor('.title-search .title-search-results');
     expect(block).not.toBe('');
@@ -117,10 +117,10 @@ describe('title search results inside the site nav', () => {
     expect(item).toMatch(/white-space:\s*normal/);
   });
 
-  it('lets the nav dropdown open wider than the input, anchored to its right edge', () => {
-    const block = blockFor('.nav-search .title-search .title-search-results');
+  it('caps the results height above the article list and lets it scroll', () => {
+    const block = blockFor('.list-search .title-search-results');
     expect(block).not.toBe('');
-    expect(block).toMatch(/right:\s*0/);
-    expect(block).toMatch(/width:\s*min\(340px/);
+    expect(block).toMatch(/max-height:\s*320px/);
+    expect(block).toMatch(/overflow-y:\s*auto/);
   });
 });
