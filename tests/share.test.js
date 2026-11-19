@@ -5,6 +5,12 @@ describe('buildArticleUrl', () => {
   it('本番の記事URLを組み立てる', () => {
     expect(buildArticleUrl('abc123')).toBe('https://freddiefujiwara.com/blog/abc123');
   });
+
+  it('日本語はプレフィックスなし、英語・中国語は言語プレフィックス付きにする', () => {
+    expect(buildArticleUrl('abc123', 'ja')).toBe('https://freddiefujiwara.com/blog/abc123');
+    expect(buildArticleUrl('abc123', 'en')).toBe('https://freddiefujiwara.com/blog/en/abc123');
+    expect(buildArticleUrl('abc123', 'zh')).toBe('https://freddiefujiwara.com/blog/zh/abc123');
+  });
 });
 
 describe('buildShareLinks', () => {

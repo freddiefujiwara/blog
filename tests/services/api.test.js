@@ -57,6 +57,42 @@ describe('api service', () => {
 
       await expect(fetchArticle('1')).rejects.toThrow('記事の取得に失敗しました。');
     });
+
+    it('passes lang=en to the API for the translated article', async () => {
+      const mockArticle = { id: '1', title: 'Test EN', markdown: 'Content EN' };
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockArticle)
+      });
+
+      const result = await fetchArticle('1', 'en');
+      expect(fetch).toHaveBeenCalledWith(`${LIST_ENDPOINT}?id=1&lang=en`, fetchOptions());
+      expect(result).toEqual(mockArticle);
+    });
+
+    it('passes lang=zh to the API for the translated article', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: '1', title: 'Test ZH', markdown: 'Content ZH' })
+      });
+
+      await fetchArticle('1', 'zh');
+      expect(fetch).toHaveBeenCalledWith(`${LIST_ENDPOINT}?id=1&lang=zh`, fetchOptions());
+    });
+
+    it('requests Japanese exactly as before: no lang parameter', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ id: '1', title: 'T', markdown: 'C' })
+      });
+
+      await fetchArticle('1');
+      await fetchArticle('1', 'ja');
+      await fetchArticle('1', 'fr');
+      expect(fetch).toHaveBeenNthCalledWith(1, `${LIST_ENDPOINT}?id=1`, fetchOptions());
+      expect(fetch).toHaveBeenNthCalledWith(2, `${LIST_ENDPOINT}?id=1`, fetchOptions());
+      expect(fetch).toHaveBeenNthCalledWith(3, `${LIST_ENDPOINT}?id=1`, fetchOptions());
+    });
   });
 
   describe('fetchArticleList', () => {
@@ -135,6 +171,22 @@ describe('api service', () => {
       });
 
       await expect(fetchArticleTitles()).rejects.toThrow('最新記事が見つかりませんでした。');
+    });
+
+    it('passes the language to the titles endpoint for translated pages', async () => {
+      const mockResponse = { ids: ['1'], titles: { 1: 'Title EN' } };
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      });
+
+      await fetchArticleTitles('en');
+      expect(fetch).toHaveBeenNthCalledWith(1, `${LIST_ENDPOINT}?o=titles&lang=en`, fetchOptions());
+      await fetchArticleTitles('zh');
+      expect(fetch).toHaveBeenNthCalledWith(2, `${LIST_ENDPOINT}?o=titles&lang=zh`, fetchOptions());
+      // Japanese keeps the original parameterless shape.
+      await fetchArticleTitles('ja');
+      expect(fetch).toHaveBeenNthCalledWith(3, `${LIST_ENDPOINT}?o=titles`, fetchOptions());
     });
   });
 

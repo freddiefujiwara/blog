@@ -1,16 +1,30 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { reactive } from 'vue';
 import LanguageSwitcher from '../../src/components/LanguageSwitcher.vue';
-import { LANGUAGE_STORAGE_KEY, currentLang, initLang, setLang } from '../../src/services/i18n';
+import { LANGUAGE_STORAGE_KEY, applyRouteLang, currentLang, initLang, routeLang, setLang } from '../../src/services/i18n';
+
+const mockRoute = reactive({ path: '/' });
+const mockRouter = { push: vi.fn() };
+vi.mock('vue-router', () => ({
+  useRoute: () => mockRoute,
+  useRouter: () => mockRouter
+}));
 
 describe('LanguageSwitcher', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
+    applyRouteLang(null);
+    routeLang.value = null;
     setLang('ja');
     localStorage.clear();
+    mockRoute.path = '/';
   });
 
   afterEach(() => {
+    applyRouteLang(null);
+    routeLang.value = null;
     setLang('ja');
     vi.unstubAllGlobals();
   });
@@ -30,6 +44,7 @@ describe('LanguageSwitcher', () => {
   });
 
   it('switches and persists the language on click', async () => {
+    mockRoute.path = '/some-article';
     const wrapper = mount(LanguageSwitcher);
     const buttons = wrapper.findAll('.lang-switch-button');
     await buttons[2].trigger('click');
@@ -53,5 +68,57 @@ describe('LanguageSwitcher', () => {
     await buttons[0].trigger('click');
     expect(currentLang.value).toBe('ja');
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ja');
+  });
+
+  it('navigates to the same article under the chosen language prefix', async () => {
+    mockRoute.path = '/some-article';
+    const wrapper = mount(LanguageSwitcher);
+    const buttons = wrapper.findAll('.lang-switch-button');
+
+    await buttons[1].trigger('click');
+    expect(mockRouter.push).toHaveBeenCalledWith('/en/some-article');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
+
+    mockRoute.path = '/en/some-article';
+    await buttons[2].trigger('click');
+    expect(mockRouter.push).toHaveBeenCalledWith('/zh/some-article');
+
+    mockRoute.path = '/zh/some-article';
+    await buttons[0].trigger('click');
+    expect(mockRouter.push).toHaveBeenCalledWith('/some-article');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ja');
+  });
+
+  it('swaps the prefix on the root and tag pages too', async () => {
+    const wrapper = mount(LanguageSwitcher);
+    const buttons = wrapper.findAll('.lang-switch-button');
+
+    mockRoute.path = '/';
+    await buttons[1].trigger('click');
+    expect(mockRouter.push).toHaveBeenCalledWith('/en');
+
+    mockRoute.path = '/en/tag/%E9%81%8B%E5%96%B6';
+    await buttons[0].trigger('click');
+    expect(mockRouter.push).toHaveBeenCalledWith('/tag/%E9%81%8B%E5%96%B6');
+  });
+
+  it('does not navigate when the chosen language is the current URL language', async () => {
+    mockRoute.path = '/some-article';
+    const wrapper = mount(LanguageSwitcher);
+    const buttons = wrapper.findAll('.lang-switch-button');
+
+    // Japanese is the current page's language: the click only
+    // records the preference (the UI language may still change).
+    await buttons[0].trigger('click');
+    expect(mockRouter.push).not.toHaveBeenCalled();
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ja');
+  });
+
+  it('marks the URL language as active on a translated page', () => {
+    applyRouteLang('en');
+    const wrapper = mount(LanguageSwitcher);
+    const buttons = wrapper.findAll('.lang-switch-button');
+    expect(buttons[1].classes()).toContain('active');
+    expect(buttons[1].attributes('aria-pressed')).toBe('true');
   });
 });

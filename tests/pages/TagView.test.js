@@ -1,7 +1,8 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TagView from '../../src/pages/TagView.vue';
 import * as api from '../../src/services/api';
+import { applyRouteLang, routeLang } from '../../src/services/i18n';
 
 vi.mock('../../src/services/api', async (importOriginal) => {
   const actual = await importOriginal();
@@ -71,5 +72,32 @@ describe('TagView', () => {
     const wrapper = mountTag('運営');
     await flushPromises();
     expect(wrapper.find('.tag-page-status').text()).toContain('失敗しました');
+  });
+
+  describe('on a translated page', () => {
+    afterEach(() => {
+      applyRouteLang(null);
+      routeLang.value = null;
+    });
+
+    it('fetches the titles in the page language and keeps links inside it', async () => {
+      applyRouteLang('en');
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['a3', 'a2'],
+        titles: { a3: 'Operations EN', a2: 'Testing EN' },
+        tags: { a3: ['運営'], a2: ['運営', '技術'] }
+      });
+      const wrapper = mountTag('運営');
+      await flushPromises();
+
+      expect(api.fetchArticleTitles).toHaveBeenCalledWith('en');
+      const items = wrapper.findAll('.tag-article-item a');
+      expect(items.map((a) => a.text())).toEqual(['Operations EN', 'Testing EN']);
+      const links = wrapper.findAllComponents(RouterLinkStub);
+      expect(links[0].props().to).toBe('/en/a3');
+      expect(links[1].props().to).toBe('/en/a2');
+      // The back link returns to the translated root, not the Japanese one.
+      expect(links[links.length - 1].props().to).toBe('/en');
+    });
   });
 });

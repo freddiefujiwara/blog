@@ -42,4 +42,24 @@ describe('404.html redirect', () => {
       'https://freddiefujiwara.com/blog/staging/?/some-article-id'
     );
   });
+
+  it('keeps the language segment of a translated article path', () => {
+    // The extra segment must survive the rewrite intact, or the SPA
+    // cannot tell /blog/en/<id> apart from the Japanese article.
+    expect(redirectFor('/blog/en/some-article-id')).toBe(
+      'https://freddiefujiwara.com/blog/?/en/some-article-id'
+    );
+    expect(redirectFor('/blog/zh/tag/%E9%81%8B%E5%96%B6')).toBe(
+      'https://freddiefujiwara.com/blog/?/zh/tag/%E9%81%8B%E5%96%B6'
+    );
+  });
+
+  it('keeps the language segment of a staging translated path', () => {
+    expect(redirectFor('/blog/staging/en/some-article-id')).toBe(
+      'https://freddiefujiwara.com/blog/staging/?/en/some-article-id'
+    );
+    expect(redirectFor('/blog/staging/zh/some-article-id')).toBe(
+      'https://freddiefujiwara.com/blog/staging/?/zh/some-article-id'
+    );
+  });
 });

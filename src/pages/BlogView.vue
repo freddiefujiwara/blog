@@ -20,7 +20,7 @@
       :next-title="nextTitle"
     />
     <div v-if="article && articleIds.length > 0" class="footer-link">
-      <router-link :to="'/' + articleIds[0]">{{ t('backToLatest') }}</router-link>
+      <router-link :to="`${langPrefix}/${articleIds[0]}`">{{ t('backToLatest') }}</router-link>
       &nbsp;|&nbsp;
       <a :href="RSS_ENDPOINT" target="_blank" rel="noopener noreferrer">RSS</a>
       &nbsp;|&nbsp;
@@ -45,13 +45,16 @@ import StatusMessage from '../components/StatusMessage.vue';
 import { RSS_ENDPOINT } from '../constants';
 import { extractTocFromHtml } from '../services/markdown';
 import { buildArticleUrl } from '../share';
-import { t } from '../services/i18n';
+import { contentLang, routeLang, t } from '../services/i18n';
 
 const { article, articleHtml, articleIds, currentId, errorMessage, prevLink, nextLink, prevTitle, nextTitle } = useBlog();
 
 const toc = computed(() => extractTocFromHtml(articleHtml.value));
 
-const articleUrl = computed(() => (currentId.value ? buildArticleUrl(currentId.value) : ''));
+// Share links point at the article's URL in the language it is
+// being read in, and in-page links stay inside that language.
+const langPrefix = computed(() => (routeLang.value ? `/${routeLang.value}` : ''));
+const articleUrl = computed(() => (currentId.value ? buildArticleUrl(currentId.value, contentLang.value) : ''));
 const { rssXml, fetchRSS } = useRSS();
 
 // Derived from the copied flag so the label also follows a UI

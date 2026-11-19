@@ -6,13 +6,13 @@
     <template v-else>
       <ul v-if="entries.length" class="tag-article-list">
         <li v-for="entry in entries" :key="entry.id" class="tag-article-item">
-          <router-link :to="`/${entry.id}`">{{ entry.title }}</router-link>
+          <router-link :to="`${langPrefix}/${entry.id}`">{{ entry.title }}</router-link>
         </li>
       </ul>
       <p v-else class="tag-page-status">{{ t('tagEmpty') }}</p>
     </template>
     <div class="footer-link">
-      <router-link to="/">{{ t('backToLatest') }}</router-link>
+      <router-link :to="langPrefix || '/'">{{ t('backToLatest') }}</router-link>
     </div>
   </div>
 </template>
@@ -22,11 +22,13 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { buildSearchableArticles, fetchArticleTitles } from '../services/api';
 import { loadCachedList } from '../services/listCache';
 import { extractTagsMap, filterArticlesByTag, mergeTagsMaps } from '../services/tags';
-import { currentLang, t } from '../services/i18n';
+import { contentLang, currentLang, routeLang, t } from '../services/i18n';
 
 // Lists every article carrying one tag, newest first. The data is the
 // same titles payload the search uses (ids, titles, tags), primed from
 // the persisted list when there is one; no extra endpoint is needed.
+// On a translated page the titles are the translated ones, fetched
+// with the page's language, and the links stay inside that language.
 const props = defineProps({
   tag: {
     type: String,
@@ -38,6 +40,8 @@ const articles = ref([]);
 const tagsMap = ref({});
 const state = ref('loading');
 
+const langPrefix = computed(() => (routeLang.value ? `/${routeLang.value}` : ''));
+
 const entries = computed(() =>
   filterArticlesByTag(articles.value, tagsMap.value, props.tag)
 );
@@ -48,13 +52,14 @@ const applyData = (data) => {
 };
 
 const load = async () => {
-  const cached = loadCachedList();
+  const lang = contentLang.value;
+  const cached = loadCachedList(lang);
   if (cached?.ids?.length) {
     applyData(cached);
     state.value = 'ready';
   }
   try {
-    const data = await fetchArticleTitles();
+    const data = await fetchArticleTitles(lang);
     applyData(data);
     state.value = 'ready';
   } catch {
@@ -80,6 +85,12 @@ watch(
     load();
   }
 );
+
+// Switching the page's language (the switcher changes the URL
+// prefix, not the tag) reloads the titles in the new language.
+watch(routeLang, () => {
+  load();
+});
 
 // The tag page owns its document.title, so it also follows a UI
 // language switch while the reader stays on the page.

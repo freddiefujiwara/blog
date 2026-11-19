@@ -4,7 +4,7 @@ import { fetchArticle, fetchArticleList, fetchArticleTitles } from '../services/
 import { trackArticleRender } from '../analytics';
 import { loadCachedList, saveCachedList } from '../services/listCache';
 import { renderMarkdown } from '../services/markdown';
-import { t } from '../services/i18n';
+import { DEFAULT_LANG, contentLang, t } from '../services/i18n';
 import {
   resolveArticleId,
   extractRequestedId,
@@ -22,6 +22,40 @@ export function useBlog() {
   const articleCache = ref({});
   const pendingArticleFetches = new Map();
   let listRefreshInFlight = false;
+  // The language the in-memory article list was loaded in. Article
+  // ids are the same in every language, but titles are not, so a
+  // language switch must reload the list even when ids are present.
+  let loadedListLang = null;
+  // The language of the currently displayed article. Switching the
+  // language of the SAME article (same id, new prefix) must refetch
+  // it, so "already showing this id" is only a shortcut within one
+  // language.
+  let displayedLang = null;
+
+  // Session caches are keyed per language: the same article id in
+  // Japanese and in translation are different content and must
+  // never be served in each other's place.
+  const cacheKey = (lang, id) => `${lang}:${id}`;
+
+  // Japanese API calls keep their original shape exactly (no lang
+  // argument, no lang parameter on the wire); only translated pages
+  // pass the language through.
+  const fetchArticleForLang = (id, lang) =>
+    (lang === DEFAULT_LANG ? fetchArticle(id) : fetchArticle(id, lang));
+  const fetchTitlesForLang = (lang) =>
+    (lang === DEFAULT_LANG ? fetchArticleTitles() : fetchArticleTitles(lang));
+
+  // The full list (with pre-cached article bodies) exists only in
+  // Japanese. Translated pages use the titles response as their
+  // list source instead: it carries the same ids, titles and tags,
+  // just no article bodies, which are fetched per article anyway.
+  const fetchListForLang = async (lang) => {
+    if (lang === DEFAULT_LANG) {
+      return fetchArticleList();
+    }
+    const data = await fetchTitlesForLang(lang);
+    return { ...data, article_cache: [] };
+  };
 
   const articleHtml = computed(() => {
     if (!article.value) {
@@ -31,51 +65,58 @@ export function useBlog() {
   });
 
   const navigationLinks = computed(() =>
-    buildNavigationLinks(articleIds.value, currentId.value)
+    buildNavigationLinks(
+      articleIds.value,
+      currentId.value,
+      contentLang.value === DEFAULT_LANG ? '' : `/${contentLang.value}`
+    )
   );
 
   const prevLink = computed(() => navigationLinks.value.prevLink);
   const nextLink = computed(() => navigationLinks.value.nextLink);
-  const prevTitle = computed(() => articleCache.value[navigationLinks.value.prevId]?.title || '');
-  const nextTitle = computed(() => articleCache.value[navigationLinks.value.nextId]?.title || '');
+  const prevTitle = computed(() => articleCache.value[cacheKey(contentLang.value, navigationLinks.value.prevId)]?.title || '');
+  const nextTitle = computed(() => articleCache.value[cacheKey(contentLang.value, navigationLinks.value.nextId)]?.title || '');
 
   // Starts fetching an article before the article list has arrived, so a
   // deep-linked article downloads in parallel with the list instead of
   // waiting for it. The pending promise is consumed by getArticle.
-  const startArticleFetch = (id) => {
-    if (!id || articleCache.value[id] || pendingArticleFetches.has(id)) {
+  const startArticleFetch = (id, lang) => {
+    const key = cacheKey(lang, id);
+    if (!id || articleCache.value[key] || pendingArticleFetches.has(key)) {
       return;
     }
-    const promise = fetchArticle(id);
+    const promise = fetchArticleForLang(id, lang);
     // If the fetch ends up unused (e.g. the id is not in the list), its
     // rejection must not surface as an unhandled rejection.
     promise.catch(() => {});
-    pendingArticleFetches.set(id, promise);
+    pendingArticleFetches.set(key, promise);
   };
 
   // Makes a fetched article the displayed one and remembers it in
   // the session cache.
-  const adoptArticle = (id, data) => {
-    articleCache.value[id] = data;
+  const adoptArticle = (lang, id, data) => {
+    articleCache.value[cacheKey(lang, id)] = data;
     article.value = data;
     currentId.value = id;
+    displayedLang = lang;
     errorMessage.value = '';
     if (data?.title) {
       document.title = data.title;
     }
   };
 
-  const getArticle = async (id) => {
-    if (articleCache.value[id]) {
-      adoptArticle(id, articleCache.value[id]);
+  const getArticle = async (id, lang) => {
+    const key = cacheKey(lang, id);
+    if (articleCache.value[key]) {
+      adoptArticle(lang, id, articleCache.value[key]);
       return;
     }
 
-    const pending = pendingArticleFetches.get(id);
+    const pending = pendingArticleFetches.get(key);
     if (pending) {
-      pendingArticleFetches.delete(id);
+      pendingArticleFetches.delete(key);
       try {
-        adoptArticle(id, await pending);
+        adoptArticle(lang, id, await pending);
         return;
       } catch {
         // Fall through to a fresh fetch so error handling matches the
@@ -83,15 +124,24 @@ export function useBlog() {
       }
     }
 
-    adoptArticle(id, await fetchArticle(id));
+    adoptArticle(lang, id, await fetchArticleForLang(id, lang));
   };
 
   const getLocationContext = () => {
     // With a route, prepend /blog to match what resolveArticleId
-    // expects (route.path starts with /).
-    const path = route
-      ? (route.path === '/' ? '/blog' : `/blog${route.path}`)
-      : window.location.pathname;
+    // expects (route.path starts with /). A language prefix the
+    // route itself declares is stripped first: resolveArticleId
+    // resolves article ids, and "en/<id>" is not one.
+    let path;
+    if (route) {
+      const prefix = route.params?.lang ? `/${route.params.lang}` : '';
+      const routePath = prefix && route.path.startsWith(prefix)
+        ? route.path.slice(prefix.length) || '/'
+        : route.path;
+      path = routePath === '/' ? '/blog' : `/blog${routePath}`;
+    } else {
+      path = window.location.pathname;
+    }
     return {
       path,
       search: window.location.search,
@@ -105,11 +155,12 @@ export function useBlog() {
     errorMessage.value = '';
   };
 
-  const applyListData = (data) => {
+  const applyListData = (data, lang) => {
     articleIds.value = data.ids;
+    loadedListLang = lang;
     if (data.article_cache) {
       data.article_cache.forEach((item) => {
-        articleCache.value[item.id] = item;
+        articleCache.value[cacheKey(lang, item.id)] = item;
       });
     }
   };
@@ -118,32 +169,33 @@ export function useBlog() {
   // refreshes it in the background, so repeat visits render immediately.
   // Returns true when the in-memory list came from the persisted cache (and
   // may therefore be stale).
-  const primeListFromCache = () => {
-    if (articleIds.value.length > 0) {
+  const primeListFromCache = (lang) => {
+    if (articleIds.value.length > 0 && loadedListLang === lang) {
       return false;
     }
-    const cached = loadCachedList();
+    const cached = loadCachedList(lang);
     if (!cached) {
       return false;
     }
-    applyListData(cached);
-    refreshArticleList();
+    applyListData(cached, lang);
+    refreshArticleList(lang);
     return true;
   };
 
-  const refreshArticleList = async () => {
+  const refreshArticleList = async (lang) => {
     if (listRefreshInFlight) {
       return;
     }
     listRefreshInFlight = true;
     try {
-      const data = await fetchArticleList();
-      applyListData(data);
-      saveCachedList(data);
+      const data = await fetchListForLang(lang);
+      applyListData(data, lang);
+      saveCachedList(data, lang);
       // Keep the displayed article in sync when the refresh brought a
-      // newer version of it.
-      const fresh = currentId.value
-        ? articleCache.value[currentId.value]
+      // newer version of it — but only a refresh in the language the
+      // reader is currently looking at may touch the display.
+      const fresh = currentId.value && lang === contentLang.value
+        ? articleCache.value[cacheKey(lang, currentId.value)]
         : null;
       if (fresh && article.value && fresh !== article.value) {
         article.value = fresh;
@@ -158,12 +210,12 @@ export function useBlog() {
     }
   };
 
-  const getArticleList = async () => {
-    if (articleIds.value.length > 0) {
+  const getArticleList = async (lang) => {
+    if (articleIds.value.length > 0 && loadedListLang === lang) {
       return articleIds.value;
     }
-    primeListFromCache();
-    if (articleIds.value.length > 0) {
+    primeListFromCache(lang);
+    if (articleIds.value.length > 0 && loadedListLang === lang) {
       return articleIds.value;
     }
     // Fast path: learn the ids from the lightweight titles response
@@ -171,30 +223,34 @@ export function useBlog() {
     // background. The full list can take tens of seconds when the API
     // cache is cold, and the reader should not have to wait for ten
     // articles to read one. If the titles response is unavailable
-    // (older API deployment), fall back to the full list.
+    // (older API deployment), fall back to the full list — in
+    // Japanese only; a translated page has no Japanese fallback and
+    // surfaces the failure instead of mixing languages.
     try {
-      const data = await fetchArticleTitles();
+      const data = await fetchTitlesForLang(lang);
       if (data?.ids?.length) {
         articleIds.value = data.ids;
-        refreshArticleList();
+        loadedListLang = lang;
+        refreshArticleList(lang);
         return data.ids;
       }
     } catch {
       // Fall through to the full list.
     }
-    const data = await fetchArticleList();
-    applyListData(data);
-    saveCachedList(data);
+    const data = await fetchListForLang(lang);
+    applyListData(data, lang);
+    saveCachedList(data, lang);
     return data.ids;
   };
 
-  const prefetch = () => {
+  const prefetch = (lang) => {
     const { prevId, nextId } = navigationLinks.value;
     [prevId, nextId].forEach((id) => {
-      if (id && !articleCache.value[id]) {
-        fetchArticle(id)
+      const key = cacheKey(lang, id);
+      if (id && !articleCache.value[key]) {
+        fetchArticleForLang(id, lang)
           .then((data) => {
-            articleCache.value[id] = data;
+            articleCache.value[key] = data;
           })
           .catch(() => {
             // Ignore prefetch errors
@@ -216,9 +272,10 @@ export function useBlog() {
   // carries the two waits inside the total — the article list
   // and the article body — measured by loadArticleFromLocation,
   // so a slow display can be attributed to the leg that stalled.
-  const reportArticleRender = (id, startedAt, phases = {}) => {
-    if (!id || reportedRenderIds.has(id)) return;
-    reportedRenderIds.add(id);
+  const reportArticleRender = (id, startedAt, phases = {}, lang = DEFAULT_LANG) => {
+    const reportKey = cacheKey(lang, id);
+    if (!id || reportedRenderIds.has(reportKey)) return;
+    reportedRenderIds.add(reportKey);
     nextTick(() => {
       const report = () => trackArticleRender(performance.now() - startedAt, phases);
       const raf =
@@ -239,15 +296,16 @@ export function useBlog() {
   // answered with an error payload (a document outside the blog
   // folder gets an error payload, not a failed request), so the
   // caller can fall back to resolving through the article list.
-  const takeStartedArticle = async (id) => {
-    if (articleCache.value[id]) {
-      return articleCache.value[id];
+  const takeStartedArticle = async (id, lang) => {
+    const key = cacheKey(lang, id);
+    if (articleCache.value[key]) {
+      return articleCache.value[key];
     }
-    const pending = pendingArticleFetches.get(id);
+    const pending = pendingArticleFetches.get(key);
     if (!pending) {
       return null;
     }
-    pendingArticleFetches.delete(id);
+    pendingArticleFetches.delete(key);
     try {
       const data = await pending;
       return data && !data.error ? data : null;
@@ -259,19 +317,22 @@ export function useBlog() {
   const loadArticleFromLocation = async (initial = false) => {
     if (loading.value) return;
     const startedAt = initial ? 0 : performance.now();
+    // The language this load runs in, captured once: a language
+    // switch mid-load starts its own load instead of mixing.
+    const lang = contentLang.value;
     loading.value = true;
     try {
-      const usedCachedList = primeListFromCache();
+      const usedCachedList = primeListFromCache(lang);
       // On a direct article visit, start downloading the article right away
       // instead of waiting for the article list to arrive first.
       const requestedId = route
         ? route.params?.id || ''
         : extractRequestedId(getLocationContext());
       if (requestedId) {
-        startArticleFetch(requestedId);
+        startArticleFetch(requestedId, lang);
       }
       const listStartedAt = performance.now();
-      const listPromise = getArticleList();
+      const listPromise = getArticleList(lang);
       // The list keeps resolving in the background even when the
       // article wins the race below; the rejection is surfaced by
       // whichever path ends up awaiting the promise.
@@ -287,19 +348,19 @@ export function useBlog() {
       // catches up on its own. An id the API refuses (an error
       // payload) or cannot fetch falls back to the list-based
       // resolution below, exactly as before.
-      if (requestedId && requestedId !== currentId.value) {
+      if (requestedId && (requestedId !== currentId.value || lang !== displayedLang)) {
         // Match the list-based path below: the previous article
         // clears while the new one is on its way.
         clearCurrentArticle();
-        const early = await takeStartedArticle(requestedId);
+        const early = await takeStartedArticle(requestedId, lang);
         if (early) {
-          adoptArticle(requestedId, early);
+          adoptArticle(lang, requestedId, early);
           // No list_ms is reported: the list was not waited for,
           // so there is no list wait to attribute to this display.
           reportArticleRender(requestedId, startedAt, {
             fetchMs: performance.now() - listStartedAt
-          });
-          listPromise.then(() => prefetch(), () => {});
+          }, lang);
+          listPromise.then(() => prefetch(lang), () => {});
           return;
         }
       }
@@ -310,9 +371,9 @@ export function useBlog() {
         // against it would fall back to a stale "newest" article and send
         // the reader to the wrong post. Fetch the fresh list first.
         try {
-          const data = await fetchArticleList();
-          applyListData(data);
-          saveCachedList(data);
+          const data = await fetchListForLang(lang);
+          applyListData(data, lang);
+          saveCachedList(data, lang);
           ids = data.ids;
         } catch {
           // Keep the persisted list; the fallback below still applies.
@@ -324,21 +385,29 @@ export function useBlog() {
         throw new Error(t('latestNotFound'));
       }
 
-      if (route && (route.path === '/' || (route.params.id && route.params.id !== articleId))) {
-        router.replace({ name: 'post', params: { id: articleId } });
+      // The root routes (Japanese and translated alike) replace
+      // themselves with the newest article's URL; an article route
+      // whose id resolved differently does the same.
+      const isRootRoute = route
+        && (route.name === 'home' || route.name === 'lang-home' || route.path === '/');
+      if (route && (isRootRoute || (route.params.id && route.params.id !== articleId))) {
+        const params = route.params.lang
+          ? { lang: route.params.lang, id: articleId }
+          : { id: articleId };
+        router.replace({ name: 'post', params });
         loading.value = false;
         return;
       }
 
-      if (articleId === currentId.value && article.value) {
+      if (articleId === currentId.value && article.value && lang === displayedLang) {
         return;
       }
       clearCurrentArticle();
       const fetchStartedAt = performance.now();
-      await getArticle(articleId);
+      await getArticle(articleId, lang);
       const fetchMs = performance.now() - fetchStartedAt;
-      reportArticleRender(articleId, startedAt, { listMs, fetchMs });
-      prefetch();
+      reportArticleRender(articleId, startedAt, { listMs, fetchMs }, lang);
+      prefetch(lang);
     } finally {
       loading.value = false;
     }

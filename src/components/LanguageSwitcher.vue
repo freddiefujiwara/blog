@@ -7,13 +7,14 @@
       class="lang-switch-button"
       :class="{ active: option.value === currentLang }"
       :aria-pressed="option.value === currentLang"
-      @click="setLang(option.value)"
+      @click="choose(option.value)"
     >{{ option.label }}</button>
   </div>
 </template>
 
 <script setup>
-import { currentLang, setLang, t } from '../services/i18n';
+import { useRoute, useRouter } from 'vue-router';
+import { currentLang, localizedPath, setLang, t } from '../services/i18n';
 
 // Each language is offered under its own name, the convention
 // language switchers follow; the labels are deliberately not
@@ -23,4 +24,20 @@ const LANG_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'zh', label: '中文' }
 ];
+
+const route = useRoute();
+const router = useRouter();
+
+// The switcher moves between the languages OF THE CURRENT PAGE:
+// the same article, tag page or root under the chosen language's
+// URL (Japanese without a prefix, English and Chinese under
+// /en and /zh). The choice is also saved as the UI preference, so
+// Japanese pages visited afterwards open in that UI language.
+const choose = (lang) => {
+  setLang(lang);
+  const target = localizedPath(route.path, lang);
+  if (target !== route.path) {
+    router.push(target);
+  }
+};
 </script>
