@@ -28,24 +28,20 @@ const router = createRouter({
 
 // The URL is the single source of truth for language. A
 // language-less URL whose viewer resolves to English or Chinese —
-// the ?lang= parameter, the stored switcher choice, the browser's
-// language, in the order initLang uses — is replaced by the same
-// page under that language's prefix, so a translated UI can never
-// sit on a Japanese URL. The redirect cannot loop: its target
-// always carries a language, prefixed routes never redirect, and
-// a Japanese resolution stays where it is. The lang parameter
-// itself is dropped (the prefix now carries the language); any
-// other query (e.g. the legacy ?id=) and the hash ride along.
+// the stored switcher choice, then the browser's language, in
+// the order initLang uses — is replaced by the same page under
+// that language's prefix, so a translated UI can never sit on a
+// Japanese URL. The redirect cannot loop: its target always
+// carries a language, prefixed routes never redirect, and a
+// Japanese resolution stays where it is. The query (e.g. the
+// legacy ?id=) and the hash ride along.
 router.beforeEach((to) => {
   if (!to.params.lang) {
-    const param = Array.isArray(to.query.lang) ? to.query.lang[0] : to.query.lang
-    const viewer = resolveViewerLang(param ?? null)
+    const viewer = resolveViewerLang()
     if (viewer !== DEFAULT_LANG) {
-      const query = { ...to.query }
-      delete query.lang
       return {
         path: localizedPath(to.path, viewer),
-        query,
+        query: to.query,
         hash: to.hash,
         replace: true
       }

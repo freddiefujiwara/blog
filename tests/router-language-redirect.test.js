@@ -11,10 +11,10 @@ import {
 
 // The URL is the single source of truth for language: a
 // language-less URL whose viewer resolves to English or Chinese
-// (the ?lang= parameter, the stored switcher choice, the
-// browser's language — the initLang order) is replaced by the
-// same page under that language's prefix. These tests drive the
-// real router end to end.
+// (the stored switcher choice, the browser's language — the
+// initLang order) is replaced by the same page under that
+// language's prefix. These tests drive the real router end to
+// end.
 const stubBrowserLanguages = (languages) => {
   vi.stubGlobal('navigator', { language: languages[0], languages });
 };
@@ -134,21 +134,31 @@ describe('router language redirect', () => {
     expect(routeLang.value).toBeNull();
   });
 
-  it('lands ?lang=en on the prefixed URL and drops the parameter', async () => {
+  it('ignores a ?lang= parameter: a stored Japanese preference stays Japanese', async () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'ja');
     const route = await visit('/param-article?lang=en');
-    expect(route.path).toBe('/en/param-article');
-    expect(route.query.lang).toBeUndefined();
-
-    const home = await visit('/?lang=zh');
-    expect(home.path).toBe('/zh');
-    expect(home.query.lang).toBeUndefined();
+    expect(route.path).toBe('/param-article');
+    expect(route.params.lang).toBeUndefined();
+    expect(currentLang.value).toBe('ja');
+    expect(routeLang.value).toBeNull();
   });
 
-  it('lets ?lang=ja override a stored English preference without redirecting', async () => {
+  it('ignores a ?lang= parameter: the browser language decides instead', async () => {
+    stubBrowserLanguages(['en-US']);
+    const route = await visit('/param-zh-article?lang=zh');
+    expect(route.path).toBe('/en/param-zh-article');
+    expect(route.params.lang).toBe('en');
+
+    const home = await visit('/?lang=zh');
+    expect(home.path).toBe('/en');
+    expect(home.params.lang).toBe('en');
+  });
+
+  it('does not let ?lang=ja override a stored English preference', async () => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en');
     const route = await visit('/param-ja-article?lang=ja');
-    expect(route.path).toBe('/param-ja-article');
-    expect(route.params.lang).toBeUndefined();
+    expect(route.path).toBe('/en/param-ja-article');
+    expect(route.params.lang).toBe('en');
   });
 
   it('keeps other query parameters and the hash across the redirect', async () => {
