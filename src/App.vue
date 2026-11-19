@@ -1,12 +1,12 @@
 <template>
   <div>
     <nav class="site-nav">
-      <a class="brand" href="https://freddiefujiwara.com/">{{ t('siteTitle') }}</a>
+      <a class="brand" :href="topHomeHref">{{ t('siteTitle') }}</a>
       <ul>
-        <li><a href="https://freddiefujiwara.com/" @click="trackNavClick('top')">{{ t('navTop') }}</a></li>
-        <li class="nav-section"><a href="https://freddiefujiwara.com/#about" @click="trackNavClick('about')">{{ t('navProfile') }}</a></li>
-        <li class="nav-section"><a href="https://freddiefujiwara.com/#activity" @click="trackNavClick('activity')">{{ t('navActivity') }}</a></li>
-        <li class="nav-section"><a href="https://freddiefujiwara.com/#contact" @click="trackNavClick('contact')">{{ t('navContact') }}</a></li>
+        <li><a :href="topHomeHref" @click="trackNavClick('top')">{{ t('navTop') }}</a></li>
+        <li class="nav-section"><a :href="topProfileHref" @click="trackNavClick('about')">{{ t('navProfile') }}</a></li>
+        <li class="nav-section"><a :href="topActivityHref" @click="trackNavClick('activity')">{{ t('navActivity') }}</a></li>
+        <li class="nav-section"><a :href="topContactHref" @click="trackNavClick('contact')">{{ t('navContact') }}</a></li>
         <li><a :href="blogHomeHref" class="active" aria-current="page" @click="trackNavClick('blog')">{{ t('navBlog') }}</a></li>
         <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">{{ t('navList') }}</a></li>
         <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">{{ t('navMusic') }} ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
@@ -42,8 +42,8 @@
           <div class="foot-group">
             <p class="foot-group-title">{{ t('footerSite') }}</p>
             <div class="foot-links">
-              <a href="https://freddiefujiwara.com/" target="_blank" rel="noopener">{{ t('navTop') }} <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/blog/" target="_blank" rel="noopener">{{ t('navBlog') }} <span class="arr">↗</span></a>
+              <a :href="topHomeHref" target="_blank" rel="noopener">{{ t('navTop') }} <span class="arr">↗</span></a>
+              <a :href="footerBlogHref" target="_blank" rel="noopener">{{ t('navBlog') }} <span class="arr">↗</span></a>
               <a href="https://freddiefujiwara.com/list-of-stuff/" target="_blank" rel="noopener">{{ t('footerBelongings') }} <span class="arr">↗</span></a>
               <a href="https://freddiefujiwara.com/bucket-list/" target="_blank" rel="noopener">{{ t('footerBucketList') }} <span class="arr">↗</span></a>
             </div>
@@ -103,7 +103,7 @@ import { computed, ref, onMounted, watch } from 'vue';
 import TitleSearch from './components/TitleSearch.vue';
 import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
-import { contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t } from './services/i18n';
+import { blogHomeUrl, contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t, topPageUrl } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
@@ -118,6 +118,17 @@ const year = new Date().getFullYear();
 const blogHomeHref = computed(() =>
   (routeLang.value ? `/blog/${routeLang.value}/` : '/blog/')
 );
+
+// Links out to the top page (and the footer's blog link) follow
+// the UI language the reader is browsing in: the top page has
+// real /en/ and /zh/ pages, so an English reader lands there
+// instead of on the Japanese page. Japanese keeps today's URLs
+// exactly. Links to the other apps stay language-neutral.
+const topHomeHref = computed(() => topPageUrl(currentLang.value));
+const topProfileHref = computed(() => topPageUrl(currentLang.value, '#about'));
+const topActivityHref = computed(() => topPageUrl(currentLang.value, '#activity'));
+const topContactHref = computed(() => topPageUrl(currentLang.value, '#contact'));
+const footerBlogHref = computed(() => blogHomeUrl(currentLang.value));
 
 // The static document.title is the site title; article pages
 // replace it with the article's own (untranslated) title and tag
