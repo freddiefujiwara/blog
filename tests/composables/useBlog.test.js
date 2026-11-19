@@ -825,4 +825,189 @@ describe('useBlog composable', () => {
       expect(wrapper.vm.errorMessage).toBe('Titles Error');
     });
   });
+
+  describe('navigation titles from the list payload', () => {
+    afterEach(() => {
+      applyRouteLang(null);
+      routeLang.value = null;
+      mockRoute.name = undefined;
+    });
+
+    it('takes prev/next titles from the Japanese titles payload', async () => {
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: { 1: 'タイトル1', 2: 'タイトル2', 3: 'タイトル3' }
+      });
+      api.fetchArticleList.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: { 1: 'タイトル1', 2: 'タイトル2', 3: 'タイトル3' },
+        article_cache: []
+      });
+      // The fetched articles carry different titles than the payload
+      // map, so the assertions can only pass if the map is the source.
+      api.fetchArticle.mockImplementation(async (id) => ({
+        id,
+        title: `記事${id}`,
+        markdown: 'Content'
+      }));
+
+      mockRoute.path = '/2';
+      mockRoute.params = { id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(wrapper.vm.article.id).toBe('2');
+      expect(wrapper.vm.prevTitle).toBe('タイトル1');
+      expect(wrapper.vm.nextTitle).toBe('タイトル3');
+    });
+
+    it('shows English prev/next titles from the en titles payload on an English page', async () => {
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: { 1: 'Title 1 EN', 2: 'Title 2 EN', 3: 'Title 3 EN' }
+      });
+      // The article endpoint answers the neighbours with their
+      // Japanese originals (its fallback for articles it cannot
+      // translate); the navigation must still speak the page's
+      // language, from the titles payload.
+      api.fetchArticle.mockImplementation(async (id) => ({
+        id,
+        title: id === '2' ? 'Title 2 EN' : `Title ${id} JA`,
+        markdown: 'Content'
+      }));
+
+      applyRouteLang('en');
+      mockRoute.path = '/en/2';
+      mockRoute.params = { lang: 'en', id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/en/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(wrapper.vm.article.title).toBe('Title 2 EN');
+      expect(wrapper.vm.prevTitle).toBe('Title 1 EN');
+      expect(wrapper.vm.nextTitle).toBe('Title 3 EN');
+    });
+
+    it('shows Chinese prev/next titles from the zh titles payload on a Chinese page', async () => {
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: { 1: '标题1', 2: '标题2', 3: '标题3' }
+      });
+      api.fetchArticle.mockImplementation(async (id) => ({
+        id,
+        title: id === '2' ? '标题2' : `Title ${id} JA`,
+        markdown: 'Content'
+      }));
+
+      applyRouteLang('zh');
+      mockRoute.path = '/zh/2';
+      mockRoute.params = { lang: 'zh', id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/zh/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(wrapper.vm.article.title).toBe('标题2');
+      expect(wrapper.vm.prevTitle).toBe('标题1');
+      expect(wrapper.vm.nextTitle).toBe('标题3');
+    });
+
+    it('falls back to the cached article title when the titles payload lacks the neighbour', async () => {
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: { 2: 'Title 2 EN' }
+      });
+      api.fetchArticle.mockImplementation(async (id) => ({
+        id,
+        title: `Title ${id} EN`,
+        markdown: 'Content'
+      }));
+
+      applyRouteLang('en');
+      mockRoute.path = '/en/2';
+      mockRoute.params = { lang: 'en', id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/en/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      // Neither neighbour is in the titles map; their titles arrive
+      // with the prefetched articles instead.
+      expect(wrapper.vm.prevTitle).toBe('Title 1 EN');
+      expect(wrapper.vm.nextTitle).toBe('Title 3 EN');
+    });
+
+    it('replaces the titles map when the list language changes', async () => {
+      api.fetchArticleTitles.mockImplementation(async (lang) =>
+        (lang === 'en'
+          ? { ids: ['1', '2', '3'], titles: { 1: 'Title 1 EN', 2: 'Title 2 EN', 3: 'Title 3 EN' } }
+          : { ids: ['1', '2', '3'], titles: { 1: 'タイトル1', 2: 'タイトル2', 3: 'タイトル3' } }));
+      api.fetchArticleList.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: { 1: 'タイトル1', 2: 'タイトル2', 3: 'タイトル3' },
+        article_cache: []
+      });
+      // Neighbour articles always come back with Japanese titles, so
+      // neither the article cache nor a stale Japanese map can
+      // produce the English assertions below.
+      api.fetchArticle.mockImplementation(async (id, lang) => ({
+        id,
+        title: id === '2'
+          ? (lang === 'en' ? 'Title 2 EN' : 'タイトル2')
+          : `Title ${id} JA`,
+        markdown: 'Content'
+      }));
+
+      mockRoute.path = '/2';
+      mockRoute.params = { id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(wrapper.vm.prevTitle).toBe('タイトル1');
+      expect(wrapper.vm.nextTitle).toBe('タイトル3');
+
+      applyRouteLang('en');
+      mockRoute.path = '/en/2';
+      mockRoute.params = { lang: 'en', id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/en/2' });
+      await flushPromises();
+
+      expect(wrapper.vm.article.title).toBe('Title 2 EN');
+      expect(wrapper.vm.prevTitle).toBe('Title 1 EN');
+      expect(wrapper.vm.nextTitle).toBe('Title 3 EN');
+    });
+
+    it('primes the titles map from the persisted list', async () => {
+      localStorage.setItem('blog:list-cache:v1:en', JSON.stringify({
+        ids: ['1', '2', '3'],
+        titles: { 1: 'Title 1 EN', 2: 'Title 2 EN', 3: 'Title 3 EN' },
+        article_cache: []
+      }));
+      // The network list never lands, so only the persisted list can
+      // be feeding the navigation titles.
+      api.fetchArticleTitles.mockReturnValue(new Promise(() => {}));
+      api.fetchArticle.mockImplementation(async (id) => ({
+        id,
+        title: id === '2' ? 'Title 2 EN' : `Title ${id} JA`,
+        markdown: 'Content'
+      }));
+
+      applyRouteLang('en');
+      mockRoute.path = '/en/2';
+      mockRoute.params = { lang: 'en', id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/en/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(wrapper.vm.article.title).toBe('Title 2 EN');
+      expect(wrapper.vm.prevTitle).toBe('Title 1 EN');
+      expect(wrapper.vm.nextTitle).toBe('Title 3 EN');
+    });
+  });
 });
