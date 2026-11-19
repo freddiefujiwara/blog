@@ -112,12 +112,12 @@ export const MESSAGES = {
     siteName: 'Fumikazu Fujiwara',
     siteRole: 'A QA engineer walking Kawaguchi',
     siteTitle: 'Fumikazu Fujiwara | A QA engineer walking Kawaguchi',
-    navTop: 'Home',
+    navTop: 'Top',
     navProfile: 'Profile',
     navActivity: 'Activities',
     navContact: 'Contact',
     navBlog: 'Blog',
-    navList: 'My Belongings',
+    navList: 'What I Carry',
     navMusic: 'Songs of Kawaguchi',
     musicPlayCount: '{count} plays',
     language: 'Language',
@@ -188,7 +188,7 @@ export const MESSAGES = {
     navActivity: '活动动态',
     navContact: '信息交流',
     navBlog: '博客',
-    navList: '物品清单',
+    navList: '随身物品',
     navMusic: '川口之歌',
     musicPlayCount: '{count}次播放',
     language: '语言',
@@ -222,7 +222,7 @@ export const MESSAGES = {
     footerReviews: '点评',
     footerProfile: '简介及其他',
     footerTools: '我的工具',
-    footerBelongings: '物品',
+    footerBelongings: '随身物品',
     footerBucketList: '愿望清单',
     footerGoogleReviews: 'Google 地图点评',
     footerRakutenReviews: '乐天旅游点评',
@@ -268,12 +268,10 @@ export const detectBrowserLang = (languages = []) => {
   return null;
 };
 
-// Resolution order: the ?lang= parameter, then the persisted
-// choice, then the browser's language, then Japanese. Invalid
-// values are ignored at each step, so a shared link with a stray
-// parameter can never break the page.
-export const resolveInitialLang = ({ param = null, stored = null, browser = null } = {}) => {
-  if (isSupportedLang(param)) return param;
+// Resolution order: the persisted choice, then the browser's
+// language, then Japanese. Invalid values are ignored at each
+// step.
+export const resolveInitialLang = ({ stored = null, browser = null } = {}) => {
   if (isSupportedLang(stored)) return stored;
   if (isSupportedLang(browser)) return browser;
   return DEFAULT_LANG;
@@ -285,14 +283,6 @@ const readStoredLang = () => {
       localStorage.getItem(LANGUAGE_STORAGE_KEY) ??
       localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)
     );
-  } catch {
-    return null;
-  }
-};
-
-const readParamLang = () => {
-  try {
-    return new URLSearchParams(window.location.search).get('lang');
   } catch {
     return null;
   }
@@ -327,35 +317,27 @@ const applyHtmlLang = (lang) => {
 export const currentLang = ref(DEFAULT_LANG);
 
 // The language a viewer resolves to away from the URL, from the
-// same inputs in the same order everywhere: the ?lang= parameter
-// (passed in, since a navigation's target query is not yet in
-// window.location), the persisted switcher choice, the browser's
-// language, Japanese last. initLang resolves this once at
-// startup; the router resolves it for every language-less URL
-// and sends an English or Chinese viewer to the prefixed URL
-// instead (see router.js), so the URL stays the single source
-// of truth for language.
-export const resolveViewerLang = (param = null) =>
+// same inputs in the same order everywhere: the persisted
+// switcher choice, the browser's language, Japanese last.
+// initLang resolves this once at startup; the router resolves
+// it for every language-less URL and sends an English or
+// Chinese viewer to the prefixed URL instead (see router.js),
+// so the URL stays the single source of truth for language.
+export const resolveViewerLang = () =>
   resolveInitialLang({
-    param,
     stored: readStoredLang(),
     browser: readBrowserLang()
   });
 
 // Resolves the language once at startup (called from main.js
-// before the app mounts). A ?lang= parameter wins over the stored
-// choice and is itself persisted, so following an in-page link
-// keeps the language the reader arrived with. A language taken
-// from the browser's settings is applied but NOT persisted, so
-// detection runs again on the next visit until the reader picks
-// a language in the switcher (which setLang persists).
+// before the app mounts). The stored switcher choice wins over
+// the browser's language. A language taken from the browser's
+// settings is applied but NOT persisted, so detection runs
+// again on the next visit until the reader picks a language in
+// the switcher (which setLang persists).
 export const initLang = () => {
-  const param = readParamLang();
-  const lang = resolveViewerLang(param);
+  const lang = resolveViewerLang();
   currentLang.value = lang;
-  if (isSupportedLang(param)) {
-    persistLang(lang);
-  }
   applyHtmlLang(lang);
   return lang;
 };
@@ -387,7 +369,7 @@ export const contentLang = computed(() => routeLang.value ?? DEFAULT_LANG);
 // route forces the UI language to the route's, WITHOUT persisting
 // it — the stored preference stays what the reader last picked in
 // the switcher. Leaving the translated routes re-resolves the UI
-// language (parameter, stored choice, browser): in-app that only
+// language (stored choice, browser): in-app that only
 // happens once the viewer resolves to Japanese (the router has
 // already redirected everyone else, and the switcher persists its
 // Japanese choice before navigating out), so the re-resolution
@@ -407,7 +389,6 @@ export const applyRouteLang = (lang) => {
     return currentLang.value;
   }
   const resolved = resolveInitialLang({
-    param: readParamLang(),
     stored: readStoredLang(),
     browser: readBrowserLang()
   });

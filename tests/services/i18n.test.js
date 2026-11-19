@@ -35,7 +35,7 @@ describe('i18n service', () => {
     localStorage.clear();
     window.history.replaceState(null, '', '/');
     // A Japanese browser by default, so the initial-language
-    // tests below exercise the param/stored steps deterministically.
+    // tests below exercise the stored step deterministically.
     stubBrowserLanguages(['ja-JP']);
   });
 
@@ -98,13 +98,13 @@ describe('i18n service', () => {
     expect(t('noSuchKey')).toBe('noSuchKey');
   });
 
-  it('resolves the initial language: parameter, then stored, then browser, then Japanese', () => {
-    expect(resolveInitialLang({ param: 'en', stored: 'zh', browser: 'zh' })).toBe('en');
-    expect(resolveInitialLang({ param: 'fr', stored: 'zh', browser: 'en' })).toBe('zh');
-    expect(resolveInitialLang({ param: null, stored: 'en', browser: 'zh' })).toBe('en');
-    expect(resolveInitialLang({ param: null, stored: null, browser: 'en' })).toBe('en');
-    expect(resolveInitialLang({ param: null, stored: 'fr', browser: 'zh' })).toBe('zh');
-    expect(resolveInitialLang({ param: 'fr', stored: 'fr', browser: 'fr' })).toBe('ja');
+  it('resolves the initial language: stored, then browser, then Japanese', () => {
+    expect(resolveInitialLang({ stored: 'en', browser: 'zh' })).toBe('en');
+    expect(resolveInitialLang({ stored: 'zh', browser: 'en' })).toBe('zh');
+    expect(resolveInitialLang({ stored: null, browser: 'en' })).toBe('en');
+    expect(resolveInitialLang({ stored: null, browser: 'zh' })).toBe('zh');
+    expect(resolveInitialLang({ stored: 'fr', browser: 'zh' })).toBe('zh');
+    expect(resolveInitialLang({ stored: 'fr', browser: 'fr' })).toBe('ja');
     expect(resolveInitialLang({})).toBe('ja');
     expect(resolveInitialLang()).toBe('ja');
   });
@@ -157,12 +157,12 @@ describe('i18n service', () => {
     expect(document.documentElement.lang).toBe('en');
   });
 
-  it('initLang lets ?lang= win over the stored choice and persists it', () => {
+  it('initLang ignores a ?lang= parameter and uses the stored choice', () => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en');
     window.history.replaceState(null, '', '/?lang=zh');
-    expect(initLang()).toBe('zh');
-    expect(currentLang.value).toBe('zh');
-    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+    expect(initLang()).toBe('en');
+    expect(currentLang.value).toBe('en');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
   });
 
   it('initLang ignores an invalid ?lang= and falls back to the stored choice', () => {
@@ -172,7 +172,7 @@ describe('i18n service', () => {
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
   });
 
-  it('initLang defaults to Japanese with nothing stored and no parameter', () => {
+  it('initLang defaults to Japanese with nothing stored', () => {
     expect(initLang()).toBe('ja');
     expect(currentLang.value).toBe('ja');
     expect(document.documentElement.lang).toBe('ja');
@@ -208,11 +208,12 @@ describe('i18n service', () => {
     expect(initLang()).toBe('zh');
   });
 
-  it('initLang prefers ?lang= over the browser language and persists it', () => {
+  it('initLang ignores a ?lang= parameter and uses the browser language', () => {
     stubBrowserLanguages(['en-US']);
     window.history.replaceState(null, '', '/?lang=zh');
-    expect(initLang()).toBe('zh');
-    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+    expect(initLang()).toBe('en');
+    expect(currentLang.value).toBe('en');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
   });
 
   it('initLang falls back to Japanese for an unsupported browser language', () => {
@@ -230,14 +231,14 @@ describe('i18n service', () => {
       localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'en');
       expect(initLang()).toBe('en');
       expect(currentLang.value).toBe('en');
-      expect(resolveViewerLang(null)).toBe('en');
+      expect(resolveViewerLang()).toBe('en');
     });
 
     it('prefers the shared key when both are set', () => {
       localStorage.setItem(LEGACY_LANGUAGE_STORAGE_KEY, 'en');
       localStorage.setItem(LANGUAGE_STORAGE_KEY, 'zh');
       expect(initLang()).toBe('zh');
-      expect(resolveViewerLang(null)).toBe('zh');
+      expect(resolveViewerLang()).toBe('zh');
     });
 
     it('persists to the shared key only, never the legacy key', () => {
@@ -245,9 +246,11 @@ describe('i18n service', () => {
       expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
       expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBeNull();
 
+      // A stray ?lang= parameter is ignored: it neither resolves
+      // nor overwrites the persisted choice.
       window.history.replaceState(null, '', '/?lang=zh');
-      expect(initLang()).toBe('zh');
-      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('zh');
+      expect(initLang()).toBe('en');
+      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
       expect(localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY)).toBeNull();
     });
 
@@ -261,23 +264,21 @@ describe('i18n service', () => {
   });
 
   describe('resolveViewerLang (the router\u2019s resolution)', () => {
-    it('resolves the parameter first, then stored, then browser, then Japanese', () => {
+    it('resolves stored, then browser, then Japanese', () => {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, 'zh');
       stubBrowserLanguages(['en-US']);
-      expect(resolveViewerLang('en')).toBe('en');
-      expect(resolveViewerLang(null)).toBe('zh');
+      expect(resolveViewerLang()).toBe('zh');
 
       localStorage.clear();
-      expect(resolveViewerLang(null)).toBe('en');
+      expect(resolveViewerLang()).toBe('en');
 
       stubBrowserLanguages(['ja-JP']);
-      expect(resolveViewerLang(null)).toBe('ja');
+      expect(resolveViewerLang()).toBe('ja');
     });
 
-    it('ignores an unsupported parameter and does not persist anything', () => {
+    it('does not persist anything', () => {
       stubBrowserLanguages(['en-US']);
-      expect(resolveViewerLang('fr')).toBe('en');
-      expect(resolveViewerLang(null)).toBe('en');
+      expect(resolveViewerLang()).toBe('en');
       expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
       expect(currentLang.value).toBe('ja');
     });
