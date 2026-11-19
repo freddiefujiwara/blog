@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import App from '../src/App.vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import BlogView from '../src/pages/BlogView.vue';
+import TagView from '../src/pages/TagView.vue';
 import { setLang } from '../src/services/i18n';
 
 describe('App', () => {
@@ -33,6 +34,7 @@ describe('App', () => {
       history: createMemoryHistory('/blog/'),
       routes: [
         { path: '/', component: BlogView },
+        { path: '/tag/:tag', name: 'tag', component: TagView, props: true },
         { path: '/:id', name: 'post', component: BlogView, props: true },
       ],
     });
@@ -319,7 +321,7 @@ describe('App', () => {
     });
   });
 
-  it('offers title search above the article list, fed by the list titles', async () => {
+  it('offers title search below the article, fed by the list titles', async () => {
     fetch.mockImplementation(async (url) => {
       if (url.includes('?o=rss')) {
         return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
@@ -336,6 +338,7 @@ describe('App', () => {
         json: () => Promise.resolve({
           ids: ['latest-id', 'older-id'],
           titles: { 'latest-id': '最新の記事タイトル', 'older-id': '川口の記事タイトル' },
+          tags: { 'older-id': ['川口'] },
           article_cache: []
         })
       };
@@ -352,11 +355,72 @@ describe('App', () => {
     const input = wrapper.find('.list-search input');
     expect(input.exists()).toBe(true);
 
+    // Article pages carry the layout variant that orders the
+    // search and the tag index below the article (style.css).
+    expect(wrapper.find('.layout').classes()).toContain('layout--article');
+    const tagIndex = wrapper.find('.tag-index');
+    expect(tagIndex.exists()).toBe(true);
+    expect(tagIndex.text()).toContain('川口');
+
     await input.setValue('川口');
     const results = wrapper.findAll('.list-search .title-search-item a');
     expect(results).toHaveLength(1);
     expect(results[0].text()).toBe('川口の記事タイトル');
     expect(results[0].attributes('href')).toBe('/blog/older-id');
+  });
+
+  it('keeps the search and tag index above the list on tag pages', async () => {
+    fetch.mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
+      if (url.includes('?id=')) {
+        const id = url.split('?id=')[1];
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id, title: `Title ${id}`, markdown: '本文です。' })
+        };
+      }
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          ids: ['kawaguchi-id', 'other-id'],
+          titles: { 'kawaguchi-id': '川口の記事タイトル', 'other-id': '別の記事タイトル' },
+          tags: { 'kawaguchi-id': ['川口'], 'other-id': ['技術'] },
+          article_cache: []
+        })
+      };
+    });
+    await router.push('/tag/川口');
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    // No article-layout variant: the controls stay above the list,
+    // in plain DOM order.
+    const layout = wrapper.find('.layout');
+    expect(layout.classes()).not.toContain('layout--article');
+    const children = [...layout.element.children];
+    const searchEl = wrapper.find('.list-search').element;
+    const tagIndexEl = wrapper.find('.tag-index').element;
+    const pageEl = wrapper.find('.tag-page').element;
+    expect(children.indexOf(searchEl)).toBeLessThan(children.indexOf(pageEl));
+    expect(children.indexOf(tagIndexEl)).toBeLessThan(children.indexOf(pageEl));
+
+    // The tag page lists the tagged article, and the search above
+    // it still works.
+    const entries = wrapper.findAll('.tag-article-item a');
+    expect(entries).toHaveLength(1);
+    expect(entries[0].text()).toBe('川口の記事タイトル');
+    const input = wrapper.find('.list-search input');
+    await input.setValue('川口');
+    const results = wrapper.findAll('.list-search .title-search-item a');
+    expect(results).toHaveLength(1);
+    expect(results[0].text()).toBe('川口の記事タイトル');
   });
 
   it('primes the search from the cached list so it works before the fetch lands', async () => {

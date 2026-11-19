@@ -26,7 +26,7 @@
         <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
       </div>
     </header>
-    <div class="layout">
+    <div class="layout" :class="{ 'layout--article': isArticleLayout }">
       <div class="list-search">
         <TitleSearch :articles="searchableArticles" :state="searchState" />
       </div>
@@ -95,6 +95,7 @@
 
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import TitleSearch from './components/TitleSearch.vue';
 import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
@@ -106,6 +107,13 @@ import { loadCachedList } from './services/listCache';
 import { fetchMusicPlayCount, formatMusicPlayCount } from './services/musicCount';
 
 const year = new Date().getFullYear();
+
+// Layout variant: on article pages the search box and the tag
+// index render below the article (the .layout--article ordering in
+// style.css); on tag pages they are the page's controls and stay
+// above the list. Every non-tag route is an article page.
+const route = useRoute();
+const isArticleLayout = computed(() => route.name !== 'tag');
 
 // The nav's blog link is the blog's own root: on a translated page
 // it stays inside that language instead of dropping back to the
@@ -160,9 +168,11 @@ const latestArticlePath = computed(() => {
 });
 const searchableArticles = ref([]);
 const searchState = ref('loading');
-// Tag index under the hero, fed by the same titles payload as the
-// search. Stays empty (and renders nothing) until the payload carries
-// tags, so older API responses change nothing visually.
+// Tag index, fed by the same titles payload as the search. It
+// renders below the article on article pages and above the list
+// on tag pages (see isArticleLayout). Stays empty (and renders
+// nothing) until the payload carries tags, so older API responses
+// change nothing visually.
 const tagsMap = ref({});
 const tagIndex = computed(() =>
   buildTagIndex(searchableArticles.value, tagsMap.value)

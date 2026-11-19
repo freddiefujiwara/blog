@@ -61,9 +61,36 @@ body {
 }
 
 .layout {
+  display: flex;
+  flex-direction: column;
   max-width: 820px;
   margin: 0 auto;
   padding: 28px 20px 56px;
+}
+
+.layout > * {
+  min-width: 0;
+}
+
+/* Article pages (the .layout--article variant App.vue applies to
+   every route except the tag pages): the search box and the tag
+   index move below the article, so the first view is the article
+   itself. The routed view keeps the default order 0 and stays
+   first; the furniture and the footer are ordered after it. A
+   single instance of each stays mounted — only the visual order
+   changes — so the search keeps its state across navigation. Tag
+   pages get no modifier: their controls stay above the list, in
+   plain DOM order. */
+.layout--article > .list-search {
+  order: 2;
+}
+
+.layout--article > .tag-index {
+  order: 3;
+}
+
+.layout--article > .site-footer {
+  order: 4;
 }
 
 .site-nav {
@@ -128,6 +155,26 @@ body {
   margin-left: 5px;
 }
 
+/* Staging only: the shared staging banner (src/staging-banner.js,
+   kept identical across apps) is prepended to <body> in the page
+   flow, and the fixed nav — pinned to the top of the viewport —
+   used to cover it. On staging builds main.js tags the banner
+   with .staging-banner, marks <html> with .has-staging-banner and
+   publishes the banner's measured height as
+   --staging-banner-height; the banner then sticks to the top and
+   the nav drops below it by exactly that height. Production has
+   no banner, no class and no property, so none of this applies
+   there. */
+.staging-banner {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+
+.has-staging-banner .site-nav {
+  top: var(--staging-banner-height, 0px);
+}
+
 /* 中間幅ではブランド表記を畳む（トップと共通の挙動。ヒーローに名前が出ている） */
 @media (max-width: 1024px) {
   .site-nav {
@@ -148,11 +195,16 @@ body {
   }
 }
 
+/* Slim hero: the band used to be a 300px billboard, which pushed
+   the article title below the fold on phones. It is now a compact
+   strip — the photo and the name/catchcopy stay, at roughly a
+   third of the height — so the title and the first lines of the
+   article fit in the first view under the fixed nav. */
 .hero {
   position: relative;
   display: flex;
   align-items: flex-end;
-  min-height: 300px;
+  min-height: 120px;
   color: #fdfbf7;
   overflow: hidden;
   background: #241a12 url("https://freddiefujiwara.com/assets/hero-koinobori.jpg") center 38% / cover no-repeat;
@@ -171,7 +223,8 @@ body {
   width: 100%;
   max-width: 820px;
   margin: 0 auto;
-  padding: 96px 20px 36px;
+  /* The top padding still clears the 56px fixed nav. */
+  padding: 64px 20px 12px;
 }
 
 a.hero-inner {
@@ -184,10 +237,10 @@ a.hero-inner {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 10.5px;
   letter-spacing: 0.22em;
   font-weight: 700;
-  margin: 0 0 14px;
+  margin: 0 0 4px;
 }
 
 .hero-place::before {
@@ -205,21 +258,25 @@ a.hero-inner {
   line-height: 1.35;
 }
 
+/* Name and catchcopy share one line in the slim band; the
+   separator that the stacked layout hid joins them instead. */
 .hero h1 .h1-sep {
-  display: none;
+  display: inline;
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  font-weight: 400;
+  margin: 0 0.3em;
 }
 
 .hero h1 .h1-name {
-  display: block;
-  font-size: clamp(2rem, 6vw, 2.9rem);
+  display: inline;
+  font-size: clamp(1.25rem, 4.5vw, 1.7rem);
 }
 
 .hero h1 .h1-role {
-  display: block;
-  font-size: clamp(1.05rem, 3.4vw, 1.45rem);
+  display: inline;
+  font-size: clamp(0.9rem, 2.8vw, 1.1rem);
   font-weight: 700;
   letter-spacing: 0.06em;
-  margin-top: 10px;
 }
 
 .site-footer {
@@ -671,11 +728,12 @@ article th {
   font-weight: 700;
 }
 
-/* Title search: a single instance at the top of the layout, above
-   the article list. It used to live in the site nav on wide screens
-   and in the hero on narrower ones, which made the header two rows
-   tall on phones; out of the nav, the header is one row at every
-   width, same as the top page. */
+/* Title search: a single instance in the layout — below the
+   article on article pages, above the article list on tag pages
+   (see the .layout--article ordering above). It used to live in
+   the site nav on wide screens and in the hero on narrower ones,
+   which made the header two rows tall on phones; out of the nav,
+   the header is one row at every width, same as the top page. */
 .list-search {
   margin: 0 0 20px;
 }
