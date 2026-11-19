@@ -124,3 +124,80 @@ describe('title search results', () => {
     expect(block).toMatch(/overflow-y:\s*auto/);
   });
 });
+
+describe('slim hero', () => {
+  // The hero used to be a 300px billboard that pushed the article
+  // title below the fold on phones; it is now a compact band.
+  it('shrinks the hero band to a slim min-height', () => {
+    const block = blockFor('.hero');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/min-height:\s*120px/);
+    expect(block).not.toMatch(/min-height:\s*300px/);
+  });
+
+  it('reduces the hero inner padding while still clearing the fixed nav', () => {
+    const block = blockFor('.hero-inner');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/padding:\s*64px 20px 12px/);
+  });
+
+  it('puts the name and catchcopy on one line at reduced sizes', () => {
+    const name = blockFor('.hero h1 .h1-name');
+    expect(name).not.toBe('');
+    expect(name).toMatch(/display:\s*inline/);
+    expect(name).toMatch(/font-size:\s*clamp\(1\.25rem/);
+    const role = blockFor('.hero h1 .h1-role');
+    expect(role).not.toBe('');
+    expect(role).toMatch(/display:\s*inline/);
+    expect(role).toMatch(/font-size:\s*clamp\(0\.9rem/);
+    const sep = blockFor('.hero h1 .h1-sep');
+    expect(sep).not.toBe('');
+    expect(sep).toMatch(/display:\s*inline/);
+  });
+});
+
+describe('article page furniture order', () => {
+  // On article pages the search box and the tag index render below
+  // the article; the layout is a flex column and the
+  // .layout--article variant orders the furniture after the routed
+  // view (default order 0) and the footer last.
+  it('makes the layout a flex column', () => {
+    const block = blockFor('.layout');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/display:\s*flex/);
+    expect(block).toMatch(/flex-direction:\s*column/);
+  });
+
+  it('orders the search, tag index and footer after the article', () => {
+    const search = blockFor('.layout--article > .list-search');
+    expect(search).not.toBe('');
+    expect(search).toMatch(/order:\s*2/);
+    const tags = blockFor('.layout--article > .tag-index');
+    expect(tags).not.toBe('');
+    expect(tags).toMatch(/order:\s*3/);
+    const footer = blockFor('.layout--article > .site-footer');
+    expect(footer).not.toBe('');
+    expect(footer).toMatch(/order:\s*4/);
+  });
+});
+
+describe('staging banner accommodation', () => {
+  // Staging only: the fixed nav used to cover the staging banner
+  // prepended to <body>. The banner sticks to the top and the nav
+  // drops below it by the banner's measured height (published by
+  // main.js as --staging-banner-height). Production has neither
+  // the class nor the property.
+  it('sticks the staging banner to the top above the nav layer', () => {
+    const block = blockFor('.staging-banner');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/position:\s*sticky/);
+    expect(block).toMatch(/top:\s*0/);
+    expect(block).toMatch(/z-index:\s*60/);
+  });
+
+  it('offsets the fixed nav by the banner height on staging', () => {
+    const block = blockFor('.has-staging-banner .site-nav');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/top:\s*var\(--staging-banner-height/);
+  });
+});

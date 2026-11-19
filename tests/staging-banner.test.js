@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   isStagingBuild,
@@ -50,6 +53,25 @@ describe("showStagingBanner", () => {
     expect(prod.getAttribute("style")).toContain("font-weight:700");
     expect(prod.style.fontWeight).toBe("700");
     expect(el.textContent).toContain("｜ 本番");
+  });
+});
+
+describe("fixed nav accommodation (main.js wiring)", () => {
+  // The banner itself comes from the shared module above, but the
+  // fixed nav would cover it; the offset lives in this app's own
+  // main.js + style.css. These assertions pin the contract between
+  // them: the class names and the custom property must match on
+  // both sides or the banner is hidden again.
+  const mainJs = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../src/main.js"),
+    "utf8"
+  );
+
+  it("tags the banner and <html> and publishes the banner height", () => {
+    expect(mainJs).toContain("classList.add('staging-banner')");
+    expect(mainJs).toContain("classList.add('has-staging-banner')");
+    expect(mainJs).toContain("setProperty('--staging-banner-height'");
+    expect(mainJs).toContain("banner.offsetHeight");
   });
 });
 
