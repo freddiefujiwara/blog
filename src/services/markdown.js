@@ -179,15 +179,13 @@ const escapeHtmlText = (text) => String(text)
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;');
 
-const isLyricLine = (block) => {
-  if (!block || block.length > 40) return false;
-  if (block.startsWith('#')) return false;
-  if (block.startsWith('<')) return false;
-  if (block.startsWith('[[')) return false;
-  if (block.includes('](')) return false;
-  if (block.endsWith('。')) return false;
-  return true;
-};
+const isLyricLine = (block) => Boolean(block)
+  && block.length <= 40
+  && !block.startsWith('#')
+  && !block.startsWith('<')
+  && !block.startsWith('[[')
+  && !block.includes('](')
+  && !block.endsWith('。');
 
 export const wrapLyricsBlocks = (markdown) => {
   const blocks = String(markdown ?? '').split(/\n{2,}/);

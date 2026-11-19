@@ -86,21 +86,22 @@ export function useBlog() {
   };
 
   const getLocationContext = () => {
-    if (route) {
-      // Prepend /blog to match what resolveArticleId expects
-      // route.path starts with /
-      const path = route.path === '/' ? '/blog' : `/blog${route.path}`;
-      return {
-        path,
-        search: window.location.search,
-        hash: window.location.hash
-      };
-    }
+    // With a route, prepend /blog to match what resolveArticleId
+    // expects (route.path starts with /).
+    const path = route
+      ? (route.path === '/' ? '/blog' : `/blog${route.path}`)
+      : window.location.pathname;
     return {
-      path: window.location.pathname,
+      path,
       search: window.location.search,
       hash: window.location.hash
     };
+  };
+
+  // Clears the displayed article while its replacement is on its way.
+  const clearCurrentArticle = () => {
+    article.value = null;
+    errorMessage.value = '';
   };
 
   const applyListData = (data) => {
@@ -218,14 +219,15 @@ export function useBlog() {
     if (!id || reportedRenderIds.has(id)) return;
     reportedRenderIds.add(id);
     nextTick(() => {
+      const report = () => trackArticleRender(performance.now() - startedAt, phases);
       const raf =
         typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
           ? window.requestAnimationFrame.bind(window)
           : null;
       if (raf) {
-        raf(() => trackArticleRender(performance.now() - startedAt, phases));
+        raf(report);
       } else {
-        trackArticleRender(performance.now() - startedAt, phases);
+        report();
       }
     });
   };
@@ -287,8 +289,7 @@ export function useBlog() {
       if (requestedId && requestedId !== currentId.value) {
         // Match the list-based path below: the previous article
         // clears while the new one is on its way.
-        article.value = null;
-        errorMessage.value = '';
+        clearCurrentArticle();
         const early = await takeStartedArticle(requestedId);
         if (early) {
           adoptArticle(requestedId, early);
@@ -331,8 +332,7 @@ export function useBlog() {
       if (articleId === currentId.value && article.value) {
         return;
       }
-      article.value = null;
-      errorMessage.value = '';
+      clearCurrentArticle();
       const fetchStartedAt = performance.now();
       await getArticle(articleId);
       const fetchMs = performance.now() - fetchStartedAt;
@@ -343,23 +343,19 @@ export function useBlog() {
     }
   };
 
-  onMounted(async () => {
+  const loadSafely = async (initial = false) => {
     try {
-      await loadArticleFromLocation(true);
+      await loadArticleFromLocation(initial);
     } catch (error) {
       errorMessage.value = error?.message ?? '読み込みに失敗しました。';
     }
-  });
+  };
+
+  onMounted(() => loadSafely(true));
 
   watch(
     () => route?.path,
-    async () => {
-      try {
-        await loadArticleFromLocation();
-      } catch (error) {
-        errorMessage.value = error?.message ?? '読み込みに失敗しました。';
-      }
-    }
+    () => loadSafely()
   );
 
   return {

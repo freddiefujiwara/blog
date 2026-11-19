@@ -127,20 +127,23 @@ export const stepIndex = (index, count, delta) => {
 // `played` holds the indices already started this round (including
 // the current one). A resetPlayed plan starts a new round with
 // only the chosen track in it.
+// The playlist indices that satisfy keep(i), in list order.
+const indicesWhere = (count, keep) => {
+  const indices = [];
+  for (let i = 0; i < count; i += 1) {
+    if (keep(i)) indices.push(i);
+  }
+  return indices;
+};
+
 export const endedPlan = ({ index, count, repeat, random, played }) => {
   if (!count) return { type: 'stop' };
   if (repeat === 'one') return { type: 'replay' };
   if (random) {
-    const remaining = [];
-    for (let i = 0; i < count; i += 1) {
-      if (i !== index && !played.has(i)) remaining.push(i);
-    }
+    const remaining = indicesWhere(count, (i) => i !== index && !played.has(i));
     if (remaining.length) return { type: 'advance', candidates: remaining };
     if (repeat === 'all') {
-      const fresh = [];
-      for (let i = 0; i < count; i += 1) {
-        if (count === 1 || i !== index) fresh.push(i);
-      }
+      const fresh = indicesWhere(count, (i) => count === 1 || i !== index);
       return { type: 'advance', candidates: fresh, resetPlayed: true };
     }
     return { type: 'stop' };
@@ -221,12 +224,27 @@ const createPlayer = (container, tracks) => {
     return url;
   };
 
+  // Points the element at a resolved track URL and refreshes the
+  // progress readout for the new source.
+  const attachSource = (file, url) => {
+    state.loadedFile = file;
+    audio.src = url;
+    syncProgress();
+  };
+
   // --- DOM ------------------------------------------------------------
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
     if (text != null) node.textContent = text;
     return node;
+  };
+
+  // A button's name lives in both its accessible label and its
+  // tooltip; the two always carry the same text.
+  const setLabel = (button, label) => {
+    button.setAttribute('aria-label', label);
+    button.title = label;
   };
 
   const nowEl = el('p', 'mp-now', tracks[0].title);
@@ -237,10 +255,8 @@ const createPlayer = (container, tracks) => {
   const nextButton = el('button', 'mp-button mp-next');
   nextButton.innerHTML = iconSvg('next');
   [prevButton, playButton, nextButton].forEach((b) => { b.type = 'button'; });
-  prevButton.setAttribute('aria-label', '前へ');
-  prevButton.title = '前へ';
-  nextButton.setAttribute('aria-label', '次へ');
-  nextButton.title = '次へ';
+  setLabel(prevButton, '前へ');
+  setLabel(nextButton, '次へ');
   const controlsEl = el('div', 'mp-controls');
   controlsEl.append(prevButton, playButton, nextButton);
 
@@ -305,9 +321,7 @@ const createPlayer = (container, tracks) => {
   };
   const syncPlayButton = () => {
     playButton.innerHTML = state.loading ? '…' : iconSvg(audio.paused ? 'play' : 'pause');
-    const name = state.loading ? '読み込み中' : (audio.paused ? '再生' : '一時停止');
-    playButton.setAttribute('aria-label', name);
-    playButton.title = name;
+    setLabel(playButton, state.loading ? '読み込み中' : (audio.paused ? '再生' : '一時停止'));
   };
   const syncProgress = () => {
     const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
@@ -354,11 +368,9 @@ const createPlayer = (container, tracks) => {
     // which is why the first press used to fail there.
     const syncUrl = sourceForSync(file);
     if (syncUrl) {
-      state.loadedFile = file;
-      audio.src = syncUrl;
+      attachSource(file, syncUrl);
       if (state.wantPlay) tryPlay(audio);
       syncPlayButton();
-      syncProgress();
       return;
     }
     state.loading = true;
@@ -368,11 +380,9 @@ const createPlayer = (container, tracks) => {
       .then((url) => {
         if (state.destroyed || seq !== state.loadSeq) return;
         state.loading = false;
-        state.loadedFile = file;
-        audio.src = url;
+        attachSource(file, url);
         if (state.wantPlay) tryPlay(audio);
         syncPlayButton();
-        syncProgress();
       })
       .catch(() => {
         if (state.destroyed || seq !== state.loadSeq) return;
@@ -440,16 +450,12 @@ const createPlayer = (container, tracks) => {
   // muted (off) versus full-strength (on), plus a "1" badge for
   // repeat-one. Only the play button gets the primary color.
   const syncRepeat = () => {
-    const label = REPEAT_LABELS[state.repeat];
-    repeatButton.setAttribute('aria-label', label);
-    repeatButton.title = label;
+    setLabel(repeatButton, REPEAT_LABELS[state.repeat]);
     repeatButton.classList.toggle('is-on', state.repeat !== 'none');
     repeatBadge.hidden = state.repeat !== 'one';
   };
   const syncRandom = () => {
-    const label = state.random ? 'ランダム：オン' : 'ランダム：オフ';
-    randomButton.setAttribute('aria-label', label);
-    randomButton.title = label;
+    setLabel(randomButton, state.random ? 'ランダム：オン' : 'ランダム：オフ');
     randomButton.setAttribute('aria-pressed', state.random ? 'true' : 'false');
     randomButton.classList.toggle('is-on', state.random);
   };
@@ -543,9 +549,7 @@ const createPlayer = (container, tracks) => {
     // Safari always honours. Skipped once the reader (or an
     // earlier load) has moved on to another track.
     if (state.loadedFile !== '' || state.loadSeq !== 0) return;
-    state.loadedFile = tracks[0].file;
-    audio.src = url;
-    syncProgress();
+    attachSource(tracks[0].file, url);
   })();
 
   return {

@@ -56,24 +56,23 @@ export const extractTagsMap = (data) => {
 // resolve most ids to [] while its server-side tags cache is cold;
 // replacing the map wholesale in that moment made tag pages lose
 // articles (and the tag index shrink) until the cache warmed again.
+// Copies one tags map's non-empty entries into merged.
+const applyTagsMap = (merged, source) => {
+  if (!isPlainMap(source)) {
+    return;
+  }
+  Object.entries(source).forEach(([id, value]) => {
+    const tags = normalizeTagList(value);
+    if (tags.length) {
+      merged[id] = tags;
+    }
+  });
+};
+
 export const mergeTagsMaps = (current, incoming) => {
   const merged = {};
-  if (isPlainMap(current)) {
-    Object.entries(current).forEach(([id, value]) => {
-      const tags = normalizeTagList(value);
-      if (tags.length) {
-        merged[id] = tags;
-      }
-    });
-  }
-  if (isPlainMap(incoming)) {
-    Object.entries(incoming).forEach(([id, value]) => {
-      const tags = normalizeTagList(value);
-      if (tags.length) {
-        merged[id] = tags;
-      }
-    });
-  }
+  applyTagsMap(merged, current);
+  applyTagsMap(merged, incoming);
   return merged;
 };
 
