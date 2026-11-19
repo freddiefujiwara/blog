@@ -721,6 +721,28 @@ describe('useBlog composable', () => {
     expect(wrapper.vm.article.title).toBe('Title 1');
   });
 
+  it('survives null and undefined entries in the full list article_cache', async () => {
+    api.fetchArticleTitles.mockRejectedValue(new Error('titles unavailable'));
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2'],
+      titles: { 1: 'Title 1', 2: 'Title 2' },
+      article_cache: [null, { id: '2', title: 'Title 2', markdown: '# Content 2' }, undefined]
+    });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    // One malformed cache entry must not fail the whole list: the
+    // article still loads, with no error message.
+    expect(wrapper.vm.errorMessage).toBe('');
+    expect(wrapper.vm.article.title).toBe('Title 1');
+    expect(wrapper.vm.articleIds).toEqual(['1', '2']);
+    // The valid cache entry was adopted, so article 2 is never
+    // fetched (the prefetch finds it already cached).
+    expect(api.fetchArticle.mock.calls.map((call) => call[0])).toEqual(['1']);
+  });
+
   describe('translated routes', () => {
     afterEach(() => {
       applyRouteLang(null);
@@ -1008,6 +1030,37 @@ describe('useBlog composable', () => {
       expect(wrapper.vm.article.title).toBe('Title 2 EN');
       expect(wrapper.vm.prevTitle).toBe('Title 1 EN');
       expect(wrapper.vm.nextTitle).toBe('Title 3 EN');
+    });
+
+    it('ignores titles delivered as an array and falls back to the article cache', async () => {
+      // A payload shape that reached production: titles as a
+      // positional array instead of the id -> title map. Read as a
+      // map it would hand article 1 the title 'X2', so the array
+      // must be ignored wholesale; navigation titles then come
+      // from the fetched articles themselves.
+      api.fetchArticleTitles.mockResolvedValue({
+        ids: ['1', '2', '3'],
+        titles: ['X1', 'X2', 'X3']
+      });
+      // The background full-list refresh never lands, so only the
+      // titles response can feed the navigation titles.
+      api.fetchArticleList.mockReturnValue(new Promise(() => {}));
+      api.fetchArticle.mockImplementation(async (id) => ({
+        id,
+        title: `記事${id}`,
+        markdown: 'Content'
+      }));
+
+      mockRoute.path = '/2';
+      mockRoute.params = { id: '2' };
+      vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
+
+      wrapper = mount(TestComponent);
+      await flushPromises();
+
+      expect(wrapper.vm.article.title).toBe('記事2');
+      expect(wrapper.vm.prevTitle).toBe('記事1');
+      expect(wrapper.vm.nextTitle).toBe('記事3');
     });
   });
 });

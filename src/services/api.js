@@ -97,13 +97,19 @@ export const buildSearchableArticles = (data) => {
   const cached = {};
   if (Array.isArray(data.article_cache)) {
     data.article_cache.forEach((item) => {
-      if (item?.id && item?.title) {
+      if (item?.id && typeof item?.title === 'string' && item.title) {
         cached[item.id] = item.title;
       }
     });
   }
+  // A title of the wrong type (a number, an object) counts as no
+  // title: the search renders titles as text and calls string
+  // methods on them, so a non-string must never leak through.
   return data.ids
-    .map((id) => ({ id, title: titles[id] || cached[id] || '' }))
+    .map((id) => {
+      const mapped = titles[id];
+      return { id, title: (typeof mapped === 'string' ? mapped : '') || cached[id] || '' };
+    })
     .filter((entry) => entry.title);
 };
 
@@ -112,7 +118,7 @@ export const buildSearchableArticles = (data) => {
 // search responsive even when the article cache is cold.
 export const fetchArticleTitles = async (lang) => {
   const data = await fetchJson(`${LIST_ENDPOINT}?o=titles${langQuery(lang)}`, t('articleTitlesFetchFailed'));
-  if (!data?.ids?.length) {
+  if (!Array.isArray(data?.ids) || !data.ids.length) {
     throw new Error(t('latestNotFound'));
   }
   return data;
@@ -123,7 +129,7 @@ export const fetchArticleTitles = async (lang) => {
 // source instead (see useBlog).
 export const fetchArticleList = async () => {
   const data = await fetchJson(LIST_ENDPOINT, t('articleListFetchFailed'));
-  if (!data?.ids?.length) {
+  if (!Array.isArray(data?.ids) || !data.ids.length) {
     throw new Error(t('latestNotFound'));
   }
   return data;
