@@ -5,7 +5,9 @@ import {
   LANGUAGE_STORAGE_KEY,
   MESSAGES,
   SUPPORTED_LANGS,
+  TAG_LABELS,
   applyRouteLang,
+  blogHomeUrl,
   contentLang,
   currentLang,
   detectBrowserLang,
@@ -15,7 +17,9 @@ import {
   resolveInitialLang,
   routeLang,
   setLang,
-  t
+  t,
+  tagLabel,
+  topPageUrl
 } from '../../src/services/i18n';
 
 const stubBrowserLanguages = (languages) => {
@@ -304,6 +308,71 @@ describe('i18n service', () => {
     it('treats an unsupported language as Japanese (no prefix)', () => {
       expect(localizedPath('/en/abc', 'fr')).toBe('/abc');
       expect(localizedPath('/abc', null)).toBe('/abc');
+    });
+  });
+
+  describe('top page and blog home URLs', () => {
+    it('keeps the plain Japanese URLs for Japanese', () => {
+      expect(topPageUrl('ja')).toBe('https://freddiefujiwara.com/');
+      expect(topPageUrl('ja', '#about')).toBe('https://freddiefujiwara.com/#about');
+      expect(topPageUrl('ja', '#activity')).toBe('https://freddiefujiwara.com/#activity');
+      expect(topPageUrl('ja', '#contact')).toBe('https://freddiefujiwara.com/#contact');
+      expect(blogHomeUrl('ja')).toBe('https://freddiefujiwara.com/blog/');
+    });
+
+    it('inserts the language segment for English and Chinese, anchors after it', () => {
+      expect(topPageUrl('en')).toBe('https://freddiefujiwara.com/en/');
+      expect(topPageUrl('en', '#about')).toBe('https://freddiefujiwara.com/en/#about');
+      expect(topPageUrl('en', '#activity')).toBe('https://freddiefujiwara.com/en/#activity');
+      expect(topPageUrl('en', '#contact')).toBe('https://freddiefujiwara.com/en/#contact');
+      expect(blogHomeUrl('en')).toBe('https://freddiefujiwara.com/blog/en/');
+      expect(topPageUrl('zh')).toBe('https://freddiefujiwara.com/zh/');
+      expect(topPageUrl('zh', '#about')).toBe('https://freddiefujiwara.com/zh/#about');
+      expect(blogHomeUrl('zh')).toBe('https://freddiefujiwara.com/blog/zh/');
+    });
+
+    it('treats an unsupported language as Japanese (no segment)', () => {
+      expect(topPageUrl('fr')).toBe('https://freddiefujiwara.com/');
+      expect(topPageUrl(null)).toBe('https://freddiefujiwara.com/');
+      expect(blogHomeUrl('fr')).toBe('https://freddiefujiwara.com/blog/');
+    });
+  });
+
+  describe('tag labels', () => {
+    it('carries a label for every known tag in English and Chinese', () => {
+      const tags = ['運営', '技術', '中国語', '音楽', '川口', '暮らし'];
+      expect(Object.keys(TAG_LABELS.en).sort()).toEqual([...tags].sort());
+      expect(Object.keys(TAG_LABELS.zh).sort()).toEqual([...tags].sort());
+    });
+
+    it('translates the display label in English and Chinese', () => {
+      setLang('en');
+      expect(tagLabel('運営')).toBe('Site operations');
+      expect(tagLabel('技術')).toBe('Tech');
+      expect(tagLabel('中国語')).toBe('Chinese');
+      expect(tagLabel('音楽')).toBe('Music');
+      expect(tagLabel('川口')).toBe('Kawaguchi');
+      expect(tagLabel('暮らし')).toBe('Daily life');
+      setLang('zh');
+      expect(tagLabel('運営')).toBe('网站运营');
+      expect(tagLabel('技術')).toBe('技术');
+      expect(tagLabel('中国語')).toBe('中文');
+      expect(tagLabel('音楽')).toBe('音乐');
+      expect(tagLabel('川口')).toBe('川口');
+      expect(tagLabel('暮らし')).toBe('生活');
+    });
+
+    it('shows the raw tag name in Japanese UI', () => {
+      setLang('ja');
+      expect(tagLabel('運営')).toBe('運営');
+      expect(tagLabel('暮らし')).toBe('暮らし');
+    });
+
+    it('falls back to the raw tag name for a tag outside the mapping', () => {
+      setLang('en');
+      expect(tagLabel('未分類')).toBe('未分類');
+      setLang('zh');
+      expect(tagLabel('未分類')).toBe('未分類');
     });
   });
 

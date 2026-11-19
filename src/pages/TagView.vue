@@ -1,6 +1,6 @@
 <template>
   <div class="tag-page">
-    <h1 class="tag-page-heading">{{ t('tagPageTitle', { tag }) }}</h1>
+    <h1 class="tag-page-heading">{{ t('tagPageTitle', { tag: tagDisplay }) }}</h1>
     <p v-if="state === 'loading'" class="tag-page-status">{{ t('loading') }}</p>
     <p v-else-if="state === 'failed'" class="tag-page-status">{{ t('loadFailedReload') }}</p>
     <template v-else>
@@ -22,7 +22,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { buildSearchableArticles, fetchArticleTitles } from '../services/api';
 import { loadCachedList } from '../services/listCache';
 import { extractTagsMap, filterArticlesByTag, mergeTagsMaps } from '../services/tags';
-import { contentLang, currentLang, routeLang, t } from '../services/i18n';
+import { contentLang, currentLang, routeLang, t, tagLabel } from '../services/i18n';
 
 // Lists every article carrying one tag, newest first. The data is the
 // same titles payload the search uses (ids, titles, tags), primed from
@@ -41,6 +41,11 @@ const tagsMap = ref({});
 const state = ref('loading');
 
 const langPrefix = computed(() => (routeLang.value ? `/${routeLang.value}` : ''));
+
+// The tag itself stays the Japanese string (route param, filter
+// key); only the label shown in the heading and the title is
+// translated.
+const tagDisplay = computed(() => tagLabel(props.tag));
 
 const entries = computed(() =>
   filterArticlesByTag(articles.value, tagsMap.value, props.tag)
@@ -70,7 +75,7 @@ const load = async () => {
 };
 
 const applyTitle = () => {
-  document.title = t('tagPageTitle', { tag: props.tag });
+  document.title = t('tagPageTitle', { tag: tagDisplay.value });
 };
 
 onMounted(() => {

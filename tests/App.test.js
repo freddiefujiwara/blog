@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import App from '../src/App.vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import BlogView from '../src/pages/BlogView.vue';
+import { setLang } from '../src/services/i18n';
 
 describe('App', () => {
   let router;
@@ -455,5 +456,85 @@ describe('App', () => {
     expect(musicLink.exists()).toBe(true);
     expect(musicLink.text()).toBe('川口の歌 ♪');
     expect(wrapper.find('.music-play-count').exists()).toBe(false);
+  });
+
+  describe('top page and blog links follow the UI language', () => {
+    const navHrefs = (wrapper) =>
+      wrapper.findAll('.site-nav ul li a').map((a) => a.attributes('href'));
+    const footerSiteHrefs = (wrapper) =>
+      wrapper
+        .findAll('.site-footer .foot-group')[0]
+        .findAll('.foot-links a')
+        .map((a) => a.attributes('href'));
+
+    it('keeps the plain Japanese URLs in Japanese UI', async () => {
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      expect(wrapper.find('.site-nav .brand').attributes('href')).toBe(
+        'https://freddiefujiwara.com/'
+      );
+      expect(navHrefs(wrapper).slice(0, 4)).toEqual([
+        'https://freddiefujiwara.com/',
+        'https://freddiefujiwara.com/#about',
+        'https://freddiefujiwara.com/#activity',
+        'https://freddiefujiwara.com/#contact'
+      ]);
+      expect(footerSiteHrefs(wrapper).slice(0, 2)).toEqual([
+        'https://freddiefujiwara.com/',
+        'https://freddiefujiwara.com/blog/'
+      ]);
+    });
+
+    it('points them at /en/ and /blog/en/ in English UI, other apps unchanged', async () => {
+      setLang('en');
+      try {
+        const wrapper = mount(App, { global: { plugins: [router] } });
+        await flushPromises();
+
+        expect(wrapper.find('.site-nav .brand').attributes('href')).toBe(
+          'https://freddiefujiwara.com/en/'
+        );
+        expect(navHrefs(wrapper).slice(0, 4)).toEqual([
+          'https://freddiefujiwara.com/en/',
+          'https://freddiefujiwara.com/en/#about',
+          'https://freddiefujiwara.com/en/#activity',
+          'https://freddiefujiwara.com/en/#contact'
+        ]);
+        expect(footerSiteHrefs(wrapper).slice(0, 2)).toEqual([
+          'https://freddiefujiwara.com/en/',
+          'https://freddiefujiwara.com/blog/en/'
+        ]);
+        // Links to the other apps carry no language segment.
+        expect(navHrefs(wrapper)).toContain('https://freddiefujiwara.com/list-of-stuff/');
+        expect(navHrefs(wrapper)).toContain('https://freddiefujiwara.com/music');
+      } finally {
+        setLang('ja');
+      }
+    });
+
+    it('points them at /zh/ and /blog/zh/ in Chinese UI', async () => {
+      setLang('zh');
+      try {
+        const wrapper = mount(App, { global: { plugins: [router] } });
+        await flushPromises();
+
+        expect(wrapper.find('.site-nav .brand').attributes('href')).toBe(
+          'https://freddiefujiwara.com/zh/'
+        );
+        expect(navHrefs(wrapper).slice(0, 4)).toEqual([
+          'https://freddiefujiwara.com/zh/',
+          'https://freddiefujiwara.com/zh/#about',
+          'https://freddiefujiwara.com/zh/#activity',
+          'https://freddiefujiwara.com/zh/#contact'
+        ]);
+        expect(footerSiteHrefs(wrapper).slice(0, 2)).toEqual([
+          'https://freddiefujiwara.com/zh/',
+          'https://freddiefujiwara.com/blog/zh/'
+        ]);
+      } finally {
+        setLang('ja');
+      }
+    });
   });
 });

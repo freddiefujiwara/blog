@@ -7,7 +7,9 @@ import { isStagingBuild } from '../staging-banner';
 // translated dictionary can never leave a hole in the page.
 // Article content follows the URL instead (see routeLang below):
 // Japanese at the plain URLs, translated under /blog/en/… and
-// /blog/zh/… — tag names stay Japanese in every language.
+// /blog/zh/…. Tag names stay Japanese as data in every language
+// (API values, route params, cache keys); only their display
+// labels translate (see TAG_LABELS below).
 export const SUPPORTED_LANGS = ['ja', 'en', 'zh'];
 export const DEFAULT_LANG = 'ja';
 
@@ -393,6 +395,50 @@ export const localizedPath = (path, lang) => {
   }
   return stripped === '/' ? `/${lang}` : `/${lang}${stripped}`;
 };
+
+// Display labels for the tag names. The tags themselves are
+// Japanese strings end to end — blog-gas sends them, and they key
+// the routes and the caches — so only what the reader sees is
+// translated, through this fixed mapping. A tag missing from the
+// map, and Japanese UI altogether, shows the raw name.
+export const TAG_LABELS = {
+  en: {
+    運営: 'Site operations',
+    技術: 'Tech',
+    中国語: 'Chinese',
+    音楽: 'Music',
+    川口: 'Kawaguchi',
+    暮らし: 'Daily life'
+  },
+  zh: {
+    運営: '网站运营',
+    技術: '技术',
+    中国語: '中文',
+    音楽: '音乐',
+    川口: '川口',
+    暮らし: '生活'
+  }
+};
+
+export const tagLabel = (tag) => TAG_LABELS[currentLang.value]?.[tag] ?? tag;
+
+// Absolute URLs of the top page and the blog home, following the
+// UI language: the top page has real /en/ and /zh/ pages and the
+// blog's home is its language root, so a reader browsing in
+// English who follows a "top" link lands on the English top page
+// instead of the Japanese one. Japanese (and anything unknown)
+// keeps the plain URLs, byte-identical to before. An anchor
+// rides along after the language segment (…/en/#about).
+export const SITE_ORIGIN = 'https://freddiefujiwara.com';
+
+const langSegment = (lang) =>
+  (isSupportedLang(lang) && lang !== DEFAULT_LANG ? `/${lang}` : '');
+
+export const topPageUrl = (lang, anchor = '') =>
+  `${SITE_ORIGIN}${langSegment(lang)}/${anchor}`;
+
+export const blogHomeUrl = (lang) =>
+  `${SITE_ORIGIN}/blog${langSegment(lang)}/`;
 
 // Translates one UI string. {name} placeholders are filled from
 // params; a placeholder without a matching param is left as-is.

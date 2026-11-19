@@ -1,7 +1,7 @@
 <template>
   <ul v-if="tags.length" class="tag-chips">
     <li v-for="tag in tags" :key="tag" class="tag-chip-item">
-      <router-link class="tag-chip" :to="tagPath(tag, routeLang)">{{ tag }}</router-link>
+      <router-link class="tag-chip" :to="tagPath(tag, routeLang)">{{ tagLabel(tag) }}</router-link>
     </li>
   </ul>
 </template>
@@ -9,7 +9,7 @@
 <script setup>
 import { computed } from 'vue';
 import { normalizeTagList, tagPath } from '../services/tags';
-import { routeLang } from '../services/i18n';
+import { routeLang, tagLabel } from '../services/i18n';
 
 // Chips linking to each tag's page. Renders nothing when the article
 // carries no tags (including payloads from before tags existed).

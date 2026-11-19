@@ -99,5 +99,24 @@ describe('TagView', () => {
       // The back link returns to the translated root, not the Japanese one.
       expect(links[links.length - 1].props().to).toBe('/en');
     });
+
+    it('shows the translated tag label in the heading and title, filtering by the Japanese tag', async () => {
+      applyRouteLang('en');
+      const wrapper = mountTag('運営');
+      await flushPromises();
+
+      expect(wrapper.find('.tag-page-heading').text()).toBe('Tag: Site operations');
+      expect(document.title).toBe('Tag: Site operations');
+      // Filtering still runs on the raw Japanese tag from the payload.
+      expect(wrapper.findAll('.tag-article-item')).toHaveLength(2);
+    });
+
+    it('shows the Chinese label on a Chinese page', async () => {
+      applyRouteLang('zh');
+      const wrapper = mountTag('技術');
+      await flushPromises();
+
+      expect(wrapper.find('.tag-page-heading').text()).toBe('标签：技术');
+    });
   });
 });
