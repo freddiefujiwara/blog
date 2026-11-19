@@ -1,7 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import BlogView from './pages/BlogView.vue'
 import TagView from './pages/TagView.vue'
-import { applyRouteLang } from './services/i18n'
+import {
+  DEFAULT_LANG,
+  applyRouteLang,
+  localizedPath,
+  resolveViewerLang
+} from './services/i18n'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -21,10 +26,35 @@ const router = createRouter({
   ],
 })
 
-// The URL language drives both the article language and the UI
-// language (services/i18n). Applied before each navigation so the
-// views already render in the route's language.
+// The URL is the single source of truth for language. A
+// language-less URL whose viewer resolves to English or Chinese —
+// the ?lang= parameter, the stored switcher choice, the browser's
+// language, in the order initLang uses — is replaced by the same
+// page under that language's prefix, so a translated UI can never
+// sit on a Japanese URL. The redirect cannot loop: its target
+// always carries a language, prefixed routes never redirect, and
+// a Japanese resolution stays where it is. The lang parameter
+// itself is dropped (the prefix now carries the language); any
+// other query (e.g. the legacy ?id=) and the hash ride along.
 router.beforeEach((to) => {
+  if (!to.params.lang) {
+    const param = Array.isArray(to.query.lang) ? to.query.lang[0] : to.query.lang
+    const viewer = resolveViewerLang(param ?? null)
+    if (viewer !== DEFAULT_LANG) {
+      const query = { ...to.query }
+      delete query.lang
+      return {
+        path: localizedPath(to.path, viewer),
+        query,
+        hash: to.hash,
+        replace: true
+      }
+    }
+  }
+  // The route language drives both the article language and the
+  // UI language (services/i18n). Applied before each navigation
+  // that is not redirected, so the views already render in the
+  // route's language.
   applyRouteLang(to.params.lang)
 })
 
