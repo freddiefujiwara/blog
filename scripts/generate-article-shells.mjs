@@ -36,9 +36,9 @@ export const OGP_IMAGE_API_URL =
 
 const IMAGE_CONCURRENCY = 4;
 
-// How many of the newest articles get shells. Matches the old RSS feed
-// limit so the set of shelled articles does not shrink with the switch.
-export const MAX_ARTICLES = 50;
+// How many of the newest articles get shells. Raised from the old RSS
+// feed limit (50) to keep headroom as the article count grows.
+export const MAX_ARTICLES = 100;
 
 export const decodeEntities = (s) =>
 s
