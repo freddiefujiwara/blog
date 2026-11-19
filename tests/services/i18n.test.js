@@ -15,6 +15,7 @@ import {
   isSupportedLang,
   localizedPath,
   resolveInitialLang,
+  resolveViewerLang,
   routeLang,
   setLang,
   t,
@@ -221,6 +222,29 @@ describe('i18n service', () => {
 
   it('uses the production storage key outside staging builds', () => {
     expect(LANGUAGE_STORAGE_KEY).toBe('blog:lang:v1');
+  });
+
+  describe('resolveViewerLang (the router\u2019s resolution)', () => {
+    it('resolves the parameter first, then stored, then browser, then Japanese', () => {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, 'zh');
+      stubBrowserLanguages(['en-US']);
+      expect(resolveViewerLang('en')).toBe('en');
+      expect(resolveViewerLang(null)).toBe('zh');
+
+      localStorage.clear();
+      expect(resolveViewerLang(null)).toBe('en');
+
+      stubBrowserLanguages(['ja-JP']);
+      expect(resolveViewerLang(null)).toBe('ja');
+    });
+
+    it('ignores an unsupported parameter and does not persist anything', () => {
+      stubBrowserLanguages(['en-US']);
+      expect(resolveViewerLang('fr')).toBe('en');
+      expect(resolveViewerLang(null)).toBe('en');
+      expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
+      expect(currentLang.value).toBe('ja');
+    });
   });
 
   describe('route language (translated URLs)', () => {

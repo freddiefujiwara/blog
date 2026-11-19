@@ -311,6 +311,22 @@ const applyHtmlLang = (lang) => {
 
 export const currentLang = ref(DEFAULT_LANG);
 
+// The language a viewer resolves to away from the URL, from the
+// same inputs in the same order everywhere: the ?lang= parameter
+// (passed in, since a navigation's target query is not yet in
+// window.location), the persisted switcher choice, the browser's
+// language, Japanese last. initLang resolves this once at
+// startup; the router resolves it for every language-less URL
+// and sends an English or Chinese viewer to the prefixed URL
+// instead (see router.js), so the URL stays the single source
+// of truth for language.
+export const resolveViewerLang = (param = null) =>
+  resolveInitialLang({
+    param,
+    stored: readStoredLang(),
+    browser: readBrowserLang()
+  });
+
 // Resolves the language once at startup (called from main.js
 // before the app mounts). A ?lang= parameter wins over the stored
 // choice and is itself persisted, so following an in-page link
@@ -320,11 +336,7 @@ export const currentLang = ref(DEFAULT_LANG);
 // a language in the switcher (which setLang persists).
 export const initLang = () => {
   const param = readParamLang();
-  const lang = resolveInitialLang({
-    param,
-    stored: readStoredLang(),
-    browser: readBrowserLang()
-  });
+  const lang = resolveViewerLang(param);
   currentLang.value = lang;
   if (isSupportedLang(param)) {
     persistLang(lang);
@@ -344,9 +356,11 @@ export const setLang = (lang) => {
 // null on Japanese URLs, which carry no prefix. While a route
 // language is set it decides BOTH the article language and the UI
 // language: the URL is the reader's explicit choice, so it outranks
-// the stored preference and the browser detection below. Japanese
-// URLs keep the phase-1 behaviour (the resolved UI language above,
-// Japanese articles).
+// the stored preference and the browser detection below. A
+// language-less URL is only ever reached by a viewer who resolves
+// to Japanese — the router replaces it with the prefixed URL for
+// everyone else — so Japanese URLs always mean Japanese UI and
+// Japanese articles too.
 export const routeLang = ref(null);
 
 // The language article content is fetched and cached in: the route
@@ -354,13 +368,17 @@ export const routeLang = ref(null);
 export const contentLang = computed(() => routeLang.value ?? DEFAULT_LANG);
 
 // Applies the language a route names (called by the router on every
-// navigation). Entering a translated route forces the UI language
-// to the route's, WITHOUT persisting it — the stored preference
-// stays what the reader last picked in the switcher. Leaving the
-// translated routes re-resolves the UI language the phase-1 way
-// (parameter, stored choice, browser), which is where a preference
-// saved by the switcher on the way out takes effect. Japanese-to-
-// Japanese navigations change nothing: the phase-1 state stands.
+// navigation that is not redirected first). Entering a translated
+// route forces the UI language to the route's, WITHOUT persisting
+// it — the stored preference stays what the reader last picked in
+// the switcher. Leaving the translated routes re-resolves the UI
+// language (parameter, stored choice, browser): in-app that only
+// happens once the viewer resolves to Japanese (the router has
+// already redirected everyone else, and the switcher persists its
+// Japanese choice before navigating out), so the re-resolution
+// lands on Japanese and a preference saved by the switcher on the
+// way out takes effect. Japanese-to-Japanese navigations change
+// nothing: the current state stands.
 export const applyRouteLang = (lang) => {
   if (isSupportedLang(lang) && lang !== DEFAULT_LANG) {
     routeLang.value = lang;
