@@ -571,7 +571,7 @@ describe('App', () => {
           'https://freddiefujiwara.com/blog/en/'
         ]);
         // Links to the other apps carry no language segment.
-        expect(navHrefs(wrapper)).toContain('https://freddiefujiwara.com/list-of-stuff/');
+        expect(navHrefs(wrapper)).toContain('https://freddiefujiwara.com/everything-i-own/');
         expect(navHrefs(wrapper)).toContain('https://freddiefujiwara.com/music');
       } finally {
         setLang('ja');

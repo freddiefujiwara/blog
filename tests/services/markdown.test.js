@@ -145,8 +145,8 @@ describe('renderMarkdown link targets', () => {
   });
 
   it('keeps the site short URLs with internal destinations in the same tab', () => {
-    const html = renderMarkdown('[持ち物](https://freddiefujiwara.com/list-of-stuff/)');
-    expect(html).toContain('<a href="https://freddiefujiwara.com/list-of-stuff/">持ち物</a>');
+    const html = renderMarkdown('[持ち物](https://freddiefujiwara.com/everything-i-own/)');
+    expect(html).toContain('<a href="https://freddiefujiwara.com/everything-i-own/">持ち物</a>');
     expect(html).not.toContain('target=');
     const pathHtml = renderMarkdown('[川口の歌](/music)');
     expect(pathHtml).toContain('<a href="/music">川口の歌</a>');
