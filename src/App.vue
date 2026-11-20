@@ -8,7 +8,7 @@
         <li class="nav-section"><a :href="topActivityHref" @click="trackNavClick('activity')">{{ t('navActivity') }}</a></li>
         <li class="nav-section"><a :href="topContactHref" @click="trackNavClick('contact')">{{ t('navContact') }}</a></li>
         <li><a :href="blogHomeHref" class="active" aria-current="page" @click="trackNavClick('blog')">{{ t('navBlog') }}</a></li>
-        <li><a href="https://freddiefujiwara.com/list-of-stuff/" @click="trackNavClick('list')">{{ t('navList') }}</a></li>
+        <li><a href="https://freddiefujiwara.com/everything-i-own/" @click="trackNavClick('list')">{{ t('navList') }}</a></li>
         <li><a href="https://freddiefujiwara.com/music" @click="trackNavClick('music')">{{ t('navMusic') }} ♪<span v-if="musicPlayCount !== null" class="music-play-count">{{ formatMusicPlayCount(musicPlayCount) }}</span></a></li>
       </ul>
     </nav>
@@ -39,7 +39,7 @@
             <div class="foot-links">
               <a :href="topHomeHref" target="_blank" rel="noopener">{{ t('navTop') }} <span class="arr">↗</span></a>
               <a :href="footerBlogHref" target="_blank" rel="noopener">{{ t('navBlog') }} <span class="arr">↗</span></a>
-              <a href="https://freddiefujiwara.com/list-of-stuff/" target="_blank" rel="noopener">{{ t('footerBelongings') }} <span class="arr">↗</span></a>
+              <a href="https://freddiefujiwara.com/everything-i-own/" target="_blank" rel="noopener">{{ t('footerBelongings') }} <span class="arr">↗</span></a>
               <a href="https://freddiefujiwara.com/bucket-list/" target="_blank" rel="noopener">{{ t('footerBucketList') }} <span class="arr">↗</span></a>
             </div>
           </div>

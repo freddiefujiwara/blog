@@ -50,7 +50,7 @@ export const isBlogInternalUrl = (href) => {
 const SITE_SHORT_URL_PATHS = [
   '/map',
   '/bucket-list',
-  '/list-of-stuff',
+  '/everything-i-own',
   '/music',
   '/chinese',
 ];
