@@ -544,6 +544,8 @@ article code {
   border-radius: 6px;
   padding: 0.15em 0.4em;
   font-size: 0.88em;
+  /* A long unbroken code token must wrap, not widen the page. */
+  overflow-wrap: anywhere;
 }
 
 article pre {
@@ -551,7 +553,11 @@ article pre {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
-  overflow-x: auto;
+  max-width: 100%;
+  /* Wrap long code lines inside the block instead of making the
+     whole page scroll sideways on phones. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.6;
 }
 
