@@ -24,8 +24,17 @@ const router = createRouter({
   // every navigation at the top instead; back/forward restores
   // the position the reader left. Fragment targets (#h-…) are
   // not handled here: ArticleContent scrolls to the heading
-  // once the article has rendered.
-  scrollBehavior: (to, from, savedPosition) => savedPosition ?? { top: 0 },
+  // once the article has rendered. A navigation that carries a
+  // fragment must therefore not scroll at all — returning the
+  // top here would yank the reader back up when a browser
+  // routes a table-of-contents tap through the router (iOS
+  // Safari fires popstate for hash changes; the first version
+  // of this function did exactly that).
+  scrollBehavior: (to, from, savedPosition) => {
+    if (savedPosition) return savedPosition;
+    if (to.hash) return false;
+    return { top: 0 };
+  },
   routes: [
     { path: '/', name: 'home', component: BlogView },
     { path: '/:lang(en|zh)', name: 'lang-home', component: BlogView },

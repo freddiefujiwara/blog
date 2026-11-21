@@ -34,6 +34,18 @@ describe('router', () => {
     expect(scrollBehavior({}, {}, saved)).toBe(saved);
   });
 
+  it('does not scroll on fragment navigations (table of contents taps)', () => {
+    const { scrollBehavior } = router.options;
+    // A TOC tap changes only the hash; the browser and
+    // ArticleContent own the jump to the heading. Scrolling to
+    // the top here yanked iPhone readers back to the article
+    // title (regression from the first scrollBehavior version).
+    expect(scrollBehavior({ hash: '#h-1234abcd' }, {}, null)).toBe(false);
+    // A saved position still wins over the fragment rule.
+    const saved = { left: 0, top: 420 };
+    expect(scrollBehavior({ hash: '#h-1234abcd' }, {}, saved)).toBe(saved);
+  });
+
   it('resolves routes to their views', async () => {
     // Basic check that components are defined
     const routes = router.options.routes;
