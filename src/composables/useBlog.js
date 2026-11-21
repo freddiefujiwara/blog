@@ -68,7 +68,7 @@ export function useBlog() {
     if (!article.value) {
       return '';
     }
-    return renderMarkdown(article.value.markdown);
+    return renderMarkdown(article.value.markdown, contentLang.value);
   });
 
   const navigationLinks = computed(() =>
