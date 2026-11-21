@@ -21,6 +21,22 @@ describe('article link styles (long URL overflow regression)', () => {
   });
 });
 
+describe('article code wrapping (long code overflow regression)', () => {
+  it('lets long inline code wrap instead of widening the page', () => {
+    const block = blockFor('article code');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+
+  it('wraps long lines inside code blocks instead of scrolling sideways', () => {
+    const block = blockFor('article pre');
+    expect(block).not.toBe('');
+    expect(block).toMatch(/white-space:\s*pre-wrap/);
+    expect(block).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(block).not.toMatch(/overflow-x:\s*auto/);
+  });
+});
+
 describe('OGP link cards', () => {
   it('renders standalone links as a bordered flex card', () => {
     const block = blockFor('article a.link-card');
