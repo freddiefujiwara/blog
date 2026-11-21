@@ -17,6 +17,15 @@ const BASE = import.meta.env.BASE_URL
 // would otherwise match the article route with id "en".
 const router = createRouter({
   history: createWebHistory(BASE),
+  // Without scrollBehavior the browser keeps the scroll offset
+  // across navigations: following the prev/next pager at the
+  // foot of an article lands the reader at the foot of the next
+  // article, who then has to scroll all the way back up. Start
+  // every navigation at the top instead; back/forward restores
+  // the position the reader left. Fragment targets (#h-…) are
+  // not handled here: ArticleContent scrolls to the heading
+  // once the article has rendered.
+  scrollBehavior: (to, from, savedPosition) => savedPosition ?? { top: 0 },
   routes: [
     { path: '/', name: 'home', component: BlogView },
     { path: '/:lang(en|zh)', name: 'lang-home', component: BlogView },
