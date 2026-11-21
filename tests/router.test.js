@@ -22,6 +22,18 @@ describe('router', () => {
     expect(routes[3].props).toBe(true);
   });
 
+  it('scrolls to the top on navigation and restores the position on back/forward', () => {
+    const { scrollBehavior } = router.options;
+    expect(typeof scrollBehavior).toBe('function');
+    // A fresh navigation (e.g. the prev/next pager at the foot of
+    // an article) starts at the top of the next page.
+    expect(scrollBehavior({}, {}, null)).toEqual({ top: 0 });
+    expect(scrollBehavior({}, {}, undefined)).toEqual({ top: 0 });
+    // Back/forward hands back the position the reader left.
+    const saved = { left: 0, top: 420 };
+    expect(scrollBehavior({}, {}, saved)).toBe(saved);
+  });
+
   it('resolves routes to their views', async () => {
     // Basic check that components are defined
     const routes = router.options.routes;
