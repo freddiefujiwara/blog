@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import { t } from './i18n.js';
+import { DEFAULT_LANG, isSupportedLang, t } from './i18n.js';
 
 // Hashes a text into a short ASCII id (FNV-1a, 32-bit). The text
 // itself is not used as the id: non-ASCII fragments do not scroll
@@ -39,6 +39,42 @@ export const isBlogInternalUrl = (href) => {
   if (!href) return false;
   if (href === '/blog' || href.startsWith('/blog/')) return true;
   return /^https?:\/\/freddiefujiwara\.com\/blog(\/|$)/.test(href);
+};
+
+// Article bodies are written once, in Japanese, and their blog
+// links name the Japanese URLs (/blog/<id>, or the absolute form).
+// On a translated page those links would take the reader out of
+// the translation: they are plain anchors, so following one is a
+// full page load of a language-less URL, whose language is then
+// re-resolved from the reader's stored preference and browser —
+// a reader who arrived on a shared /blog/en/… link and never
+// picked a language lands on the Japanese article. Rewriting the
+// links into the language being read keeps the URL the source of
+// truth, the same way the prev/next links already carry the
+// prefix. Japanese rendering, already-prefixed links and every
+// non-blog destination are left exactly as written.
+const BLOG_ABSOLUTE_PATTERN = /^(https?:\/\/freddiefujiwara\.com)(\/blog)(\/[^?#]*)?([?#].*)?$/i;
+const BLOG_PATH_PATTERN = /^(\/blog)(\/[^?#]*)?([?#].*)?$/;
+
+export const localizeBlogHref = (href, lang) => {
+  if (!href || !isSupportedLang(lang) || lang === DEFAULT_LANG) return href;
+  const insertPrefix = (path) => {
+    const rest = path.slice('/blog'.length);
+    const firstSegment = rest.replace(/^\//, '').split('/')[0];
+    if (firstSegment === 'en' || firstSegment === 'zh') return path;
+    return `/blog/${lang}${rest}`;
+  };
+  const absolute = href.match(BLOG_ABSOLUTE_PATTERN);
+  if (absolute) {
+    const [, origin, blogSegment, rest = '', suffix = ''] = absolute;
+    return origin + insertPrefix(blogSegment + rest) + suffix;
+  }
+  const relative = href.match(BLOG_PATH_PATTERN);
+  if (relative) {
+    const [, blogSegment, rest = '', suffix = ''] = relative;
+    return insertPrefix(blogSegment + rest) + suffix;
+  }
+  return href;
 };
 
 // The site's own short URLs whose destinations live inside the site
@@ -288,16 +324,17 @@ export const expandAnchorMarkers = (markdown) => {
   return out.join('\n\n');
 };
 
-export const renderMarkdown = (markdown) => {
+export const renderMarkdown = (markdown, lang = DEFAULT_LANG) => {
   const seen = new Map();
   const renderer = new marked.Renderer();
   // marked v13+ のレンダラ API: メソッドはトークンオブジェクトを受け取り、
   // インラインの HTML は this.parser.parseInline(tokens) で得る。
   renderer.link = function ({ href, title, tokens }) {
     const text = this.parser.parseInline(tokens);
+    const localized = localizeBlogHref(href, lang);
     const titleAttr = title ? ` title="${title}"` : '';
-    const target = opensInNewTab(href) ? ' target="_blank" rel="noopener noreferrer"' : '';
-    return `<a href="${href}"${titleAttr}${target}>${text}</a>`;
+    const target = opensInNewTab(localized) ? ' target="_blank" rel="noopener noreferrer"' : '';
+    return `<a href="${localized}"${titleAttr}${target}>${text}</a>`;
   };
   renderer.heading = function ({ tokens, depth }) {
     const text = this.parser.parseInline(tokens);
@@ -308,5 +345,11 @@ export const renderMarkdown = (markdown) => {
     const id = count === 1 ? base : `${base}-${count}`;
     return `<h${depth} id="${id}">${text}</h${depth}>\n`;
   };
-  return wrapTables(marked.parse(expandAnchorMarkers(wrapLyricsBlocks(delimitBareUrls(markdown ?? ''))), { renderer }));
+  const html = marked.parse(expandAnchorMarkers(wrapLyricsBlocks(delimitBareUrls(markdown ?? ''))), { renderer });
+  // Link cards arrive as finished HTML (see delimitBareUrls), so
+  // the link renderer never sees their hrefs; a card pointing at
+  // another article gets the same language prefix here.
+  const localizedCards = html.replace(/<a class="link-card" href="([^"]+)"/g,
+    (match, url) => `<a class="link-card" href="${localizeBlogHref(url, lang)}"`);
+  return wrapTables(localizedCards);
 };
