@@ -4,8 +4,7 @@ import {
   delimitBareUrls,
   expandAnchorMarkers,
   extractTocFromHtml,
-  renderMarkdown,
-  wrapLyricsBlocks
+  renderMarkdown
 } from '../../src/services/markdown';
 
 // Property-based tests for the markdown pipeline. The example-based
@@ -13,7 +12,7 @@ import {
 // the invariants that must hold for ANY input, including the ones
 // nobody thought to write an example for: the pipeline never throws,
 // never invents replacement characters, and never rewrites the
-// segments an author marked as literal (code, lyrics, link cards).
+// segments an author marked as literal (code, link cards).
 
 const RUNS = { numRuns: 100 };
 
@@ -40,7 +39,7 @@ describe('markdown pipeline properties', () => {
     fc.assert(
       fc.property(soup, (text) => {
         fc.pre(!text.includes('\uFFFD'));
-        [delimitBareUrls, wrapLyricsBlocks, expandAnchorMarkers, renderMarkdown].forEach((stage) => {
+        [delimitBareUrls, expandAnchorMarkers, renderMarkdown].forEach((stage) => {
           const out = stage(text);
           expect(typeof out).toBe('string');
           expect(out.includes('\uFFFD')).toBe(false);
@@ -131,31 +130,6 @@ describe('markdown pipeline properties', () => {
     );
   });
 
-  it('boxes every generated lyric line verbatim and consumes the marker', () => {
-    // wrapLyricsBlocks trims each line before boxing it, so the
-    // generated lines are pre-trimmed; the alphabet avoids the
-    // characters that would make a line stop being a lyric line.
-    const lyricLine = fc
-      .stringMatching(/^[ぁ-んァ-ヶ一-龠a-zA-Z0-9 ー・]{1,20}$/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    const partLabel = fc.constantFrom('[Chorus]', '[サビ]', '[Verse]', '[間奏]');
-    fc.assert(
-      fc.property(fc.array(fc.oneof(lyricLine, partLabel), { minLength: 1, maxLength: 6 }), (lines) => {
-        const doc = ['[[歌詞]]', ...lines, '## 次の見出し'].join('\n\n');
-        const out = wrapLyricsBlocks(doc);
-        expect(out).toContain('<div class="lyrics">');
-        expect(out).not.toContain('[[歌詞]]');
-        lines.forEach((line) => {
-          const cls = /^\[[^\]]*\]$/.test(line) ? 'lyrics-part' : 'lyrics-line';
-          expect(out).toContain(`<p class="${cls}">${line}</p>`);
-        });
-        expect(out).toContain('## 次の見出し');
-      }),
-      RUNS
-    );
-  });
-
   it('gives every heading a unique id and a matching table-of-contents entry', () => {
     const headingText = fc.constantFrom(
       '見出し', 'テスト', '川口の話', '障害対応', 'まとめ', 'Q&A', '2026年の計画'
@@ -196,15 +170,6 @@ const plainDoc = fc
   .map((blocks) => blocks.join('\n\n'));
 
 describe('markdown pre-parse identity properties', () => {
-  it('wrapLyricsBlocks changes nothing without a lyrics marker', () => {
-    fc.assert(
-      fc.property(plainDoc, (doc) => {
-        expect(wrapLyricsBlocks(doc)).toBe(doc);
-      }),
-      RUNS
-    );
-  });
-
   it('expandAnchorMarkers changes nothing without an anchor marker', () => {
     fc.assert(
       fc.property(plainDoc, (doc) => {

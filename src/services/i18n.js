@@ -105,7 +105,6 @@ export const MESSAGES = {
     shuffleOn: 'ランダム：オン',
     shuffleOff: 'ランダム：オフ',
     playerLoadError: '音源を読み込めませんでした',
-    lyricsLabel: '歌詞',
     itemLink: 'この項目へのリンク'
   },
   en: {
@@ -176,7 +175,6 @@ export const MESSAGES = {
     shuffleOn: 'Shuffle: on',
     shuffleOff: 'Shuffle: off',
     playerLoadError: 'Could not load the audio.',
-    lyricsLabel: 'Lyrics',
     itemLink: 'Link to this item'
   },
   zh: {
@@ -247,7 +245,6 @@ export const MESSAGES = {
     shuffleOn: '随机：开',
     shuffleOff: '随机：关',
     playerLoadError: '无法加载音频。',
-    lyricsLabel: '歌词',
     itemLink: '此条目的链接'
   }
 };
