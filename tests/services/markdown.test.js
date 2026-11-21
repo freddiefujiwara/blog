@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandAnchorMarkers, extractTocFromHtml, hashHeadingText, hashItemText, opensInNewTab, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks, wrapTables } from '../../src/services/markdown';
+import { expandAnchorMarkers, extractTocFromHtml, hashHeadingText, hashItemText, localizeBlogHref, opensInNewTab, renderMarkdown, splitHtmlAtTocMarkers, wrapLyricsBlocks, wrapTables } from '../../src/services/markdown';
 
 describe('hashHeadingText', () => {
   it('returns a short ASCII id', () => {
@@ -170,6 +170,59 @@ describe('renderMarkdown link targets', () => {
   it('leaves non-web links untouched', () => {
     const html = renderMarkdown('[メール](mailto:a@example.com)');
     expect(html).not.toContain('target=');
+  });
+});
+
+describe('localizeBlogHref', () => {
+  it('prefixes relative and absolute blog URLs with the language', () => {
+    expect(localizeBlogHref('/blog/abc', 'en')).toBe('/blog/en/abc');
+    expect(localizeBlogHref('/blog/tag/技術', 'zh')).toBe('/blog/zh/tag/技術');
+    expect(localizeBlogHref('/blog/', 'en')).toBe('/blog/en/');
+    expect(localizeBlogHref('/blog', 'en')).toBe('/blog/en');
+    expect(localizeBlogHref('https://freddiefujiwara.com/blog/abc', 'en'))
+      .toBe('https://freddiefujiwara.com/blog/en/abc');
+  });
+
+  it('keeps query strings and fragments after the prefixed path', () => {
+    expect(localizeBlogHref('/blog/abc#item-12345678', 'en')).toBe('/blog/en/abc#item-12345678');
+    expect(localizeBlogHref('https://freddiefujiwara.com/blog/abc?x=1', 'zh'))
+      .toBe('https://freddiefujiwara.com/blog/zh/abc?x=1');
+  });
+
+  it('leaves already-prefixed, Japanese and non-blog hrefs untouched', () => {
+    expect(localizeBlogHref('/blog/en/abc', 'zh')).toBe('/blog/en/abc');
+    expect(localizeBlogHref('https://freddiefujiwara.com/blog/zh/abc', 'en'))
+      .toBe('https://freddiefujiwara.com/blog/zh/abc');
+    expect(localizeBlogHref('/blog/abc', 'ja')).toBe('/blog/abc');
+    expect(localizeBlogHref('/blog/abc', 'fr')).toBe('/blog/abc');
+    expect(localizeBlogHref('https://example.com/blog/abc', 'en')).toBe('https://example.com/blog/abc');
+    expect(localizeBlogHref('https://freddiefujiwara.com/music', 'en'))
+      .toBe('https://freddiefujiwara.com/music');
+    expect(localizeBlogHref('#h-12345678', 'en')).toBe('#h-12345678');
+    expect(localizeBlogHref('', 'en')).toBe('');
+  });
+});
+
+describe('renderMarkdown in a translated language', () => {
+  it('prefixes blog links in the body with the reading language', () => {
+    const html = renderMarkdown('[前回](https://freddiefujiwara.com/blog/abc)', 'en');
+    expect(html).toContain('<a href="https://freddiefujiwara.com/blog/en/abc">前回</a>');
+    expect(html).not.toContain('target=');
+    const pathHtml = renderMarkdown('[前回](/blog/abc)', 'zh');
+    expect(pathHtml).toContain('<a href="/blog/zh/abc">前回</a>');
+  });
+
+  it('prefixes blog link cards with the reading language', () => {
+    const card = '<a class="link-card" href="https://freddiefujiwara.com/blog/abc" target="_blank" rel="noopener noreferrer"><span class="link-card-body">x</span></a>';
+    const html = renderMarkdown(card, 'en');
+    expect(html).toContain('<a class="link-card" href="https://freddiefujiwara.com/blog/en/abc"');
+  });
+
+  it('leaves external links and Japanese rendering unchanged', () => {
+    const html = renderMarkdown('[例](https://example.com/page)', 'en');
+    expect(html).toContain('<a href="https://example.com/page" target="_blank" rel="noopener noreferrer">例</a>');
+    const jaHtml = renderMarkdown('[前回](/blog/abc)');
+    expect(jaHtml).toContain('<a href="/blog/abc">前回</a>');
   });
 });
 
