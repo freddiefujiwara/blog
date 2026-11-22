@@ -95,8 +95,8 @@ describe('App', () => {
       'プロフィール・その他',
       '自作ツール'
     ]);
-    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 3, 4, 5, 8]);
-    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(24);
+    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 4, 4, 5, 8]);
+    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(25);
   });
 
   it('renders the language switcher in the footer, not in the header nav', async () => {
