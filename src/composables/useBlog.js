@@ -52,14 +52,13 @@ export function useBlog() {
   const fetchTitlesForLang = (lang) =>
     (lang === DEFAULT_LANG ? fetchArticleTitles() : fetchArticleTitles(lang));
 
-  // The full list (with pre-cached article bodies) exists only in
-  // Japanese. Translated pages use the titles response as their
-  // list source instead: it carries the same ids, titles and tags,
-  // just no article bodies, which are fetched per article anyway.
+  // The titles response is the list source in every language: it
+  // carries the same ids, titles and tags as the full list, just
+  // no article bodies, which are fetched per article instead.
+  // The full list (ten pre-cached bodies, ~120KB) no longer gates
+  // or trails every page view; it remains only as the Japanese
+  // last-resort fallback in getArticleList.
   const fetchListForLang = async (lang) => {
-    if (lang === DEFAULT_LANG) {
-      return fetchArticleList();
-    }
     const data = await fetchTitlesForLang(lang);
     return { ...data, article_cache: [] };
   };
@@ -254,14 +253,13 @@ export function useBlog() {
     if (articleIds.value.length > 0 && loadedListLang === lang) {
       return articleIds.value;
     }
-    // Fast path: learn the ids from the lightweight titles response
-    // (no article bodies) and let the full list catch up in the
-    // background. The full list can take tens of seconds when the API
-    // cache is cold, and the reader should not have to wait for ten
-    // articles to read one. If the titles response is unavailable
-    // (older API deployment), fall back to the full list — in
-    // Japanese only; a translated page has no Japanese fallback and
-    // surfaces the failure instead of mixing languages.
+    // The ids come from the titles response — the list source in
+    // every language (see fetchListForLang) — and a background
+    // refresh keeps the list current from the same source. If the
+    // titles response is unavailable, Japanese pages fall back to
+    // the full list as a last resort; a translated page has no
+    // Japanese fallback and surfaces the failure instead of
+    // mixing languages.
     try {
       const data = await fetchTitlesForLang(lang);
       if (data?.ids?.length) {
@@ -272,9 +270,11 @@ export function useBlog() {
         return data.ids;
       }
     } catch {
-      // Fall through to the full list.
+      // Fall through to the last-resort fetch below.
     }
-    const data = await fetchListForLang(lang);
+    const data = lang === DEFAULT_LANG
+      ? await fetchArticleList()
+      : await fetchListForLang(lang);
     applyListData(data, lang);
     saveCachedList(data, lang);
     return data.ids;
