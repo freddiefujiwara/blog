@@ -470,6 +470,41 @@ describe('App', () => {
     expect(router.currentRoute.value.path).toBe('/latest-id');
   });
 
+  it('keeps the hero as a link to the home while the titles fetch fails', async () => {
+    fetch.mockImplementation(async (url) => {
+      if (String(url).includes('o=titles')) {
+        throw new Error('network down');
+      }
+      if (String(url).includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
+      if (String(url).includes('?id=')) {
+        const id = String(url).split('?id=')[1];
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id, title: `Title ${id}`, markdown: `Content ${id}` })
+        };
+      }
+      return {
+        ok: true,
+        json: () => Promise.resolve({ ids: ['latest-id'], article_cache: [] })
+      };
+    });
+    const wrapper = mount(App, {
+      global: {
+        plugins: [router]
+      }
+    });
+    await flushPromises();
+
+    // No cached list and a failed titles fetch: the hero must not
+    // be a dead band — it links to the blog home instead.
+    const heroLink = wrapper.find('.hero a.hero-inner');
+    expect(heroLink.exists()).toBe(true);
+    expect(heroLink.attributes('href')).toBe('/blog/');
+    expect(heroLink.find('h1').text()).toBe('藤原史和｜川口を歩くQAエンジニア');
+  });
+
   it('shows the shared nav with 川口の歌 and its play count', async () => {
     fetch.mockImplementation(async (url) => {
       if (String(url).includes('music-count.json')) {

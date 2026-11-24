@@ -14,17 +14,12 @@
     </nav>
     <header class="header hero">
       <router-link
-        v-if="latestArticlePath"
-        :to="latestArticlePath"
+        :to="heroPath"
         class="hero-inner hero-link"
       >
         <p class="hero-place">KAWAGUCHI — BLOG</p>
         <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
       </router-link>
-      <div v-else class="hero-inner">
-        <p class="hero-place">KAWAGUCHI — BLOG</p>
-        <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
-      </div>
     </header>
     <div class="layout" :class="{ 'layout--article': isArticleLayout }">
       <div class="list-search">
@@ -167,6 +162,13 @@ const latestArticlePath = computed(() => {
   const prefix = routeLang.value ? `/${routeLang.value}` : '';
   return `${prefix}/${latestArticleId.value}`;
 });
+// The hero is always a link: while the latest article is not known
+// yet (titles still loading, or the fetch failed), it points at the
+// language's home instead, which resolves to the latest article
+// once it loads. A non-link hero left readers tapping a dead band.
+const heroPath = computed(() =>
+  latestArticlePath.value || (routeLang.value ? `/${routeLang.value}` : '/')
+);
 const searchableArticles = ref([]);
 const searchState = ref('loading');
 // Tag index, fed by the same titles payload as the search. It
@@ -205,8 +207,8 @@ const loadTitles = async () => {
   } catch {
     // If the fetch fails, primed data (when there is any) keeps the
     // search working; without it the search reports the failure
-    // instead of pretending there are no hits, and the hero simply
-    // stays non-clickable.
+    // instead of pretending there are no hits. The hero falls back
+    // to the home link until a later load succeeds.
     if (!searchableArticles.value.length) {
       searchState.value = 'failed';
     }
