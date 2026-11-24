@@ -125,8 +125,9 @@ export const fetchArticleTitles = async (lang) => {
 };
 
 // The full list (with pre-cached article bodies) exists only in
-// Japanese; translated pages use the titles endpoint as their list
-// source instead (see useBlog).
+// Japanese. Every page uses the titles endpoint as its list
+// source (see useBlog); this remains as the Japanese last-resort
+// fallback when the titles response is unavailable.
 export const fetchArticleList = async () => {
   const data = await fetchJson(LIST_ENDPOINT, t('articleListFetchFailed'));
   if (!Array.isArray(data?.ids) || !data.ids.length) {

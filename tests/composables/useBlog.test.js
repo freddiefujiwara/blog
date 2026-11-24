@@ -89,6 +89,42 @@ describe('useBlog composable', () => {
     expect(wrapper.vm.article.title).toBe('Title 1');
   });
 
+  it('never fetches the full list on a Japanese load when titles succeed', async () => {
+    api.fetchArticleTitles.mockResolvedValue({ ids: ['1', '2'], titles: { 1: 'Title 1', 2: 'Title 2' } });
+    api.fetchArticleList.mockResolvedValue({ ids: ['1', '2'], article_cache: [] });
+    api.fetchArticle.mockResolvedValue({ id: '1', title: 'Title 1', markdown: '# Content 1' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(api.fetchArticleList).not.toHaveBeenCalled();
+    expect(wrapper.vm.article.title).toBe('Title 1');
+  });
+
+  it('fetches a deep-linked article itself instead of using list bodies', async () => {
+    mockRoute.path = '/2';
+    mockRoute.params = { id: '2' };
+    vi.stubGlobal('location', { ...window.location, pathname: '/blog/2' });
+    api.fetchArticleTitles.mockResolvedValue({ ids: ['1', '2'], titles: { 1: 'Title 1', 2: 'Title 2' } });
+    api.fetchArticleList.mockResolvedValue({
+      ids: ['1', '2'],
+      article_cache: [{ id: '2', title: 'Title 2', markdown: 'From the list' }]
+    });
+    api.fetchArticle.mockResolvedValue({ id: '2', title: 'Title 2', markdown: 'Fetched directly' });
+
+    wrapper = mount(TestComponent);
+    await flushPromises();
+
+    expect(api.fetchArticleList).not.toHaveBeenCalled();
+    expect(api.fetchArticle).toHaveBeenCalledWith('2');
+    expect(wrapper.vm.article.markdown).toBe('Fetched directly');
+
+    // Leave the titles mock rejecting, as the tests below assume:
+    // mock implementations survive vi.clearAllMocks in this file,
+    // and the fallback test above is what set that state.
+    api.fetchArticleTitles.mockRejectedValue(new Error('Titles Error'));
+  });
+
   it('handles error on mount', async () => {
     api.fetchArticleList.mockRejectedValue(new Error('List Error'));
 
@@ -566,10 +602,10 @@ describe('useBlog composable', () => {
         ]
       })
     );
-    let resolveList;
-    api.fetchArticleList.mockReturnValue(
+    let resolveTitles;
+    api.fetchArticleTitles.mockReturnValue(
       new Promise((resolve) => {
-        resolveList = resolve;
+        resolveTitles = resolve;
       })
     );
     api.fetchArticle.mockImplementation(async (id) => ({
@@ -582,21 +618,29 @@ describe('useBlog composable', () => {
     await flushPromises();
 
     // Rendered from storage without waiting for the network list, while a
-    // background refresh is in flight.
+    // background refresh is in flight. The refresh comes from the titles
+    // response now; the full list is never fetched.
     expect(wrapper.vm.article.title).toBe('Stored Title');
-    expect(api.fetchArticleList).toHaveBeenCalledTimes(1);
+    expect(api.fetchArticleTitles).toHaveBeenCalledTimes(1);
+    expect(api.fetchArticleList).not.toHaveBeenCalled();
 
-    resolveList({
+    resolveTitles({
       ids: ['1', '2'],
-      article_cache: [
-        { id: '1', title: 'Fresh Title', markdown: 'Fresh Content' }
-      ]
+      titles: { 1: 'Stored Title', 2: 'Title 2' }
     });
     await flushPromises();
 
-    expect(wrapper.vm.article.title).toBe('Fresh Title');
+    // The refresh carries no article bodies, so the displayed article
+    // keeps the stored body; the persisted list is rewritten in the
+    // light shape (no bodies) for the next visit.
+    expect(wrapper.vm.article.title).toBe('Stored Title');
     const stored = JSON.parse(localStorage.getItem('blog:list-cache:v1'));
-    expect(stored.article_cache[0].title).toBe('Fresh Title');
+    expect(stored.ids).toEqual(['1', '2']);
+    expect(stored.article_cache).toEqual([]);
+
+    // Leave the titles mock rejecting for the tests below (see the
+    // note on mock implementations surviving vi.clearAllMocks).
+    api.fetchArticleTitles.mockRejectedValue(new Error('Titles Error'));
   });
 
   it('ignores a corrupt persisted list and loads from the network', async () => {
@@ -655,9 +699,10 @@ describe('useBlog composable', () => {
       'blog:list-cache:v1',
       JSON.stringify({ ids: ['1', '2'], article_cache: [] })
     );
-    api.fetchArticleList.mockResolvedValue({
+    // The fresh list comes from the titles response now.
+    api.fetchArticleTitles.mockResolvedValue({
       ids: ['9', '1', '2'],
-      article_cache: []
+      titles: { 9: 'Title 9', 1: 'Title 1', 2: 'Title 2' }
     });
     // The API answers a document outside the blog folder with an
     // error payload rather than a failed request, so a gone article
@@ -680,6 +725,10 @@ describe('useBlog composable', () => {
       name: 'post',
       params: { id: '9' }
     });
+
+    // Leave the titles mock rejecting for the tests below (see the
+    // note on mock implementations surviving vi.clearAllMocks).
+    api.fetchArticleTitles.mockRejectedValue(new Error('Titles Error'));
   });
 
   it('loads a former special article as a normal article', async () => {
