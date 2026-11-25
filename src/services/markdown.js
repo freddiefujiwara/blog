@@ -1,6 +1,28 @@
 import { marked } from 'marked';
 import { DEFAULT_LANG, isSupportedLang, t } from './i18n.js';
 
+// marked strikes text wrapped in a single pair of tildes (~text~),
+// not only the double-tilde form (~~text~~). Japanese articles use
+// the wave dash (～…～) to wrap phrases and to write ranges, and the
+// machine translation renders it as a half-width tilde, so translated
+// articles ended up with struck-through passages the author never
+// marked for deletion. Require the double-tilde form for <del> so a
+// lone ~ stays the plain character it is in the source text.
+marked.use({
+  tokenizer: {
+    del(src) {
+      const match = /^~~(?=[^\s~])((?:\\[\s\S]|[^\\])*?(?:\\[\s\S]|[^\s~\\]))~~/.exec(src);
+      if (!match) return undefined;
+      return {
+        type: 'del',
+        raw: match[0],
+        text: match[1],
+        tokens: this.lexer.inlineTokens(match[1]),
+      };
+    },
+  },
+});
+
 // Hashes a text into a short ASCII id (FNV-1a, 32-bit). The text
 // itself is not used as the id: non-ASCII fragments do not scroll
 // reliably in every browser (notably Safari/WebKit), so the id stays
