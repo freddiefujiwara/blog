@@ -39,6 +39,34 @@ describe('renderMarkdown', () => {
   });
 });
 
+describe('renderMarkdown tildes', () => {
+  it('does not strike text wrapped in a single pair of tildes', () => {
+    // Translations render the Japanese wave dash (～…～) as ~...~;
+    // the wrapped phrase must stay plain text, not a deletion.
+    const html = renderMarkdown('Japanese Language Class ~Would you like to become a volunteer?~');
+    expect(html).not.toContain('<del>');
+    expect(html).toContain('~Would you like to become a volunteer?~');
+  });
+
+  it('does not strike text between two range tildes on one line', () => {
+    const html = renderMarkdown('9:00~12:00 と 13:00~17:00');
+    expect(html).not.toContain('<del>');
+    expect(html).toContain('9:00~12:00');
+    expect(html).toContain('13:00~17:00');
+  });
+
+  it('still strikes text wrapped in double tildes', () => {
+    const html = renderMarkdown('~~取り消し~~');
+    expect(html).toContain('<del>取り消し</del>');
+  });
+
+  it('leaves tildes inside code spans and link destinations untouched', () => {
+    const html = renderMarkdown('`~a~` と [x](https://example.com/~user)');
+    expect(html).toContain('<code>~a~</code>');
+    expect(html).toContain('href="https://example.com/~user"');
+  });
+});
+
 describe('renderMarkdown anchor markers', () => {
   it('anchors the title above an [[アンカーリンク]] marker and replaces the marker with a link line', () => {
     const html = renderMarkdown('![イラスト](https://example.com/a.jpg)\n\n**沖縄に長期滞在したい**\n\n目標：50歳台\n\n[[アンカーリンク]]\n\nメモです。');
