@@ -96,15 +96,14 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import TitleSearch from './components/TitleSearch.vue';
 import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
 import { blogHomeUrl, contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t, topPageUrl } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
-import { exchangeSession, getSessionToken, renderGoogleSignInButton } from './services/auth';
-import { isStagingBuild } from './staging-banner';
+import { AuthRequiredError, exchangeSession, renderGoogleSignInButton } from './services/auth';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
@@ -193,11 +192,12 @@ const tagIndex = computed(() =>
 // feeds the hero link, the title search and the tag index. Primed
 // from the list cached on the previous visit (per language) so the
 // search is usable immediately; the fetch refreshes it.
-// Staging sign-in gate: staging builds without a stored session
-// show the sign-in panel instead of the article layout, and no
-// article data is fetched until a session exists. Production
-// builds never enter this state.
-const showLogin = ref(isStagingBuild() && !getSessionToken());
+// Staging sign-in gate: the staging backend refuses reads without
+// a session, so the first data load answers "unauthorized" and the
+// gate below replaces the article layout (the same call-then-gate
+// flow as the other auth-gated apps). Production builds never
+// enter this state: their backend answers normally.
+const showLogin = ref(false);
 const signInButton = ref(null);
 const signInError = ref('');
 
@@ -221,10 +221,15 @@ const startSignIn = async () => {
   }
 };
 
-const loadTitles = async () => {
-  if (showLogin.value) {
-    return;
+// The sign-in button only exists once the gate is shown; render it
+// as soon as the gate replaces the layout.
+watch(showLogin, (visible) => {
+  if (visible) {
+    nextTick(() => startSignIn());
   }
+});
+
+const loadTitles = async () => {
   const lang = contentLang.value;
   const cached = loadCachedList(lang);
   if (cached?.ids?.length) {
@@ -243,7 +248,13 @@ const loadTitles = async () => {
     searchableArticles.value = buildSearchableArticles(data);
     tagsMap.value = mergeTagsMaps(tagsMap.value, extractTagsMap(data));
     searchState.value = 'ready';
-  } catch {
+  } catch (error) {
+    // An unauthorized answer means there is no (valid) session:
+    // switch to the sign-in gate instead of reporting a failure.
+    if (error instanceof AuthRequiredError) {
+      showLogin.value = true;
+      return;
+    }
     // If the fetch fails, primed data (when there is any) keeps the
     // search working; without it the search reports the failure
     // instead of pretending there are no hits. The hero falls back
@@ -263,7 +274,6 @@ onMounted(async () => {
     }
   });
   loadTitles();
-  startSignIn();
 });
 
 // A language switch changes the URL prefix; the search, tag index
