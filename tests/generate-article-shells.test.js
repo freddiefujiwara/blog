@@ -308,6 +308,15 @@ await expect(fetchArticleItems(API, fetchImpl)).rejects.toThrow(/Article list fe
 });
 
 describe('generateArticleShells', () => {
+it('ステージングでは記事別シェルを作らず、APIも呼ばない', async () => {
+const fetchImpl = vi.fn();
+const result = await generateArticleShells(
+{ distDir: 'unused', apiUrl: API, baseUrl: 'https://freddiefujiwara.com/blog/staging/'},
+{ fetchImpl, log: () => {}}
+);
+expect(result).toEqual({ count: 0, fallbacks: 0});
+expect(fetchImpl).not.toHaveBeenCalled();
+});
 let dir;
 beforeEach(async () => {
 dir = await mkdtemp(join(tmpdir(), 'shells-'));
