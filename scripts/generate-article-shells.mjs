@@ -264,6 +264,16 @@ export const generateArticleShells = async (
 { distDir, apiUrl, baseUrl, allowEmpty = false},
 { fetchImpl = fetch, log = console.log} = {}
 ) => {
+// Staging builds get no per-article shells: the staging site sits
+// behind Google sign-in, and a shell is a static file whose title
+// and description anyone with the URL could read. The staging SPA
+// boots through the generic shell, like articles beyond the cap
+// do, and skipping the fetch also keeps the build independent of
+// the (now authenticated) staging backend.
+if (baseUrl.includes('/staging/')) {
+log('Staging build; per-article shells are skipped');
+return { count: 0, fallbacks: 0};
+}
 const items = await fetchArticleItems(apiUrl, fetchImpl);
 if (items.length === 0) {
 if (!allowEmpty) {
