@@ -4,7 +4,7 @@ import { reactive } from 'vue';
 import LanguageSwitcher from '../../src/components/LanguageSwitcher.vue';
 import { LANGUAGE_STORAGE_KEY, LEGACY_LANGUAGE_STORAGE_KEY, applyRouteLang, currentLang, initLang, routeLang, setLang } from '../../src/services/i18n';
 
-const mockRoute = reactive({ path: '/' });
+const mockRoute = reactive({ path: '/', query: {}, hash: '' });
 const mockRouter = { push: vi.fn() };
 vi.mock('vue-router', () => ({
   useRoute: () => mockRoute,
@@ -20,6 +20,8 @@ describe('LanguageSwitcher', () => {
     setLang('ja');
     localStorage.clear();
     mockRoute.path = '/';
+    mockRoute.query = {};
+    mockRoute.hash = '';
   });
 
   afterEach(() => {
@@ -78,16 +80,16 @@ describe('LanguageSwitcher', () => {
     const buttons = wrapper.findAll('.lang-switch-button');
 
     await buttons[1].trigger('click');
-    expect(mockRouter.push).toHaveBeenCalledWith('/en/some-article');
+    expect(mockRouter.push).toHaveBeenCalledWith({ path: '/en/some-article', query: {}, hash: '' });
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en');
 
     mockRoute.path = '/en/some-article';
     await buttons[2].trigger('click');
-    expect(mockRouter.push).toHaveBeenCalledWith('/zh/some-article');
+    expect(mockRouter.push).toHaveBeenCalledWith({ path: '/zh/some-article', query: {}, hash: '' });
 
     mockRoute.path = '/zh/some-article';
     await buttons[0].trigger('click');
-    expect(mockRouter.push).toHaveBeenCalledWith('/some-article');
+    expect(mockRouter.push).toHaveBeenCalledWith({ path: '/some-article', query: {}, hash: '' });
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ja');
   });
 
@@ -97,11 +99,11 @@ describe('LanguageSwitcher', () => {
 
     mockRoute.path = '/';
     await buttons[1].trigger('click');
-    expect(mockRouter.push).toHaveBeenCalledWith('/en');
+    expect(mockRouter.push).toHaveBeenCalledWith({ path: '/en', query: {}, hash: '' });
 
     mockRoute.path = '/en/tag/%E9%81%8B%E5%96%B6';
     await buttons[0].trigger('click');
-    expect(mockRouter.push).toHaveBeenCalledWith('/tag/%E9%81%8B%E5%96%B6');
+    expect(mockRouter.push).toHaveBeenCalledWith({ path: '/tag/%E9%81%8B%E5%96%B6', query: {}, hash: '' });
   });
 
   it('does not navigate when the chosen language is the current URL language', async () => {
@@ -114,6 +116,21 @@ describe('LanguageSwitcher', () => {
     await buttons[0].trigger('click');
     expect(mockRouter.push).not.toHaveBeenCalled();
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('ja');
+  });
+
+  it('keeps the query and heading fragment when returning to Japanese', async () => {
+    mockRoute.path = '/en/article-id';
+    mockRoute.query = { ref: 'archive', tag: ['qa', 'blog'] };
+    mockRoute.hash = '#h-3ee89684';
+    const wrapper = mount(LanguageSwitcher);
+
+    await wrapper.findAll('.lang-switch-button')[0].trigger('click');
+
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      path: '/article-id',
+      query: { ref: 'archive', tag: ['qa', 'blog'] },
+      hash: '#h-3ee89684'
+    });
   });
 
   it('marks the URL language as active on a translated page', () => {
