@@ -21,7 +21,12 @@
         <h1><span class="h1-name">{{ t('siteName') }}</span><span class="h1-sep" aria-hidden="true">｜</span><span class="h1-role">{{ t('siteRole') }}</span></h1>
       </router-link>
     </header>
-    <div class="layout" :class="{ 'layout--article': isArticleLayout }">
+    <div v-if="showLogin" class="login-gate">
+      <p>{{ t('signInRequired') }}</p>
+      <div ref="signInButton" class="login-button"></div>
+      <p v-if="signInError" class="login-error">{{ signInError }}</p>
+    </div>
+    <div v-else class="layout" :class="{ 'layout--article': isArticleLayout }">
       <div class="list-search">
         <TitleSearch :articles="searchableArticles" :state="searchState" />
       </div>
@@ -98,6 +103,8 @@ import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
 import { blogHomeUrl, contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t, topPageUrl } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
+import { exchangeSession, getSessionToken, renderGoogleSignInButton } from './services/auth';
+import { isStagingBuild } from './staging-banner';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
@@ -186,7 +193,38 @@ const tagIndex = computed(() =>
 // feeds the hero link, the title search and the tag index. Primed
 // from the list cached on the previous visit (per language) so the
 // search is usable immediately; the fetch refreshes it.
+// Staging sign-in gate: staging builds without a stored session
+// show the sign-in panel instead of the article layout, and no
+// article data is fetched until a session exists. Production
+// builds never enter this state.
+const showLogin = ref(isStagingBuild() && !getSessionToken());
+const signInButton = ref(null);
+const signInError = ref('');
+
+const startSignIn = async () => {
+  if (!showLogin.value || !signInButton.value) {
+    return;
+  }
+  try {
+    await renderGoogleSignInButton(signInButton.value, async (credential) => {
+      try {
+        await exchangeSession(credential);
+        signInError.value = '';
+        showLogin.value = false;
+        loadTitles();
+      } catch {
+        signInError.value = t('signInFailed');
+      }
+    });
+  } catch {
+    signInError.value = t('signInFailed');
+  }
+};
+
 const loadTitles = async () => {
+  if (showLogin.value) {
+    return;
+  }
   const lang = contentLang.value;
   const cached = loadCachedList(lang);
   if (cached?.ids?.length) {
@@ -225,6 +263,7 @@ onMounted(async () => {
     }
   });
   loadTitles();
+  startSignIn();
 });
 
 // A language switch changes the URL prefix; the search, tag index

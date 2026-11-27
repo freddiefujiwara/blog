@@ -3,6 +3,16 @@ import { API_MAX_ATTEMPTS, API_TIMEOUT_MS, buildSearchableArticles, fetchArticle
 
 const fetchOptions = () => expect.objectContaining({ signal: expect.any(AbortSignal) });
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../../src/constants';
+import { AuthRequiredError } from '../../src/services/auth';
+import { isStagingBuild } from '../../src/staging-banner';
+
+vi.mock('../../src/staging-banner', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    isStagingBuild: vi.fn(actual.isStagingBuild)
+  };
+});
 
 describe('api service', () => {
   beforeEach(() => {
@@ -385,6 +395,39 @@ describe('api service', () => {
         article_cache: []
       };
       expect(buildSearchableArticles(data)).toEqual([{ id: '1', title: 'Title 1' }]);
+    });
+  });
+
+  describe('staging auth', () => {
+    beforeEach(() => {
+      localStorage.clear();
+      vi.mocked(isStagingBuild).mockReset();
+      vi.mocked(isStagingBuild).mockImplementation(() => true);
+    });
+
+    it('sends the stored session token with blog-gas requests', async () => {
+      localStorage.setItem('blog:session:v1:staging', 'sess9');
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: '1', title: 'Test', markdown: 'Content' })
+      });
+
+      await fetchArticle('1');
+      expect(fetch).toHaveBeenCalledWith(
+        `${LIST_ENDPOINT}?id=1&session_token=sess9`,
+        fetchOptions()
+      );
+    });
+
+    it('turns an unauthorized payload into AuthRequiredError and clears the session', async () => {
+      localStorage.setItem('blog:session:v1:staging', 'sess9');
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ error: 'unauthorized' })
+      });
+
+      await expect(fetchArticle('1')).rejects.toBeInstanceOf(AuthRequiredError);
+      expect(localStorage.getItem('blog:session:v1:staging')).toBeNull();
     });
   });
 });
