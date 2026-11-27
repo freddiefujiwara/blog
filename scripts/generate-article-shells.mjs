@@ -42,14 +42,29 @@
 // article cross-links the existing ones with hreflang alternates
 // (x-default points at the Japanese URL).
 
+import { createHash} from 'node:crypto';
 import { mkdir, readFile, writeFile} from 'node:fs/promises';
-import { join} from 'node:path';
+import { basename, join} from 'node:path';
 import { pathToFileURL} from 'node:url';
 
 export const OGP_IMAGE_API_URL =
 'https://script.google.com/macros/s/AKfycbzbMAKxkzHlwN8SY7ygJA34xYESMNNdkGNt8vv1XMcZSksgHsUwOxCCdP-wgg6fv7M/exec';
 
 const IMAGE_CONCURRENCY = 4;
+const IMAGE_MANIFEST = 'render-manifest.json';
+const PNG_SIGNATURE = Buffer.from('89504e470d0a1a0a', 'hex');
+const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+const isPng = (bytes) => bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
+
+const readImageManifest = async (dir) => {
+if (!dir) return {};
+try {
+const entries = JSON.parse(await readFile(join(dir, IMAGE_MANIFEST), 'utf8'));
+return entries && typeof entries === 'object' && !Array.isArray(entries)? entries: {};
+} catch {
+return {};
+}
+};
 
 // Languages that get translated shells next to the Japanese ones. `code`
 // is the blog-gas lang parameter and the URL path segment, `htmlLang` the
@@ -261,7 +276,7 @@ return null;
 };
 
 export const generateArticleShells = async (
-{ distDir, apiUrl, baseUrl, allowEmpty = false},
+{ distDir, apiUrl, baseUrl, allowEmpty = false, previousOgpDir, rendererVersion = 'v1'},
 { fetchImpl = fetch, log = console.log} = {}
 ) => {
 // Staging builds get no per-article shells: the staging site sits
@@ -287,6 +302,31 @@ const template = await readFile(join(distDir, 'index.html'), 'utf8');
 const ogpDir = join(distDir, 'ogp');
 await mkdir(ogpDir, { recursive: true});
 
+const previousImages = await readImageManifest(previousOgpDir);
+const savedImages = new Map();
+let reusedImages = 0;
+const writeArticleImage = async (filename, title) => {
+const renderText = stripLeadingDate(title);
+const renderKey = sha256(JSON.stringify([OGP_IMAGE_API_URL, rendererVersion, renderText]));
+let png;
+const previous = previousImages[filename];
+if (previousOgpDir && basename(filename) === filename && previous?.renderKey === renderKey) {
+try {
+const bytes = await readFile(join(previousOgpDir, filename));
+if (isPng(bytes) && sha256(bytes) === previous.pngHash) png = bytes;
+} catch {
+// Missing or unreadable cache entries are ordinary cache misses.
+}
+}
+const reused = Boolean(png);
+if (!png) png = await fetchOgpImage(renderText, fetchImpl);
+await writeFile(join(ogpDir, filename), png);
+if (reused) reusedImages++;
+if (previousOgpDir && isPng(png)) {
+savedImages.set(filename, { renderKey, pngHash: sha256(png)});
+}
+};
+
 // Translated titles per language up front (one request each). A language
 // whose titles cannot be loaded is skipped for the whole run — this is
 // the expected state until blog-gas's lang support is deployed.
@@ -305,8 +345,7 @@ const langCounts = new Map(SHELL_LANGUAGES.map((lang) => [lang.code, 0]));
 await mapWithConcurrency(items, IMAGE_CONCURRENCY, async (item) => {
 let imageUrl = `${baseUrl}ogp/${item.id}.png`;
 try {
-const png = await fetchOgpImage(stripLeadingDate(item.title), fetchImpl);
-await writeFile(join(ogpDir, `${item.id}.png`), png);
+await writeArticleImage(`${item.id}.png`, item.title);
 } catch (err) {
 // One bad image must not sink the whole deploy: fall back to the
 // site-wide OGP image for this article.
@@ -330,8 +369,7 @@ const art = await fetchTranslatedArticle(apiUrl, item.id, lang.code, fetchImpl);
 if (!art || art.markdown === item.markdown) continue;
 let langImageUrl = `${baseUrl}ogp/${item.id}.${lang.code}.png`;
 try {
-const png = await fetchOgpImage(stripLeadingDate(translatedTitle), fetchImpl);
-await writeFile(join(ogpDir, `${item.id}.${lang.code}.png`), png);
+await writeArticleImage(`${item.id}.${lang.code}.png`, translatedTitle);
 } catch (err) {
 fallbacks++;
 log(
@@ -389,6 +427,11 @@ langCounts.set(v.lang.code, langCounts.get(v.lang.code) + 1);
 }
 });
 
+if (previousOgpDir) {
+const entries = Object.fromEntries([...savedImages.keys()].sort().map((key) => [key, savedImages.get(key)]));
+await writeFile(join(ogpDir, IMAGE_MANIFEST), JSON.stringify(entries) + '\n');
+log(`Reused ${reusedImages} article OGP images`);
+}
 log(`Generated ${items.length} article shells (${fallbacks} image fallbacks)`);
 for (const lang of SHELL_LANGUAGES) {
 if (langTitles.has(lang.code)) {
@@ -409,7 +452,14 @@ console.error(
 );
 process.exit(1);
 }
-generateArticleShells({ distDir, apiUrl, baseUrl, allowEmpty}).catch((err) => {
+generateArticleShells({
+distDir,
+apiUrl,
+baseUrl,
+allowEmpty,
+previousOgpDir: process.env.BLOG_PREVIOUS_OGP_DIR,
+rendererVersion: process.env.BLOG_OGP_RENDERER_VERSION || 'v1'
+}).catch((err) => {
 console.error(err.message);
 process.exit(1);
 });
