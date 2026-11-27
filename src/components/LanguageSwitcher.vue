@@ -37,7 +37,7 @@ const choose = (lang) => {
   setLang(lang);
   const target = localizedPath(route.path, lang);
   if (target !== route.path) {
-    router.push(target);
+    router.push({ path: target, query: route.query, hash: route.hash });
   }
 };
 </script>
