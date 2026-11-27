@@ -1,5 +1,6 @@
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../constants';
 import { isStagingBuild } from '../staging-banner';
+import { AuthRequiredError, clearSessionToken, withSessionToken } from './auth';
 import { t } from './i18n';
 
 // The GAS web app sometimes drops a request before the code runs
@@ -36,10 +37,13 @@ const fetchOnce = async (url) => {
 // retrying it cannot help. The final attempt's outcome is what
 // the caller sees (a response to check, or the error thrown).
 export const apiFetch = async (url) => {
+  // Staging builds carry their sign-in session on blog-gas calls;
+  // everywhere else this returns the URL unchanged.
+  const authedUrl = withSessionToken(url);
   let lastError = null;
   for (let attempt = 0; attempt < API_MAX_ATTEMPTS; attempt += 1) {
     try {
-      const response = await fetchOnce(url);
+      const response = await fetchOnce(authedUrl);
       // Real Responses always carry a numeric status; the ok
       // fallback only matters for hand-rolled response doubles.
       const retryable = typeof response?.status === 'number' ? response.status >= 500 : !response?.ok;
@@ -67,13 +71,21 @@ export const fetchRSS = async () => {
 };
 
 // Fetches a JSON response, turning a non-OK status into an error
-// with the caller's message.
+// with the caller's message. The staging backend answers a missing
+// or expired session with an "unauthorized" payload (GAS cannot
+// send a real 401); that clears the stored session and surfaces as
+// an AuthRequiredError so the sign-in gate can take over.
 const fetchJson = async (url, failureMessage) => {
   const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(failureMessage);
   }
-  return response.json();
+  const data = await response.json();
+  if (data && data.error === 'unauthorized') {
+    clearSessionToken();
+    throw new AuthRequiredError();
+  }
+  return data;
 };
 
 // The translated variants of the API take a lang parameter

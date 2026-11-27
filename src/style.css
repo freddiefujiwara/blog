@@ -68,6 +68,26 @@ body {
   padding: 28px 20px 56px;
 }
 
+/* Staging sign-in gate (App.vue): replaces the layout until a
+   session exists. Never rendered by production builds. */
+.login-gate {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 48px 20px 56px;
+  text-align: center;
+}
+
+.login-button {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.login-error {
+  margin-top: 16px;
+  color: var(--primary);
+}
+
 .layout > * {
   min-width: 0;
 }

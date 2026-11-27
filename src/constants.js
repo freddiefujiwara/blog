@@ -9,6 +9,11 @@ export const RSS_ENDPOINT = `${LIST_ENDPOINT}?o=rss`;
 export const MUSIC_ENDPOINT =
   import.meta.env.VITE_MUSIC_GAS_ENDPOINT ??
   'https://script.google.com/macros/s/AKfycbzhGqDJUY9qoyHx81sUiV2SSBAR1XzMQxdnqx-guYpIwhHikt8WlaN21PHcL9NkJA-Mbg/exec';
+// Google OAuth client ID for the staging sign-in. Client IDs are
+// public (the same one ships in the other apps' bundles); only
+// staging builds use it, production never signs anyone in.
+export const GOOGLE_OAUTH_CLIENT_ID =
+  '728154182351-5ribj1diqcp8jpfo3rnqk9rei1aka98t.apps.googleusercontent.com';
 // Placeholder for link-card images that fail to load (the same image
 // the possessions list front-end falls back to).
 export const LINK_CARD_FALLBACK_IMAGE =
