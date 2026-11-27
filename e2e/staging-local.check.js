@@ -18,7 +18,7 @@ test("the branch preview keeps the sign-in gate and never reads production", asy
   });
   const response = await page.goto("/blog/staging/");
   expect(response?.status()).toBe(200);
-  await expect(page.getByText("STAGING")).toBeVisible();
+  await expect(page.getByText("STAGING｜", { exact: true })).toBeVisible();
   await expect(page.locator(".login-gate")).toBeVisible();
   await expect(page.locator(".layout")).toHaveCount(0);
   expect(requests.every((url) => url.startsWith(execUrl(GAS.blog.staging)))).toBe(true);
