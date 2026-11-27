@@ -6,8 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: read
+  contents: read
 
 concurrency:
   group: staging-preview
@@ -16,8 +15,6 @@ concurrency:
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
-    outputs:
-      pages-mode: ${{ steps.pages-source.outputs.mode }}
     steps:
       - uses: actions/checkout@v7
 
@@ -42,17 +39,29 @@ jobs:
       - name: Generate article shells (staging)
         run: node scripts/generate-article-shells.mjs dist-staging "https://script.google.com/macros/s/AKfycbxjBvowI9VBP4wIn_OpGolXW-pVZxKhigby68gGuplNGdyYPcn9GEcFYZhPzGJ9ipJK/exec" https://freddiefujiwara.com/blog/staging/ --allow-empty
 
-      - name: Detect Pages publishing source
-        id: pages-source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mode="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type)"
-          case "$mode" in legacy|workflow) ;; *) exit 1 ;; esac
-          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+      - name: Upload the branch preview bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: blog-staging-preview
+          path: dist-staging
+          retention-days: 7
 
-      - name: Install Chromium for the branch preview check
-        run: npx playwright install --with-deps chromium
+  e2e:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download the branch preview bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: blog-staging-preview
+          path: dist-staging
 
       - name: Verify the staging build locally
         run: |
@@ -64,44 +73,6 @@ jobs:
             sleep 1
           done
           BLOG_LOCAL_STAGING=1 npx playwright test e2e/staging-local.check.js
-
-      - name: Upload the branch preview bundle
-        if: steps.pages-source.outputs.mode == 'workflow'
-        uses: actions/upload-artifact@v7
-        with:
-          name: blog-staging-preview
-          path: dist-staging
-          retention-days: 7
-
-      - name: Deploy staging preview to GitHub Pages
-        if: steps.pages-source.outputs.mode == 'legacy'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist-staging
-          destination_dir: staging
-          keep_files: true
-
-  e2e:
-    needs: deploy-staging
-    if: needs.deploy-staging.outputs.pages-mode == 'legacy'
-    runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Wait for GitHub Pages to publish the preview
-        run: sleep 60
-
-      - name: Run staging checks
-        env:
-          APP: blog
-          HOME: /root
-        run: npx playwright test e2e/staging.check.js
 
       - name: Upload traces on failure
         if: failure()
