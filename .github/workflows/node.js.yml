@@ -44,6 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # Bump this repository variable after deploying a new OGP renderer design.
+      BLOG_OGP_RENDERER_VERSION: ${{ vars.BLOG_OGP_RENDERER_VERSION }}
 
     strategy:
       matrix:
@@ -68,6 +71,16 @@ jobs:
           JSON_RESPONSE=$(curl -L -s "https://script.google.com/macros/s/AKfycbzbMAKxkzHlwN8SY7ygJA34xYESMNNdkGNt8vv1XMcZSksgHsUwOxCCdP-wgg6fv7M/exec?t=%E3%83%96%E3%83%AD%E3%82%B0")
           echo $JSON_RESPONSE | jq -r '.png' | base64 -d > ./dist/ogp.png
           ls -lh ./dist/ogp.png
+
+      - name: Restore previous article images
+        run: |
+          previous="$RUNNER_TEMP/blog-previous-ogp"
+          mkdir -p "$previous"
+          if git fetch --no-tags --depth=1 origin refs/heads/gh-pages &&
+             git cat-file -e FETCH_HEAD:ogp; then
+            git archive FETCH_HEAD ogp | tar -x -C "$previous" || echo "Previous OGP cache unavailable"
+          fi
+          printf 'BLOG_PREVIOUS_OGP_DIR=%s/ogp\n' "$previous" >> "$GITHUB_ENV"
 
       - name: Generate article shells
         run: node scripts/generate-article-shells.mjs dist "https://script.google.com/macros/s/AKfycbydcnw4yt5K8lz8Wf0PCbG6Q9yD3jf1W2lsGucOor2KII7duJr7qevcMiwNHJTe8GZH/exec" https://freddiefujiwara.com/blog/
