@@ -622,3 +622,60 @@ expect(jaA).toContain('hreflang="en"');
 expect(jaA).toContain('hreflang="zh"');
 });
 });
+
+describe('generateArticleShells（前回のOGP画像を再利用）', () => {
+let dirs;
+beforeEach(() => { dirs = []; });
+afterEach(async () => {
+await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true})));
+});
+
+const API = 'https://example/api/exec';
+const BASE = 'https://freddiefujiwara.com/blog/';
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6wAAAABJRU5ErkJggg==';
+
+const build = async ({ previousOgpDir, rendererVersion, jaTitle = '記事', enTitle = 'Article', body = '前回の本文'} = {}) => {
+const dir = await mkdtemp(join(tmpdir(), 'shells-cache-'));
+dirs.push(dir);
+const { writeFile} = await import('node:fs/promises');
+await writeFile(join(dir, 'index.html'), TEMPLATE);
+const generated = [];
+const fetchImpl = async (url) => {
+if (url === API) {
+return jsonResponse({ ids: ['ID_A'], article_cache: [{ id: 'ID_A', title: jaTitle, markdown: body}]});
+}
+if (url === `${API}?o=titles&lang=en`) return jsonResponse({ titles: { ID_A: enTitle}});
+if (url === `${API}?id=ID_A&lang=en`) return jsonResponse({ title: enTitle, markdown: 'English body'});
+if (url.startsWith(API)) return jsonResponse({}, false, 404);
+generated.push(new URL(url).searchParams.get('t'));
+return jsonResponse({ png: PNG});
+};
+await generateArticleShells(
+{ distDir: dir, apiUrl: API, baseUrl: BASE, previousOgpDir: previousOgpDir?? join(dir, 'no-previous-output'), rendererVersion},
+{ fetchImpl, log: () => {}}
+);
+return { dir, ogpDir: join(dir, 'ogp'), generated};
+};
+
+it('同じ画像を再利用しながら記事HTMLを更新し、変更した言語の画像だけ再生成する', async () => {
+const first = await build();
+expect(first.generated).toEqual(['記事', 'Article']);
+const second = await build({ previousOgpDir: first.ogpDir, body: '更新後の本文'});
+expect(second.generated).toEqual([]);
+expect(await readFile(join(second.ogpDir, 'ID_A.en.png'))).toEqual(Buffer.from(PNG, 'base64'));
+expect(await readFile(join(second.dir, 'ID_A.html'), 'utf8')).toContain('og:description" content="更新後の本文"');
+const renamed = await build({ previousOgpDir: second.ogpDir, enTitle: 'Renamed'});
+expect(renamed.generated).toEqual(['Renamed']);
+});
+
+it('画像が欠損・破損した場合や描画バージョンが変わった場合は再生成する', async () => {
+const first = await build();
+const { writeFile} = await import('node:fs/promises');
+await rm(join(first.ogpDir, 'ID_A.png'));
+await writeFile(join(first.ogpDir, 'ID_A.en.png'), Buffer.concat([Buffer.from(PNG, 'base64'), Buffer.from('changed')]));
+const repaired = await build({ previousOgpDir: first.ogpDir});
+expect(repaired.generated).toEqual(['記事', 'Article']);
+const changed = await build({ previousOgpDir: repaired.ogpDir, rendererVersion: 'v2'});
+expect(changed.generated).toEqual(['記事', 'Article']);
+});
+});
