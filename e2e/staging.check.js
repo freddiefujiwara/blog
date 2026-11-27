@@ -20,7 +20,10 @@ for (const app of targets) {
     });
     const resp = await page.goto(stagingPath(app));
     expect(resp.status()).toBe(200);
-    await expect(page.getByText("STAGING")).toBeVisible();
+    const banner = app.name === "blog"
+      ? page.getByText("STAGING｜", { exact: true })
+      : page.getByText("STAGING");
+    await expect(banner).toBeVisible();
     if (app.gas) {
       const ids = GAS[app.gas];
       if (app.dataOnLoad) {
