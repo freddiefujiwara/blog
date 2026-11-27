@@ -79,7 +79,7 @@ describe('App', () => {
     expect(wrapper.find('.footer-link a').attributes('href')).toBe('/blog/latest-id');
   });
 
-  it('groups the 26 footer links under 5 headings', async () => {
+  it('groups the 27 footer links under 5 headings', async () => {
     const wrapper = mount(App, {
       global: {
         plugins: [router]
@@ -95,8 +95,8 @@ describe('App', () => {
       'プロフィール・その他',
       '自作ツール'
     ]);
-    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 4, 4, 6, 8]);
-    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(26);
+    expect(groups.map((g) => g.findAll('.foot-links a').length)).toEqual([4, 5, 4, 6, 8]);
+    expect(wrapper.findAll('.site-footer .foot-links a')).toHaveLength(27);
   });
 
   it('renders the language switcher in the footer, not in the header nav', async () => {
