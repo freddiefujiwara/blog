@@ -1,10 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
   AuthRequiredError,
+  captureShareTokenFromUrl,
   clearSessionToken,
+  clearShareToken,
   exchangeSession,
   getSessionToken,
+  getShareToken,
   storeSessionToken,
+  storeShareToken,
   withSessionToken
 } from '../../src/services/auth';
 import { LIST_ENDPOINT, MUSIC_ENDPOINT } from '../../src/constants';
@@ -72,6 +76,46 @@ describe('auth service (staging sign-in)', () => {
     expect(fetch).toHaveBeenCalledWith(
       `${LIST_ENDPOINT}?action=exchange_session&id_token=idtok`
     );
+  });
+
+  it('stores, reads and clears the share token', () => {
+    expect(getShareToken()).toBe('');
+    storeShareToken('share1');
+    expect(getShareToken()).toBe('share1');
+    clearShareToken();
+    expect(getShareToken()).toBe('');
+  });
+
+  it('attaches the share token when there is no session, and prefers the session', () => {
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    storeShareToken('share1');
+    expect(withSessionToken(`${LIST_ENDPOINT}?id=1`)).toBe(
+      `${LIST_ENDPOINT}?id=1&share_token=share1`
+    );
+    storeSessionToken('tok123');
+    expect(withSessionToken(`${LIST_ENDPOINT}?id=1`)).toBe(
+      `${LIST_ENDPOINT}?id=1&session_token=tok123`
+    );
+  });
+
+  it('captures a #share= token from the URL and strips it from the address bar', () => {
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    window.history.replaceState(null, '', '/blog/staging/#share=share1');
+    expect(captureShareTokenFromUrl()).toBe('share1');
+    expect(getShareToken()).toBe('share1');
+    expect(window.location.hash).toBe('');
+    expect(window.location.pathname).toBe('/blog/staging/');
+  });
+
+  it('captures nothing without a share fragment or in production builds', () => {
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    window.history.replaceState(null, '', '/blog/staging/');
+    expect(captureShareTokenFromUrl()).toBe('');
+    window.history.replaceState(null, '', '/blog/staging/#share=share1');
+    vi.mocked(isStagingBuild).mockImplementation(() => false);
+    expect(captureShareTokenFromUrl()).toBe('');
+    expect(getShareToken()).toBe('');
+    window.history.replaceState(null, '', '/blog/staging/');
   });
 
   it('fails the exchange when the backend refuses the ID token', async () => {

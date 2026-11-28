@@ -42,18 +42,79 @@ export const clearSessionToken = () => {
   }
 };
 
-// Attaches the stored session token to blog-gas URLs. Every other
-// URL (the music endpoints, the top site's JSON) passes through
-// untouched, as does everything in production builds.
+// Magic-link access: a staging URL may carry the project's share
+// token as #share=<token> (the same scheme as the other apps'
+// share links). Opening such a link stores the token here, and
+// reads then carry it instead of a session — no sign-in needed on
+// that browser until the token is replaced server-side.
+const SHARE_STORAGE_KEY = 'blog:share:v1:staging';
+
+export const getShareToken = () => {
+  try {
+    return window.localStorage.getItem(SHARE_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+};
+
+export const storeShareToken = (token) => {
+  try {
+    window.localStorage.setItem(SHARE_STORAGE_KEY, token);
+  } catch {
+    // An unstored share token just means opening the link again.
+  }
+};
+
+export const clearShareToken = () => {
+  try {
+    window.localStorage.removeItem(SHARE_STORAGE_KEY);
+  } catch {
+    // Nothing to clear when storage is unavailable.
+  }
+};
+
+// Picks a #share=<token> off the current URL, stores it, and
+// removes it from the address bar so the credential does not sit
+// in the history entry for this page. Returns the captured token
+// ('' when the URL carried none). Staging builds only.
+export const captureShareTokenFromUrl = () => {
+  if (!isStagingBuild()) {
+    return '';
+  }
+  try {
+    const match = /(?:^#|[#&])share=([^&]+)/.exec(window.location.hash || '');
+    if (!match) {
+      return '';
+    }
+    const token = decodeURIComponent(match[1]);
+    storeShareToken(token);
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, '', cleanUrl);
+    return token;
+  } catch {
+    return '';
+  }
+};
+
+// Attaches the stored credential to blog-gas URLs: the session
+// token when signed in, otherwise the share token from a magic
+// link. Every other URL (the music endpoints, the top site's
+// JSON) passes through untouched, as does everything in
+// production builds.
 export const withSessionToken = (url) => {
   if (!isStagingBuild() || typeof url !== 'string' || !url.startsWith(LIST_ENDPOINT)) {
     return url;
   }
+  const separator = url.includes('?') ? '&' : '?';
   const token = getSessionToken();
-  if (!token) {
-    return url;
+  if (token) {
+    return `${url}${separator}session_token=${encodeURIComponent(token)}`;
   }
-  return `${url}${url.includes('?') ? '&' : '?'}session_token=${encodeURIComponent(token)}`;
+  const share = getShareToken();
+  if (share) {
+    return `${url}${separator}share_token=${encodeURIComponent(share)}`;
+  }
+  return url;
 };
 
 // Exchanges a Google ID token (from the sign-in button) for the
