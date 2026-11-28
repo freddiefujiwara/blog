@@ -68,3 +68,79 @@ describe('App staging sign-in gate', () => {
     expect(renderGoogleSignInButton).toHaveBeenCalled();
   });
 });
+
+describe('App staging share-link issuer', () => {
+  let router;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    localStorage.setItem('blog:session:v1:staging', 'sess1');
+    vi.mocked(renderGoogleSignInButton).mockClear();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+      if (url.includes('?o=rss')) {
+        return { ok: true, text: () => Promise.resolve('<rss>content</rss>') };
+      }
+      if (url.includes('action=issue_share')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({
+            share_token: 'share1',
+            expires_at: Date.now() + 30 * 24 * 60 * 60 * 1000
+          })
+        };
+      }
+      if (url.includes('o=titles')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ ids: ['a1'], titles: { a1: 'Article One' }, tags: {} })
+        };
+      }
+      if (url.includes('script.google.com')) {
+        return {
+          ok: true,
+          json: () => Promise.resolve({ id: 'a1', title: 'Article One', markdown: 'Body', tags: [] })
+        };
+      }
+      return { ok: true, json: () => Promise.resolve({}) };
+    }));
+    router = createRouter({
+      history: createMemoryHistory('/blog/staging/'),
+      routes: [
+        { path: '/', component: BlogView },
+        { path: '/tag/:tag', name: 'tag', component: TagView, props: true },
+        { path: '/:id', name: 'post', component: BlogView, props: true }
+      ]
+    });
+    await router.push('/');
+    await router.isReady();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the issuer to a signed-in owner and displays the minted link', async () => {
+    const wrapper = mount(App, { global: { plugins: [router] } });
+    await flushPromises();
+
+    const admin = wrapper.find('.share-admin');
+    expect(admin.exists()).toBe(true);
+    expect(admin.text()).toContain(t('shareLinkTitle'));
+
+    await admin.find('button').trigger('click');
+    await flushPromises();
+
+    const input = wrapper.find('.share-admin-url');
+    expect(input.exists()).toBe(true);
+    expect(input.element.value).toContain('#share=share1');
+    expect(wrapper.find('.share-admin-expires').text()).toContain(t('shareLinkExpires'));
+  });
+
+  it('hides the issuer when there is no session', async () => {
+    localStorage.removeItem('blog:session:v1:staging');
+    const wrapper = mount(App, { global: { plugins: [router] } });
+    await flushPromises();
+
+    expect(wrapper.find('.share-admin').exists()).toBe(false);
+  });
+});

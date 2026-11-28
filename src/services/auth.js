@@ -117,6 +117,32 @@ export const withSessionToken = (url) => {
   return url;
 };
 
+// The share-link issuer is offered only where a magic link can
+// exist at all: staging builds with a live owner session (the
+// backend mints links for sessions, never for share tokens).
+export const canIssueShareLink = () => isStagingBuild() && Boolean(getSessionToken());
+
+// Asks the backend to mint a fresh share token (30 days; minting
+// revokes the previous link) and builds the magic link for it.
+export const issueShareLink = async () => {
+  const session = getSessionToken();
+  if (!session) {
+    throw new AuthRequiredError();
+  }
+  const response = await fetch(
+    `${LIST_ENDPOINT}?action=issue_share&session_token=${encodeURIComponent(session)}`
+  );
+  const data = await response.json();
+  if (!data?.share_token) {
+    throw new Error(t('shareIssueFailed'));
+  }
+  return {
+    token: data.share_token,
+    expiresAt: data.expires_at,
+    url: `${window.location.origin}${import.meta.env.BASE_URL}#share=${encodeURIComponent(data.share_token)}`
+  };
+};
+
 // Exchanges a Google ID token (from the sign-in button) for the
 // 30-day session token blog-gas issues, and stores it.
 export const exchangeSession = async (idToken) => {
