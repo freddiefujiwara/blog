@@ -429,5 +429,20 @@ describe('api service', () => {
       await expect(fetchArticle('1')).rejects.toBeInstanceOf(AuthRequiredError);
       expect(localStorage.getItem('blog:session:v1:staging')).toBeNull();
     });
+
+    it('sends the stored share token when there is no session, and clears it on unauthorized', async () => {
+      localStorage.setItem('blog:share:v1:staging', 'share1');
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ error: 'unauthorized' })
+      });
+
+      await expect(fetchArticle('1')).rejects.toBeInstanceOf(AuthRequiredError);
+      expect(fetch).toHaveBeenCalledWith(
+        `${LIST_ENDPOINT}?id=1&share_token=share1`,
+        fetchOptions()
+      );
+      expect(localStorage.getItem('blog:share:v1:staging')).toBeNull();
+    });
   });
 });

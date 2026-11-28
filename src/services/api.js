@@ -1,6 +1,6 @@
 import { LIST_ENDPOINT, RSS_ENDPOINT } from '../constants';
 import { isStagingBuild } from '../staging-banner';
-import { AuthRequiredError, clearSessionToken, withSessionToken } from './auth';
+import { AuthRequiredError, clearSessionToken, clearShareToken, withSessionToken } from './auth';
 import { t } from './i18n';
 
 // The GAS web app sometimes drops a request before the code runs
@@ -83,6 +83,7 @@ const fetchJson = async (url, failureMessage) => {
   const data = await response.json();
   if (data && data.error === 'unauthorized') {
     clearSessionToken();
+    clearShareToken();
     throw new AuthRequiredError();
   }
   return data;

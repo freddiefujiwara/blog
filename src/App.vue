@@ -104,7 +104,7 @@ import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
 import { blogHomeUrl, contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t, topPageUrl } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
-import { AuthRequiredError, exchangeSession, renderGoogleSignInButton } from './services/auth';
+import { AuthRequiredError, captureShareTokenFromUrl, exchangeSession, renderGoogleSignInButton } from './services/auth';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
@@ -267,6 +267,10 @@ const loadTitles = async () => {
 };
 
 onMounted(async () => {
+  // A magic link (#share=…) stores its token before the first
+  // load, so that load goes out with the share credential and the
+  // sign-in gate never appears.
+  captureShareTokenFromUrl();
   // The play count is independent of the article list: fetch it in
   // parallel and fill the nav in when (and only when) it succeeds.
   fetchMusicPlayCount().then((count) => {
