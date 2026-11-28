@@ -87,6 +87,21 @@
             </div>
           </div>
         </div>
+        <div v-if="shareAdminVisible" class="share-admin">
+          <p class="share-admin-title">{{ t('shareLinkTitle') }}</p>
+          <p class="share-admin-note">{{ t('shareLinkNote') }}</p>
+          <button type="button" class="share-admin-button" :disabled="shareIssuing" @click="issueShare">
+            {{ t('shareLinkIssue') }}
+          </button>
+          <div v-if="shareUrl" class="share-admin-result">
+            <input class="share-admin-url" type="text" readonly :value="shareUrl" @focus="$event.target.select()" />
+            <button type="button" class="share-admin-button" @click="copyShareUrl">
+              {{ shareCopied ? t('shareLinkCopied') : t('shareLinkCopy') }}
+            </button>
+            <p class="share-admin-expires">{{ t('shareLinkExpires') }}: {{ shareExpiresText }}</p>
+          </div>
+          <p v-if="shareError" class="login-error">{{ shareError }}</p>
+        </div>
         <div class="foot-lang">
           <LanguageSwitcher />
         </div>
@@ -104,7 +119,7 @@ import LanguageSwitcher from './components/LanguageSwitcher.vue';
 import TagIndex from './components/TagIndex.vue';
 import { blogHomeUrl, contentLang, currentLang, MESSAGES, SUPPORTED_LANGS, routeLang, t, topPageUrl } from './services/i18n';
 import { buildSearchableArticles, fetchArticleTitles } from './services/api';
-import { AuthRequiredError, captureShareTokenFromUrl, exchangeSession, renderGoogleSignInButton } from './services/auth';
+import { AuthRequiredError, canIssueShareLink, captureShareTokenFromUrl, exchangeSession, issueShareLink, renderGoogleSignInButton } from './services/auth';
 import { buildTagIndex, extractTagsMap, mergeTagsMaps } from './services/tags';
 import { trackNavClick } from './analytics';
 import { loadCachedList } from './services/listCache';
@@ -212,6 +227,7 @@ const startSignIn = async () => {
         await exchangeSession(credential);
         signInError.value = '';
         showLogin.value = false;
+        shareAdminVisible.value = canIssueShareLink();
         loadTitles();
       } catch {
         signInError.value = t('signInFailed');
@@ -229,6 +245,43 @@ watch(showLogin, (visible) => {
     nextTick(() => startSignIn());
   }
 });
+
+// Share-link issuer (staging, signed-in owner only): minting a
+// link shows it here with its expiry; the previous link stops
+// working the moment a new one is minted.
+const shareAdminVisible = ref(false);
+const shareUrl = ref('');
+const shareExpiresText = ref('');
+const shareError = ref('');
+const shareCopied = ref(false);
+const shareIssuing = ref(false);
+
+const issueShare = async () => {
+  shareIssuing.value = true;
+  shareError.value = '';
+  shareCopied.value = false;
+  try {
+    const { url, expiresAt } = await issueShareLink();
+    shareUrl.value = url;
+    shareExpiresText.value = new Date(expiresAt).toLocaleDateString(
+      currentLang.value === 'zh' ? 'zh-CN' : currentLang.value,
+      { year: 'numeric', month: 'numeric', day: 'numeric' }
+    );
+  } catch {
+    shareError.value = t('shareIssueFailed');
+  } finally {
+    shareIssuing.value = false;
+  }
+};
+
+const copyShareUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(shareUrl.value);
+    shareCopied.value = true;
+  } catch {
+    // The URL stays visible in the input for a manual copy.
+  }
+};
 
 const loadTitles = async () => {
   const lang = contentLang.value;
@@ -271,6 +324,7 @@ onMounted(async () => {
   // load, so that load goes out with the share credential and the
   // sign-in gate never appears.
   captureShareTokenFromUrl();
+  shareAdminVisible.value = canIssueShareLink();
   // The play count is independent of the article list: fetch it in
   // parallel and fill the nav in when (and only when) it succeeds.
   fetchMusicPlayCount().then((count) => {

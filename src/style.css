@@ -88,6 +88,60 @@ body {
   color: var(--primary);
 }
 
+/* Share-link issuer (App.vue footer): staging builds with an
+   owner session only. Never rendered by production builds. */
+.share-admin {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.share-admin-title {
+  font-weight: 700;
+}
+
+.share-admin-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.share-admin-button {
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.share-admin-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.share-admin-result {
+  margin-top: 14px;
+}
+
+.share-admin-url {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85em;
+}
+
+.share-admin-expires {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
 .layout > * {
   min-width: 0;
 }

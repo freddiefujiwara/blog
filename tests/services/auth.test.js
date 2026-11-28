@@ -1,12 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
   AuthRequiredError,
+  canIssueShareLink,
   captureShareTokenFromUrl,
   clearSessionToken,
   clearShareToken,
   exchangeSession,
   getSessionToken,
   getShareToken,
+  issueShareLink,
   storeSessionToken,
   storeShareToken,
   withSessionToken
@@ -116,6 +118,44 @@ describe('auth service (staging sign-in)', () => {
     expect(captureShareTokenFromUrl()).toBe('');
     expect(getShareToken()).toBe('');
     window.history.replaceState(null, '', '/blog/staging/');
+  });
+
+  it('offers the share-link issuer only on staging with a session', () => {
+    expect(canIssueShareLink()).toBe(false);
+    vi.mocked(isStagingBuild).mockImplementation(() => true);
+    expect(canIssueShareLink()).toBe(false);
+    storeSessionToken('sess1');
+    expect(canIssueShareLink()).toBe(true);
+  });
+
+  it('issues a share link with the stored session', async () => {
+    storeSessionToken('sess1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ share_token: 'share1', expires_at: 1234567890 })
+      })
+    );
+    const issued = await issueShareLink();
+    expect(issued.token).toBe('share1');
+    expect(issued.expiresAt).toBe(1234567890);
+    expect(issued.url).toContain('#share=share1');
+    expect(fetch).toHaveBeenCalledWith(
+      `${LIST_ENDPOINT}?action=issue_share&session_token=sess1`
+    );
+  });
+
+  it('cannot issue a share link without a session or when the backend refuses', async () => {
+    await expect(issueShareLink()).rejects.toBeInstanceOf(AuthRequiredError);
+    storeSessionToken('sess1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ error: 'unauthorized' })
+      })
+    );
+    await expect(issueShareLink()).rejects.toThrow();
+    expect(getShareToken()).toBe('');
   });
 
   it('fails the exchange when the backend refuses the ID token', async () => {
